@@ -26,7 +26,7 @@ app.use(logger())
 app.use(
   "*",
   cors({
-    origin: env.corsOrigin,
+    origin: "*", // Temporarily allow all origins for testing
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
