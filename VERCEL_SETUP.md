@@ -1,78 +1,66 @@
-# Vercel Setup Instructions
+# Vercel Setup Instructions - UPDATED
 
-## ⚙️ Project Settings Configuration
+## 🎯 Quick Fix: Configure in Vercel UI
 
-You need to configure Vercel to use the `frontend` directory as the root.
+Since you don't see "Root Directory" option, follow these steps:
 
-### In Vercel Dashboard:
+### Method 1: During Import (If Re-importing)
 
-1. Go to your project
-2. Click **Settings**
-3. Go to **General** section
+1. **Delete current Vercel project** (if needed)
+2. **Import again** from GitHub
+3. During import, you'll see **"Root Directory"** option
+4. Click **"Edit"** and select `frontend`
+5. Continue with deployment
 
-### Configure These Settings:
+### Method 2: Use Project Settings (Current Project)
 
-**Root Directory:**
-```
-frontend
-```
-Click "Edit" next to Root Directory and set it to `frontend`
+1. Go to **Vercel Dashboard** → Your Project
+2. Click **Settings** (left sidebar)
+3. Scroll down to find **"Root Directory"** or **"Build & Development Settings"**
+4. Look for an **"Override"** toggle or **"Edit"** button
+5. Set Root Directory to: `frontend`
 
-**Framework Preset:**
-```
-Vite
-```
+### Method 3: Let vercel.json Handle It (Easiest)
 
-**Build Command:**
-```
-npm run build
-```
-(Leave as default)
+I've updated the `vercel.json` file to handle the monorepo structure automatically.
 
-**Output Directory:**
-```
-dist
-```
-(Leave as default)
+**Just do this:**
 
-**Install Command:**
-```
-npm install
-```
-(Leave as default)
+1. Wait for the latest commit to sync (already pushed)
+2. Go to Vercel → **Deployments**
+3. Click **"Redeploy"** on the latest deployment
+4. Vercel will use the new `vercel.json` configuration
 
 ---
 
-## 🌍 Environment Variables
+## 🌍 Add Environment Variable
 
-After configuring the root directory, add this environment variable:
-
-**Go to:** Settings → Environment Variables
+**Go to:** Settings → Environment Variables → Add New
 
 **Add:**
 - Name: `VITE_API_URL`
 - Value: `https://tala-production.up.railway.app`
 - Environments: ✅ Production, ✅ Preview, ✅ Development
 
+Click **Save**
+
 ---
 
 ## 🔄 Redeploy
 
-After making these changes:
+After adding the environment variable:
 
 1. Go to **Deployments** tab
-2. Click **"..."** menu on the latest deployment
-3. Click **"Redeploy"**
-
-The build should now succeed!
+2. Click **"Redeploy"** (it will use the new vercel.json)
 
 ---
 
-## ✅ Expected Result
+## ✅ It Should Work Now!
 
-After successful deployment, you'll get a URL like:
-```
-https://tala-xyz123.vercel.app
-```
+The new `vercel.json` tells Vercel:
+- Install from `frontend` directory
+- Build from `frontend` directory  
+- Output is in `frontend/dist`
 
-Then update Railway `CORS_ORIGIN` with this URL.
+No need to manually set root directory!
+
