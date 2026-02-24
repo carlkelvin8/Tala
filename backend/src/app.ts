@@ -22,10 +22,19 @@ import { ok } from "./lib/response.js"
 export const app = new Hono()
 
 app.use(logger())
-app.use(cors({ origin: env.corsOrigin, credentials: true }))
-app.use(secureHeaders())
 
-// Serve static files for uploads
+app.use(
+  "*",
+  cors({
+    origin: env.corsOrigin,
+    credentials: true,
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  })
+)
+
+app.use("*", secureHeaders())
+
 app.use("/uploads/*", serveStatic({ root: "./" }))
 
 app.get("/", (c) => c.json(ok("NSTP API running")))
@@ -42,5 +51,4 @@ app.route("/api/flights", flightRoutes)
 app.route("/api/reports", reportRoutes)
 app.route("/api/dashboard", dashboardRoutes)
 
-// Error handler should be last
-app.use(errorHandler)
+app.use("*", errorHandler)
