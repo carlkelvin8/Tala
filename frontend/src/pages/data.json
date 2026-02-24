@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "date": "2024-01-15T08:30:00Z",
+    "status": "PRESENT",
+    "notes": "On time"
+  },
+  {
+    "id": 2,
+    "date": "2024-01-15T08:45:00Z",
+    "status": "LATE",
+    "notes": "15 minutes late"
+  },
+  {
+    "id": 3,
+    "date": "2024-01-14T08:30:00Z",
+    "status": "PRESENT",
+    "notes": "On time"
+  },
+  {
+    "id": 4,
+    "date": "2024-01-14T08:30:00Z",
+    "status": "ABSENT",
+    "notes": "No show"
+  },
+  {
+    "id": 5,
+    "date": "2024-01-13T08:30:00Z",
+    "status": "PRESENT",
+    "notes": "On time"
+  }
+]

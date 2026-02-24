@@ -1,0 +1,340 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleType {
+  ADMIN
+  IMPLEMENTOR
+  CADET_OFFICER
+  STUDENT
+}
+
+enum EnrollmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+}
+
+enum MeritType {
+  MERIT
+  DEMERIT
+}
+
+enum MaterialCategory {
+  MODULE
+  LECTURE
+  ANNOUNCEMENT
+  ACTIVITY
+}
+
+enum ExamStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  CLOSED
+}
+
+model User {
+  id           String                 @id @default(uuid())
+  email        String                 @unique
+  passwordHash String
+  role         RoleType
+  isActive     Boolean                @default(true)
+  avatarUrl    String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  deletedAt    DateTime?
+
+  studentProfile     StudentProfile?
+  implementorProfile ImplementorProfile?
+  cadetOfficerProfile CadetOfficerProfile?
+  enrollments        Enrollment[]
+  materials          LearningMaterial[]    @relation("MaterialCreator")
+  attendanceRecords  AttendanceRecord[]
+  studentGrades      StudentGrade[]        @relation("StudentGrades")
+  gradesEncoded      StudentGrade[]        @relation("GradeEncoder")
+  studentMerits      MeritDemerit[]        @relation("StudentMerits")
+  meritsEncoded      MeritDemerit[]        @relation("MeritEncoder")
+  examAttempts       ExamAttempt[]
+  auditLogs          AuditLog[]            @relation("AuditActor")
+
+  @@index([role])
+  @@index([email])
+}
+
+model StudentProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  studentNo    String?
+  firstName    String
+  lastName     String
+  middleName   String?
+  birthDate    DateTime?
+  gender       String?
+  contactNo    String?
+  address      String?
+  sectionId    String?
+  flightId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User    @relation(fields: [userId], references: [id])
+  section  Section? @relation(fields: [sectionId], references: [id])
+  flight   Flight?  @relation(fields: [flightId], references: [id])
+
+  @@index([sectionId])
+  @@index([flightId])
+}
+
+model ImplementorProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  firstName String
+  lastName  String
+  contactNo String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CadetOfficerProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  firstName String
+  lastName  String
+  contactNo String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Enrollment {
+  id         String           @id @default(uuid())
+  userId     String
+  sectionId  String?
+  flightId   String?
+  status     EnrollmentStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+  section Section? @relation(fields: [sectionId], references: [id])
+  flight  Flight?  @relation(fields: [flightId], references: [id])
+
+  @@index([status])
+  @@index([sectionId])
+  @@index([flightId])
+}
+
+model Section {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  name        String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  students    StudentProfile[]
+  enrollments Enrollment[]
+  materials   LearningMaterial[]
+  examSessions ExamSession[]
+
+  @@index([code])
+}
+
+model Flight {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  name        String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  students    StudentProfile[]
+  enrollments Enrollment[]
+  materials   LearningMaterial[]
+  examSessions ExamSession[]
+
+  @@index([code])
+}
+
+model LearningMaterial {
+  id          String           @id @default(uuid())
+  title       String
+  description String?
+  category    MaterialCategory
+  fileUrl     String?
+  createdById String
+  sectionId   String?
+  flightId    String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy User     @relation("MaterialCreator", fields: [createdById], references: [id])
+  section   Section? @relation(fields: [sectionId], references: [id])
+  flight    Flight?  @relation(fields: [flightId], references: [id])
+
+  @@index([category])
+}
+
+model AttendanceRecord {
+  id         String           @id @default(uuid())
+  userId     String
+  date       DateTime
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  latitude   Float?
+  longitude  Float?
+  status     AttendanceStatus @default(PRESENT)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+}
+
+model GradeCategory {
+  id        String   @id @default(uuid())
+  name      String
+  weight    Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items GradeItem[]
+}
+
+model GradeItem {
+  id           String   @id @default(uuid())
+  title        String
+  maxScore     Float
+  categoryId   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category GradeCategory @relation(fields: [categoryId], references: [id])
+  grades   StudentGrade[]
+
+  @@index([categoryId])
+}
+
+model StudentGrade {
+  id         String   @id @default(uuid())
+  studentId  String
+  gradeItemId String
+  score      Float
+  encodedById String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student   User      @relation("StudentGrades", fields: [studentId], references: [id])
+  gradeItem GradeItem @relation(fields: [gradeItemId], references: [id])
+  encodedBy User      @relation("GradeEncoder", fields: [encodedById], references: [id])
+
+  @@index([studentId])
+  @@index([gradeItemId])
+}
+
+model MeritDemerit {
+  id         String    @id @default(uuid())
+  studentId  String
+  type       MeritType
+  points     Int
+  reason     String
+  encodedById String
+  createdAt  DateTime  @default(now())
+
+  student   User @relation("StudentMerits", fields: [studentId], references: [id])
+  encodedBy User @relation("MeritEncoder", fields: [encodedById], references: [id])
+
+  @@index([studentId])
+  @@index([type])
+}
+
+model ExamSession {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  durationMin Int
+  scheduledAt DateTime
+  status      ExamStatus @default(DRAFT)
+  sectionId   String?
+  flightId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  section  Section? @relation(fields: [sectionId], references: [id])
+  flight   Flight?  @relation(fields: [flightId], references: [id])
+  attempts ExamAttempt[]
+
+  @@index([status])
+}
+
+model ExamAttempt {
+  id           String   @id @default(uuid())
+  examSessionId String
+  studentId    String
+  startedAt    DateTime?
+  endedAt      DateTime?
+  focusLosses  Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  examSession ExamSession @relation(fields: [examSessionId], references: [id])
+  student     User        @relation(fields: [studentId], references: [id])
+  logs        MonitoringLog[]
+
+  @@index([studentId])
+}
+
+model MonitoringLog {
+  id          String   @id @default(uuid())
+  examAttemptId String
+  event       String
+  createdAt   DateTime @default(now())
+
+  examAttempt ExamAttempt @relation(fields: [examAttemptId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([action])
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FileUpload {
+  id        String   @id @default(uuid())
+  fileName  String
+  mimeType  String
+  size      Int
+  url       String
+  createdAt DateTime @default(now())
+}
