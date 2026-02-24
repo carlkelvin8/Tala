@@ -23,13 +23,19 @@ export const app = new Hono()
 
 app.use(logger())
 
+// CORS configuration - MUST be before routes
 app.use(
-  "*",
+  "/api/*",
   cors({
-    origin: "*", // Temporarily allow all origins for testing
-    credentials: true,
+    origin: [
+      "https://poetic-boba-a05858.netlify.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+    maxAge: 86400,
   })
 )
 
