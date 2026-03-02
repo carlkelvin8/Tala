@@ -11,11 +11,23 @@ export async function registerUser(data: {
   role: RoleType
   firstName: string
   lastName: string
+  studentNo?: string
 }) {
   const existing = await userRepository.findByEmail(data.email)
   if (existing) {
     throw new Error("Email already in use")
   }
+
+  // Check if student number is already in use (for students only)
+  if (data.role === RoleType.STUDENT && data.studentNo) {
+    const existingStudent = await prisma.studentProfile.findUnique({
+      where: { studentNo: data.studentNo }
+    })
+    if (existingStudent) {
+      throw new Error("Student number already in use")
+    }
+  }
+
   const passwordHash = await hashPassword(data.password)
   const user = await userRepository.create({
     email: data.email,
@@ -25,7 +37,12 @@ export async function registerUser(data: {
 
   if (data.role === RoleType.STUDENT) {
     await prisma.studentProfile.create({
-      data: { userId: user.id, firstName: data.firstName, lastName: data.lastName }
+      data: { 
+        userId: user.id, 
+        firstName: data.firstName, 
+        lastName: data.lastName,
+        studentNo: data.studentNo
+      }
     })
     // Create enrollment record for the student
     await prisma.enrollment.create({
@@ -51,12 +68,30 @@ export async function registerUser(data: {
   return user
 }
 
-export async function loginUser(email: string, password: string) {
-  const user = await userRepository.findByEmail(email)
+export async function loginUser(emailOrStudentNo: string, password: string) {
+  console.log('Login attempt:', { emailOrStudentNo, password })
+  
+  // Try to find user by email first
+  let user = await userRepository.findByEmail(emailOrStudentNo)
+  
+  // If not found and looks like a student number, try finding by student number
+  if (!user) {
+    const studentProfile = await prisma.studentProfile.findUnique({
+      where: { studentNo: emailOrStudentNo },
+      include: { user: true }
+    })
+    if (studentProfile) {
+      user = studentProfile.user
+    }
+  }
+  
+  console.log('User found:', user ? 'Yes' : 'No')
   if (!user) {
     throw new Error("Invalid credentials")
   }
+  console.log('Verifying password...')
   const isValid = await verifyPassword(password, user.passwordHash)
+  console.log('Password valid:', isValid)
   if (!isValid) {
     throw new Error("Invalid credentials")
   }

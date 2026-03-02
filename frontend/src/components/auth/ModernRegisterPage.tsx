@@ -17,6 +17,7 @@ import { PasswordStrength } from "./PasswordStrength"
 const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  studentNo: z.string().min(1, "Student number is required"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
@@ -40,6 +41,7 @@ export function ModernRegisterPage() {
     defaultValues: {
       firstName: "",
       lastName: "",
+      studentNo: "",
       email: "",
       password: ""
     }
@@ -118,6 +120,24 @@ export function ModernRegisterPage() {
               <p className="text-xs text-red-600 mt-1">{form.formState.errors.lastName.message}</p>
             )}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="studentNo" className="text-sm font-medium text-black">
+            Student Number
+          </label>
+          <div className="relative">
+            <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              id="studentNo"
+              placeholder="2024-12345"
+              className="pl-10 h-11"
+              {...form.register("studentNo")}
+            />
+          </div>
+          {form.formState.errors.studentNo && (
+            <p className="text-xs text-red-600 mt-1">{form.formState.errors.studentNo.message}</p>
+          )}
         </div>
 
         <div className="space-y-2">

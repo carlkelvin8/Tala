@@ -5,11 +5,12 @@ export const registerSchema = z.object({
   password: z.string().min(8),
   role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]),
   firstName: z.string().min(1),
-  lastName: z.string().min(1)
+  lastName: z.string().min(1),
+  studentNo: z.string().optional()
 })
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(1), // Changed to accept email or student number
   password: z.string().min(8)
 })
 

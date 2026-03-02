@@ -15,7 +15,7 @@ import { toast } from "sonner"
 import { Mail, Lock, Eye, EyeOff } from "lucide-react"
 
 const schema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().min(1, "Email or Student Number is required"),
   password: z.string().min(8, "Password must be at least 8 characters")
 })
 
@@ -95,13 +95,13 @@ export function ModernLoginPage() {
         )}
         
         <div className="space-y-2">
-          <label className="text-sm font-medium text-black">Email</label>
+          <label className="text-sm font-medium text-black">Email or Student Number</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               {...form.register("email")}
-              type="email"
-              placeholder="your.email@example.com"
+              type="text"
+              placeholder="email@example.com or 2024-12345"
               className="pl-10 h-11"
             />
           </div>

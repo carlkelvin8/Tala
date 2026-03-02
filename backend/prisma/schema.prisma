@@ -76,7 +76,7 @@ model User {
 model StudentProfile {
   id           String   @id @default(uuid())
   userId       String   @unique
-  studentNo    String?
+  studentNo    String?  @unique
   firstName    String
   lastName     String
   middleName   String?
@@ -95,6 +95,7 @@ model StudentProfile {
 
   @@index([sectionId])
   @@index([flightId])
+  @@index([studentNo])
 }
 
 model ImplementorProfile {
@@ -290,6 +291,8 @@ model ExamAttempt {
   startedAt    DateTime?
   endedAt      DateTime?
   focusLosses  Int      @default(0)
+  violations   Int      @default(0)
+  isLocked     Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   examSession ExamSession @relation(fields: [examSessionId], references: [id])
