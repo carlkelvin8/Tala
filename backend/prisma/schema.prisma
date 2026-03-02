@@ -62,6 +62,8 @@ model User {
   enrollments        Enrollment[]
   materials          LearningMaterial[]    @relation("MaterialCreator")
   attendanceRecords  AttendanceRecord[]
+  hostedSessions     AttendanceSession[]   @relation("SessionHost")
+  verifiedSessions   AttendanceSession[]   @relation("SessionVerifier")
   studentGrades      StudentGrade[]        @relation("StudentGrades")
   gradesEncoded      StudentGrade[]        @relation("GradeEncoder")
   studentMerits      MeritDemerit[]        @relation("StudentMerits")
@@ -151,6 +153,7 @@ model Section {
   enrollments Enrollment[]
   materials   LearningMaterial[]
   examSessions ExamSession[]
+  attendanceSessions AttendanceSession[]
 
   @@index([code])
 }
@@ -166,6 +169,7 @@ model Flight {
   enrollments Enrollment[]
   materials   LearningMaterial[]
   examSessions ExamSession[]
+  attendanceSessions AttendanceSession[]
 
   @@index([code])
 }
@@ -198,14 +202,49 @@ model AttendanceRecord {
   latitude   Float?
   longitude  Float?
   status     AttendanceStatus @default(PRESENT)
+  sessionId  String?
+  verifiedBy String?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user    User              @relation(fields: [userId], references: [id])
+  session AttendanceSession? @relation(fields: [sessionId], references: [id])
 
   @@unique([userId, date])
   @@index([date])
   @@index([userId])
+  @@index([sessionId])
+}
+
+model AttendanceSession {
+  id                    String    @id @default(uuid())
+  title                 String
+  date                  DateTime
+  startTime             DateTime
+  endTime               DateTime?
+  hostId                String
+  hostLatitude          Float?
+  hostLongitude         Float?
+  verifierId            String?
+  verifierLatitude      Float?
+  verifierLongitude     Float?
+  radiusMeters          Int       @default(50)
+  requireVerifier       Boolean   @default(false)
+  isActive              Boolean   @default(true)
+  sectionId             String?
+  flightId              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  host      User              @relation("SessionHost", fields: [hostId], references: [id])
+  verifier  User?             @relation("SessionVerifier", fields: [verifierId], references: [id])
+  section   Section?          @relation(fields: [sectionId], references: [id])
+  flight    Flight?           @relation(fields: [flightId], references: [id])
+  records   AttendanceRecord[]
+
+  @@index([date])
+  @@index([hostId])
+  @@index([isActive])
 }
 
 model GradeCategory {

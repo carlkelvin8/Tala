@@ -9,6 +9,7 @@ import { userRoutes } from "./routes/userRoutes.js"
 import { enrollmentRoutes } from "./routes/enrollmentRoutes.js"
 import { materialRoutes } from "./routes/materialRoutes.js"
 import { attendanceRoutes } from "./routes/attendanceRoutes.js"
+import { attendanceSessionRoutes } from "./routes/attendanceSessionRoutes.js"
 import { gradeRoutes } from "./routes/gradeRoutes.js"
 import { meritRoutes } from "./routes/meritRoutes.js"
 import { examRoutes } from "./routes/examRoutes.js"
@@ -49,6 +50,7 @@ app.route("/api/users", userRoutes)
 app.route("/api/enrollments", enrollmentRoutes)
 app.route("/api/materials", materialRoutes)
 app.route("/api/attendance", attendanceRoutes)
+app.route("/api/attendance-sessions", attendanceSessionRoutes)
 app.route("/api/grades", gradeRoutes)
 app.route("/api/merits", meritRoutes)
 app.route("/api/exams", examRoutes)
