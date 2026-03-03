@@ -23,7 +23,13 @@ export async function login(c: Context) {
     const result = await loginUser(body.email, body.password)
     return c.json(
       ok("Login successful", {
-        user: { id: result.user.id, email: result.user.email, role: result.user.role, avatarUrl: result.user.avatarUrl ?? null },
+        user: { 
+          id: result.user.id, 
+          email: result.user.email, 
+          role: result.user.role, 
+          avatarUrl: result.user.avatarUrl ?? null,
+          avatarFrame: result.user.avatarFrame ?? "gradient"
+        },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken
       })
@@ -76,6 +82,7 @@ export async function profile(c: Context) {
       role: user.role,
       isActive: user.isActive,
       avatarUrl: user.avatarUrl ?? null,
+      avatarFrame: user.avatarFrame ?? "gradient",
       createdAt: user.createdAt,
       profile: roleProfile
         ? {
@@ -124,6 +131,27 @@ export async function removeAvatar(c: Context) {
     return c.json(ok("Avatar removed"))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Avatar removal failed"), 400)
+  }
+}
+
+export async function updateAvatarFrame(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const body = await c.req.json()
+    const { avatarFrame } = body
+    
+    const validFrames = ["none", "gradient", "double", "glow", "hexagon", "badge"]
+    if (typeof avatarFrame !== "string" || !validFrames.includes(avatarFrame)) {
+      return c.json(fail("Invalid frame type"), 400)
+    }
+    
+    const updated = await prisma.user.update({
+      where: { id: authUser.id },
+      data: { avatarFrame },
+    })
+    return c.json(ok("Avatar frame updated", { avatarFrame: updated.avatarFrame }))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Frame update failed"), 400)
   }
 }
 

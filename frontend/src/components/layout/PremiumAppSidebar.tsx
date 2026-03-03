@@ -12,7 +12,7 @@ import {
 } from "../ui/sidebar"
 import { NavLink } from "react-router-dom"
 import { navItems } from "../../lib/navigation"
-import { getStoredUser, clearAuthSession, getUserDisplayName, getUserInitials } from "../../lib/auth"
+import { getStoredUser, clearAuthSession, getUserDisplayName } from "../../lib/auth"
 import { cn } from "../../lib/utils"
 import { 
   LayoutDashboard, 
@@ -25,6 +25,7 @@ import {
   BookMarked,
   ClipboardCheck
 } from "lucide-react"
+import { AvatarWithRing } from "../ui/avatar-with-ring"
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -38,20 +39,6 @@ const iconMap = {
   "/reports": FileBarChart,
   "/users": Shield,
   "/profile": User2,
-} as const
-
-const roleLabels = {
-  ADMIN: "Administrator",
-  IMPLEMENTOR: "Implementor",
-  CADET_OFFICER: "Cadet Officer", 
-  STUDENT: "Student"
-} as const
-
-const roleAccents = {
-  ADMIN: "bg-violet-500",
-  IMPLEMENTOR: "bg-sky-500",
-  CADET_OFFICER: "bg-amber-500",
-  STUDENT: "bg-emerald-500"
 } as const
 
 const roleTextColors = {
@@ -68,12 +55,17 @@ const roleBgColors = {
   STUDENT: "bg-emerald-50"
 } as const
 
+const roleLabels = {
+  ADMIN: "Administrator",
+  IMPLEMENTOR: "Implementor",
+  CADET_OFFICER: "Cadet Officer", 
+  STUDENT: "Student"
+} as const
+
 export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps<typeof Sidebar> & { onNavigate?: () => void }) {
   const user = getStoredUser()
   const items = navItems.filter((item: typeof navItems[0]) => (user ? item.roles.includes(user.role) : false))
   const displayName = user ? getUserDisplayName(user) : "Guest User"
-  const userInitials = user ? getUserInitials(user) : "GU"
-  const avatarUrl = user?.avatarUrl
 
   const handleLogout = () => {
     clearAuthSession()
@@ -104,21 +96,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
         {/* User Profile Card */}
         <SidebarGroup className="mb-4">
           <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-slate-50 border border-slate-200">
-            <div className="relative flex-shrink-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white text-sm font-bold overflow-hidden">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
-                ) : (
-                  userInitials
-                )}
-              </div>
-              {user && (
-                <span className={cn(
-                  "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
-                  roleAccents[user.role]
-                )} />
-              )}
-            </div>
+            <AvatarWithRing user={user} size="md" frameType="gradient" showStatusDot={false} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate leading-tight">{displayName}</p>
               {user && (

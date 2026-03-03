@@ -6,6 +6,8 @@ import { Input } from "../components/ui/input"
 import { Select } from "../components/ui/select"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { ImageCropper } from "../components/ui/image-cropper"
+import { AvatarWithRing } from "../components/ui/avatar-with-ring"
+import { AvatarFrameSelector } from "../components/ui/avatar-frame-selector"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -26,7 +28,8 @@ import {
   Save,
   X,
 } from "lucide-react"
-import { getStoredUser, updateStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
+import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth"
+import { AvatarFrameType } from "../lib/avatar"
 import { cn } from "../lib/utils"
 
 const passwordSchema = z.object({
@@ -90,6 +93,7 @@ function PasswordInput({
 export function ProfilePage() {
   const storedUser = getStoredUser()
   const [avatarPreview, setAvatarPreview] = useState<string | null>(storedUser?.avatarUrl ?? null)
+  const [selectedFrame, setSelectedFrame] = useState<AvatarFrameType>((storedUser?.avatarFrame as AvatarFrameType) || "gradient")
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
@@ -112,6 +116,10 @@ export function ProfilePage() {
     if (profileData?.data?.avatarUrl) {
       setAvatarPreview(profileData.data.avatarUrl)
       updateStoredUser({ avatarUrl: profileData.data.avatarUrl })
+    }
+    if (profileData?.data?.avatarFrame) {
+      setSelectedFrame(profileData.data.avatarFrame as AvatarFrameType)
+      updateStoredUser({ avatarFrame: profileData.data.avatarFrame })
     }
   }, [profileData])
 
@@ -207,13 +215,6 @@ export function ProfilePage() {
       ? getUserDisplayName(storedUser)
       : "Guest"
 
-  const initials =
-    roleProfile?.firstName && roleProfile?.lastName
-      ? `${roleProfile.firstName[0]}${roleProfile.lastName[0]}`.toUpperCase()
-      : storedUser
-      ? getUserInitials(storedUser)
-      : "GU"
-
   const accent = roleAccents[role] ?? roleAccents.STUDENT
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,6 +270,20 @@ export function ProfilePage() {
     }
   }
 
+  const handleFrameChange = async (frame: AvatarFrameType) => {
+    setSelectedFrame(frame)
+    try {
+      await apiRequest<ApiResponse<any>>("/api/auth/avatar-frame", {
+        method: "PATCH",
+        body: JSON.stringify({ avatarFrame: frame }),
+      })
+      updateStoredUser({ avatarFrame: frame })
+      toast.success("Avatar frame updated")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update frame")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
@@ -296,15 +311,8 @@ export function ProfilePage() {
               ) : (
                 <div className="flex flex-col items-center text-center">
                   {/* Avatar */}
-                  <div className="relative mb-4">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-900 text-white text-2xl font-bold overflow-hidden ring-4 ring-slate-100">
-                      {avatarPreview ? (
-                        <img src={avatarPreview} alt={displayName} className="h-full w-full object-cover" />
-                      ) : (
-                        initials
-                      )}
-                    </div>
-                    <span className={cn("absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white", accent.dot)} />
+                  <div className="mb-4">
+                    <AvatarWithRing user={storedUser} size="xl" frameType={selectedFrame} showStatusDot={true} />
                   </div>
 
                   <h2 className="text-lg font-bold text-slate-900">{displayName}</h2>
@@ -326,7 +334,7 @@ export function ProfilePage() {
                       className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                     >
                       <Camera className="h-3.5 w-3.5" />
-                      {isUploadingAvatar ? "Uploading..." : "Change"}
+                      {isUploadingAvatar ? "Uploading..." : "Change Photo"}
                     </button>
                     {avatarPreview && (
                       <button
@@ -337,6 +345,15 @@ export function ProfilePage() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
+                  </div>
+
+                  {/* Frame Selector */}
+                  <div className="mt-6 w-full pt-6 border-t border-slate-200">
+                    <AvatarFrameSelector
+                      user={storedUser}
+                      selectedFrame={selectedFrame}
+                      onSelectFrame={handleFrameChange}
+                    />
                   </div>
 
                   {/* Quick Info */}

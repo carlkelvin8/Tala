@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { clearAuthSession, getStoredUser, getUserDisplayName, getUserInitials } from "../../lib/auth"
+import { clearAuthSession, getStoredUser, getUserDisplayName } from "../../lib/auth"
 import { ConfirmDialog } from "../ui/confirm-dialog"
 import { useNavigate, useLocation } from "react-router-dom"
 import { LogOut, Menu } from "lucide-react"
 import { cn } from "../../lib/utils"
+import { AvatarWithRing } from "../ui/avatar-with-ring"
 
 const routeLabels: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -44,8 +45,6 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const displayName = user ? getUserDisplayName(user) : "Guest"
-  const initials = user ? getUserInitials(user) : "GU"
-  const avatarUrl = user?.avatarUrl
   const pageLabel = routeLabels[location.pathname] ?? "Overview"
   const roleLabel = user?.role ? roleLabels[user.role] ?? user.role : "Guest"
   const roleBadge = user?.role ? roleColors[user.role] ?? "bg-slate-100 text-slate-600" : "bg-slate-100 text-slate-600"
@@ -82,13 +81,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
 
           {/* User pill */}
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white text-xs font-bold flex-shrink-0 overflow-hidden">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
-              ) : (
-                initials
-              )}
-            </div>
+            <AvatarWithRing user={user} size="sm" frameType="none" showStatusDot={false} />
             <div className="hidden leading-tight sm:block">
               <p className="text-xs font-semibold text-slate-800 leading-none">{displayName}</p>
               <span className={cn("mt-1 inline-block rounded-md px-1.5 py-0.5 text-[10px] font-semibold", roleBadge)}>
