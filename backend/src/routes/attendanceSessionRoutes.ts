@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { auth } from "../middlewares/auth.js"
+import { authMiddleware } from "../middlewares/auth.js"
 import { roleGuard } from "../middlewares/roleGuard.js"
 import { RoleType } from "@prisma/client"
 import {
@@ -15,7 +15,7 @@ import {
 export const attendanceSessionRoutes = new Hono()
 
 // All routes require authentication
-attendanceSessionRoutes.use("*", auth)
+attendanceSessionRoutes.use("*", authMiddleware)
 
 // Create session (Admin, Implementor, Cadet Officer)
 attendanceSessionRoutes.post(

@@ -1,4 +1,4 @@
-import { LogOut, User2, Shield, ChevronRight } from "lucide-react"
+import { LogOut, User2, Shield } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -73,6 +73,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
   const items = navItems.filter((item: typeof navItems[0]) => (user ? item.roles.includes(user.role) : false))
   const displayName = user ? getUserDisplayName(user) : "Guest User"
   const userInitials = user ? getUserInitials(user) : "GU"
+  const avatarUrl = user?.avatarUrl
 
   const handleLogout = () => {
     clearAuthSession()
@@ -82,43 +83,47 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
   return (
     <Sidebar
       {...props}
-      className="border-r border-slate-200/80 bg-white shadow-[1px_0_20px_0_rgba(0,0,0,0.04)]"
+      className="border-r border-slate-200 bg-white"
     >
       {/* Header */}
-      <SidebarHeader className="px-5 pt-6 pb-5 border-b border-slate-100">
+      <SidebarHeader className="px-4 pt-5 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 shadow-md">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900">
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z" />
             </svg>
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-900 tracking-tight leading-none">Kalasag-Tala</p>
-            <p className="text-[10px] text-slate-400 font-medium mt-0.5 tracking-wide uppercase">NSTP Command Center</p>
+            <p className="text-sm font-bold text-slate-900 leading-none">Kalasag-Tala</p>
+            <p className="text-[10px] text-slate-500 font-medium mt-1 tracking-wide uppercase">NSTP Command Center</p>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-3 py-4 flex flex-col gap-1">
+      <SidebarContent className="px-3 py-4">
         {/* User Profile Card */}
-        <SidebarGroup className="mb-2">
-          <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-slate-50 border border-slate-100">
+        <SidebarGroup className="mb-4">
+          <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-slate-50 border border-slate-200">
             <div className="relative flex-shrink-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white text-sm font-bold shadow-sm">
-                {userInitials}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white text-sm font-bold overflow-hidden">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
               {user && (
                 <span className={cn(
-                  "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white",
+                  "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
                   roleAccents[user.role]
                 )} />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate leading-tight">{displayName}</p>
+              <p className="text-sm font-semibold text-slate-900 truncate leading-tight">{displayName}</p>
               {user && (
                 <span className={cn(
-                  "inline-block mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md tracking-wide",
+                  "inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded tracking-wide",
                   roleTextColors[user.role],
                   roleBgColors[user.role]
                 )}>
@@ -130,10 +135,10 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
         </SidebarGroup>
 
         {/* Navigation */}
-        <SidebarGroup className="flex-1">
-          <p className="px-3 mb-2 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Navigation</p>
+        <SidebarGroup>
+          <p className="px-3 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Navigation</p>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
+            <SidebarMenu className="space-y-1">
               {items.map((item: typeof navItems[0]) => {
                 const Icon = iconMap[item.path as keyof typeof iconMap]
                 return (
@@ -144,31 +149,17 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
                         onClick={onNavigate}
                         className={({ isActive }) =>
                           cn(
-                            "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1",
+                            "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                             isActive
-                              ? "bg-slate-900 text-white shadow-sm"
-                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                              ? "bg-slate-900 text-white"
+                              : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                           )
                         }
                       >
                         {({ isActive }) => (
                           <>
-                            <span className={cn(
-                              "flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-200 flex-shrink-0",
-                              isActive
-                                ? "bg-white/15"
-                                : "bg-slate-100 group-hover:bg-slate-200"
-                            )}>
-                              {Icon && <Icon className="h-4 w-4 shrink-0" />}
-                            </span>
+                            {Icon && <Icon className="h-4 w-4 shrink-0" />}
                             <span className="flex-1 truncate">{item.label}</span>
-                            <ChevronRight className={cn(
-                              "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                              isActive
-                                ? "text-white/60 translate-x-0.5"
-                                : "text-slate-300 group-hover:text-slate-400 group-hover:translate-x-0.5"
-                            )} />
                           </>
                         )}
                       </NavLink>
@@ -182,7 +173,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter className="px-3 py-4 border-t border-slate-100">
+      <SidebarFooter className="px-3 py-4 border-t border-slate-200">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
@@ -190,13 +181,10 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
                 onClick={handleLogout}
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
-                  "text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-1"
+                  "text-slate-700 hover:bg-red-50 hover:text-red-600 transition-colors"
                 )}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 group-hover:bg-red-100 transition-colors duration-200 flex-shrink-0">
-                  <LogOut className="h-4 w-4" />
-                </span>
+                <LogOut className="h-4 w-4" />
                 <span className="flex-1 text-left">Sign Out</span>
               </button>
             </SidebarMenuButton>

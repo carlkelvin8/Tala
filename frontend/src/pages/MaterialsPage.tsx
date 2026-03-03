@@ -212,6 +212,9 @@ export function MaterialsPage() {
       header: "Title",
       cell: (m: any) => (
         <div className="flex items-center gap-2">
+          {m.fileUrl && (
+            <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          )}
           <span className="font-medium text-slate-900">{m.title}</span>
         </div>
       ),
@@ -243,45 +246,51 @@ export function MaterialsPage() {
           : "—",
     },
     {
-      header: "Actions",
+      header: "File",
       cell: (m: any) => (
-        <div className="flex gap-2">
-          {m.fileUrl && (
+        <div>
+          {m.fileUrl ? (
             <Button
               size="sm"
               variant="outline"
               onClick={() => handleViewFile(m.fileUrl)}
-              title="View file"
+              title="View or download file"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             >
-              <Eye className="h-4 w-4 mr-1" />
-              View
+              <ExternalLink className="h-4 w-4 mr-1" />
+              View File
             </Button>
-          )}
-          {canManage && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleEdit(m)}
-              >
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleDelete(m)}
-                disabled={deleteMutation.isPending}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete
-              </Button>
-            </>
+          ) : (
+            <span className="text-xs text-slate-400">No file</span>
           )}
         </div>
       ),
     },
+    ...(canManage ? [{
+      header: "Actions",
+      cell: (m: any) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(m)}
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDelete(m)}
+            disabled={deleteMutation.isPending}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </Button>
+        </div>
+      ),
+    }] : []),
   ]
 
   return (

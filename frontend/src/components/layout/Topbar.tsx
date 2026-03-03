@@ -45,6 +45,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
 
   const displayName = user ? getUserDisplayName(user) : "Guest"
   const initials = user ? getUserInitials(user) : "GU"
+  const avatarUrl = user?.avatarUrl
   const pageLabel = routeLabels[location.pathname] ?? "Overview"
   const roleLabel = user?.role ? roleLabels[user.role] ?? user.role : "Guest"
   const roleBadge = user?.role ? roleColors[user.role] ?? "bg-slate-100 text-slate-600" : "bg-slate-100 text-slate-600"
@@ -81,8 +82,12 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
 
           {/* User pill */}
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white text-xs font-bold flex-shrink-0">
-              {initials}
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white text-xs font-bold flex-shrink-0 overflow-hidden">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
             <div className="hidden leading-tight sm:block">
               <p className="text-xs font-semibold text-slate-800 leading-none">{displayName}</p>

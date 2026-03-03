@@ -12,7 +12,7 @@ import { ModernAuthLayout } from "../layout/ModernAuthLayout"
 import { Link, useNavigate } from "react-router-dom"
 import { ApiResponse } from "../../types"
 import { toast } from "sonner"
-import { Mail, Lock, Eye, EyeOff } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, User, Shield, ArrowRight } from "lucide-react"
 
 const schema = z.object({
   email: z.string().min(1, "Email or Student Number is required"),
@@ -68,23 +68,14 @@ export function ModernLoginPage() {
   return (
     <ModernAuthLayout
       title="Welcome back"
-      description="Sign in to your NSTP Command Center"
+      description="Sign in to your account to continue"
       footer={
-        <div className="space-y-3">
-          <Link 
-            to="/register" 
-            className="block text-sm font-medium text-black hover:text-gray-700"
-          >
-            Don't have an account? Sign up
-          </Link>
-          <button
-            type="button"
-            className="text-sm text-gray-500 hover:text-black"
-            title="Contact administrator for password reset"
-          >
-            Forgot your password?
-          </button>
-        </div>
+        <Link 
+          to="/register" 
+          className="text-sm text-slate-600 hover:text-slate-900"
+        >
+          Don't have an account? <span className="font-semibold text-slate-900">Sign up</span>
+        </Link>
       }
     >
       <form onSubmit={onSubmit} className="space-y-6">
@@ -95,51 +86,103 @@ export function ModernLoginPage() {
         )}
         
         <div className="space-y-2">
-          <label className="text-sm font-medium text-black">Email or Student Number</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              {...form.register("email")}
-              type="text"
-              placeholder="email@example.com or 2024-12345"
-              className="pl-10 h-11"
-            />
-          </div>
+          <label className="text-sm font-medium text-slate-900">
+            Email or Student Number
+          </label>
+          <Input
+            {...form.register("email")}
+            type="text"
+            placeholder="email@example.com or 2024-12345"
+            className="h-11 border-slate-300 focus:border-slate-900 focus:ring-slate-900"
+            autoComplete="username"
+          />
           {form.formState.errors.email && (
-            <p className="text-xs text-red-600 mt-1">{form.formState.errors.email.message}</p>
+            <p className="text-xs text-red-600 mt-1">
+              {form.formState.errors.email.message}
+            </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-black">Password</label>
+          <label className="text-sm font-medium text-slate-900">
+            Password
+          </label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               {...form.register("password")}
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
-              className="pl-10 pr-11 h-11"
+              className="h-11 pr-10 border-slate-300 focus:border-slate-900 focus:ring-slate-900"
+              autoComplete="current-password"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           {form.formState.errors.password && (
-            <p className="text-xs text-red-600 mt-1">{form.formState.errors.password.message}</p>
+            <p className="text-xs text-red-600 mt-1">
+              {form.formState.errors.password.message}
+            </p>
           )}
         </div>
 
         <Button
           type="submit"
-          className="w-full h-11 text-base font-medium mt-8"
+          className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white"
           disabled={mutation.isPending}
         >
-          {mutation.isPending ? "Signing in..." : "Sign in"}
+          {mutation.isPending ? (
+            <span className="flex items-center gap-2">
+              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Signing in...
+            </span>
+          ) : (
+            "Sign in"
+          )}
         </Button>
+
+        {/* Demo Accounts */}
+        <div className="pt-6 border-t border-slate-200">
+          <p className="text-xs text-slate-500 mb-3">Demo accounts for testing:</p>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                form.setValue("email", "admin@nstp.local")
+                form.setValue("password", "Password123!")
+              }}
+              className="w-full text-left px-4 py-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Admin Account</p>
+                  <p className="text-xs text-slate-500">admin@nstp.local</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400" />
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                form.setValue("email", "student@nstp.local")
+                form.setValue("password", "Password123!")
+              }}
+              className="w-full text-left px-4 py-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Student Account</p>
+                  <p className="text-xs text-slate-500">student@nstp.local</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400" />
+              </div>
+            </button>
+          </div>
+        </div>
       </form>
     </ModernAuthLayout>
   )

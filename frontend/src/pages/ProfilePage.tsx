@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Select } from "../components/ui/select"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { ImageCropper } from "../components/ui/image-cropper"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -17,11 +18,7 @@ import {
   Eye,
   EyeOff,
   Mail,
-  Shield,
   Calendar,
-  Phone,
-  MapPin,
-  User,
   Hash,
   CheckCircle2,
   Lock,
@@ -63,21 +60,6 @@ const roleAccents: Record<string, { bg: string; text: string; dot: string }> = {
   STUDENT:       { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400" },
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
-  if (!value) return null
-  return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-slate-50">
-        <Icon className="h-3.5 w-3.5 text-slate-400" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
-        <p className="mt-0.5 text-sm text-slate-700 break-all">{value}</p>
-      </div>
-    </div>
-  )
-}
-
 function PasswordInput({
   show,
   onToggle,
@@ -115,6 +97,7 @@ export function ProfilePage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingProfileData, setPendingProfileData] = useState<ProfileFormValues | null>(null)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const { data: profileData, isLoading, isError, error, refetch } = useQuery({
@@ -216,9 +199,6 @@ export function ProfilePage() {
   const createdAt = profile?.createdAt
     ? new Date(profile.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
     : null
-  const birthDate = roleProfile?.birthDate
-    ? new Date(roleProfile.birthDate).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
-    : null
 
   const displayName =
     roleProfile?.firstName && roleProfile?.lastName
@@ -236,49 +216,43 @@ export function ProfilePage() {
 
   const accent = roleAccents[role] ?? roleAccents.STUDENT
 
-  const resizeImage = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onerror = () => reject(new Error("Failed to read file"))
-      reader.onload = (ev) => {
-        const original = ev.target?.result as string
-        const img = new Image()
-        img.onerror = () => reject(new Error("Failed to load image"))
-        img.onload = () => {
-          const MAX = 256
-          const scale = Math.min(1, MAX / Math.max(img.width, img.height))
-          const canvas = document.createElement("canvas")
-          canvas.width = Math.round(img.width * scale)
-          canvas.height = Math.round(img.height * scale)
-          const ctx = canvas.getContext("2d")
-          if (!ctx) return reject(new Error("Canvas not supported"))
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-          resolve(canvas.toDataURL("image/jpeg", 0.82))
-        }
-        img.src = original
-      }
-      reader.readAsDataURL(file)
-    })
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ""
     if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImageToCrop(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleCropComplete = async (croppedImage: string) => {
+    setImageToCrop(null)
     setIsUploadingAvatar(true)
     try {
-      const resized = await resizeImage(file)
       await apiRequest<ApiResponse<any>>("/api/auth/avatar", {
         method: "PATCH",
-        body: JSON.stringify({ avatarUrl: resized }),
+        body: JSON.stringify({ avatarUrl: croppedImage }),
       })
-      setAvatarPreview(resized)
-      updateStoredUser({ avatarUrl: resized })
-      toast.success("Profile photo saved")
+      setAvatarPreview(croppedImage)
+      updateStoredUser({ avatarUrl: croppedImage })
+      toast.success("Profile photo updated")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save photo")
     } finally {
       setIsUploadingAvatar(false)
     }
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelect(e)
   }
 
   const handleAvatarReset = async () => {
@@ -297,118 +271,114 @@ export function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        {/* Page title */}
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
+        {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-xl font-bold text-slate-900">My Profile</h1>
-          <p className="mt-0.5 text-sm text-slate-400">View your account details and manage security settings</p>
+          <h1 className="text-2xl font-bold text-slate-900">Profile Settings</h1>
+          <p className="mt-1 text-sm text-slate-600">Manage your account information and preferences</p>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-3">
-          {/* ── Left column: identity card ── */}
-          <div className="flex flex-col gap-5 lg:col-span-1">
-            {/* Avatar + name */}
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left Column - Profile Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
               {isError ? (
-                <div className="flex flex-col items-center gap-4 text-center">
-                  <div className="text-red-500 text-sm">
-                    {(error as Error).message === "Unauthorized"
-                      ? "Please log out and log back in to refresh your session."
-                      : "Unable to load profile."}
-                  </div>
+                <div className="text-center text-sm text-red-600">
+                  {(error as Error).message === "Unauthorized"
+                    ? "Please log out and log back in."
+                    : "Unable to load profile."}
                 </div>
               ) : isLoading ? (
                 <div className="flex flex-col items-center gap-4">
-                  <div className="h-20 w-20 animate-pulse rounded-full bg-slate-100" />
-                  <div className="h-4 w-32 animate-pulse rounded-lg bg-slate-100" />
-                  <div className="h-3 w-20 animate-pulse rounded-lg bg-slate-100" />
+                  <div className="h-24 w-24 animate-pulse rounded-full bg-slate-100" />
+                  <div className="h-5 w-32 animate-pulse rounded bg-slate-100" />
                 </div>
               ) : (
                 <div className="flex flex-col items-center text-center">
                   {/* Avatar */}
                   <div className="relative mb-4">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-900 text-white text-xl font-bold shadow-sm overflow-hidden">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-900 text-white text-2xl font-bold overflow-hidden ring-4 ring-slate-100">
                       {avatarPreview ? (
                         <img src={avatarPreview} alt={displayName} className="h-full w-full object-cover" />
                       ) : (
                         initials
                       )}
                     </div>
-                    <span className={cn("absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white", accent.dot)} />
+                    <span className={cn("absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white", accent.dot)} />
                   </div>
 
-                  <h2 className="text-base font-bold text-slate-900 leading-tight">{displayName}</h2>
-                  <span className={cn("mt-2 inline-block rounded-lg px-2.5 py-1 text-[11px] font-semibold", accent.bg, accent.text)}>
+                  <h2 className="text-lg font-bold text-slate-900">{displayName}</h2>
+                  <span className={cn("mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold", accent.bg, accent.text)}>
                     {roleLabels[role] ?? role}
                   </span>
 
                   {/* Status */}
-                  <div className="mt-3 flex items-center gap-1.5">
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
                     <CheckCircle2 className={cn("h-3.5 w-3.5", isActive ? "text-emerald-500" : "text-slate-300")} />
-                    <span className="text-xs text-slate-400">{isActive ? "Active account" : "Inactive"}</span>
+                    {isActive ? "Active" : "Inactive"}
                   </div>
 
-                  {/* Avatar actions */}
-                  <div className="mt-5 flex gap-2">
+                  {/* Avatar Actions */}
+                  <div className="mt-6 flex gap-2 w-full">
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingAvatar}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                     >
                       <Camera className="h-3.5 w-3.5" />
-                      {isUploadingAvatar ? "Saving…" : "Upload"}
+                      {isUploadingAvatar ? "Uploading..." : "Change"}
                     </button>
                     {avatarPreview && (
                       <button
                         onClick={handleAvatarReset}
                         disabled={isUploadingAvatar}
-                        className="flex items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-100 disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Remove
                       </button>
+                    )}
+                  </div>
+
+                  {/* Quick Info */}
+                  <div className="mt-6 w-full space-y-3 text-left">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Mail className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-slate-600 truncate">{email}</span>
+                    </div>
+                    {roleProfile?.studentNo && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Hash className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-slate-600">{roleProfile.studentNo}</span>
+                      </div>
+                    )}
+                    {createdAt && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-slate-600">{createdAt}</span>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Quick info */}
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100" />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <InfoRow icon={Mail} label="Email" value={email} />
-                  <InfoRow icon={Shield} label="Role" value={roleLabels[role] ?? role} />
-                  {createdAt && <InfoRow icon={Calendar} label="Member since" value={createdAt} />}
-                  {roleProfile?.contactNo && <InfoRow icon={Phone} label="Contact" value={roleProfile.contactNo} />}
-                  {roleProfile?.studentNo && <InfoRow icon={Hash} label="Student No." value={roleProfile.studentNo} />}
-                  {roleProfile?.gender && <InfoRow icon={User} label="Gender" value={roleProfile.gender} />}
-                  {birthDate && <InfoRow icon={Calendar} label="Birth date" value={birthDate} />}
-                  {roleProfile?.address && <InfoRow icon={MapPin} label="Address" value={roleProfile.address} />}
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* ── Right column: settings ── */}
-          <div className="flex flex-col gap-5 lg:col-span-2">
-            {/* Account info */}
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-semibold text-slate-900">Account Information</h3>
+          {/* Right Column - Forms */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Account Information */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Account Information</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Update your personal details</p>
+                </div>
                 {!isEditingProfile && (
                   <button
                     onClick={() => setIsEditingProfile(true)}
-                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >
                     <Edit className="h-3.5 w-3.5" />
-                    Edit Profile
+                    Edit
                   </button>
                 )}
               </div>
@@ -483,7 +453,7 @@ export function ProfilePage() {
                         setIsEditingProfile(false)
                         profileForm.reset()
                       }}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     >
                       <X className="h-3.5 w-3.5" />
                       Cancel
@@ -500,42 +470,42 @@ export function ProfilePage() {
                     {[
                       { label: "Email address", value: email, note: "Cannot be changed" },
                       { label: "Account role", value: roleLabels[role] ?? role, note: "Assigned by administrator" },
+                      ...(roleProfile?.studentNo  ? [{ label: "Student ID No.", value: roleProfile.studentNo, note: "Cannot be changed" }] : []),
                       ...(roleProfile?.firstName ? [{ label: "First name", value: roleProfile.firstName, note: null }] : []),
                       ...(roleProfile?.lastName  ? [{ label: "Last name",  value: roleProfile.lastName,  note: null }] : []),
                       ...(roleProfile?.middleName ? [{ label: "Middle name", value: roleProfile.middleName, note: null }] : []),
-                      ...(roleProfile?.studentNo  ? [{ label: "Student no.", value: roleProfile.studentNo, note: null }] : []),
                     ].map(({ label, value, note }) => (
                       <div key={label} className="flex flex-col gap-1">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-2.5">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5">
                           <p className="text-sm font-medium text-slate-800">{value ?? "—"}</p>
                         </div>
-                        {note && <p className="text-[10px] text-slate-400">{note}</p>}
+                        {note && <p className="text-[10px] text-slate-500">{note}</p>}
                       </div>
                     ))}
                   </div>
 
-                  <p className="mt-5 text-xs text-slate-400">
-                    Click "Edit Profile" to update your personal information.
+                  <p className="mt-5 text-xs text-slate-500">
+                    Click "Edit" to update your personal information.
                   </p>
                 </>
               )}
             </div>
 
             {/* Security / password */}
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Security</h3>
-                  <p className="mt-0.5 text-xs text-slate-400">Change your login password</p>
+                  <h3 className="text-base font-bold text-slate-900">Security</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Change your login password</p>
                 </div>
                 {!isChangingPassword && (
                   <button
                     onClick={() => setIsChangingPassword(true)}
-                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >
                     <Lock className="h-3.5 w-3.5" />
-                    Change password
+                    Change
                   </button>
                 )}
               </div>
@@ -576,22 +546,26 @@ export function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => { setIsChangingPassword(false); passwordForm.reset() }}
-                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     >
+                      <X className="h-3.5 w-3.5" />
                       Cancel
                     </button>
                     <Button type="submit" size="sm" disabled={passwordMutation.isPending}>
-                      {passwordMutation.isPending ? "Updating…" : "Update password"}
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                      {passwordMutation.isPending ? "Updating…" : "Update Password"}
                     </Button>
                   </div>
                 </form>
               ) : (
-                <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-700">Password</p>
-                    <p className="mt-0.5 text-xs text-slate-400">Last changed: unknown</p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">Password</p>
+                      <p className="mt-0.5 text-xs text-slate-500">Last changed: unknown</p>
+                    </div>
+                    <span className="font-mono text-sm tracking-widest text-slate-300">••••••••</span>
                   </div>
-                  <span className="font-mono text-sm tracking-widest text-slate-300">••••••••</span>
                 </div>
               )}
             </div>
@@ -600,6 +574,14 @@ export function ProfilePage() {
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+
+      {imageToCrop && (
+        <ImageCropper
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={showConfirmDialog}

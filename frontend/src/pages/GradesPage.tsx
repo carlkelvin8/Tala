@@ -347,30 +347,27 @@ export function GradesPage() {
       header: "Category",
       cell: (grade: any) => grade.gradeItem?.category?.name ?? "-"
     },
-    {
+    ...(canManage ? [{
       header: "Actions",
-      cell: (grade: any) => {
-        if (!canManage) return null
-        return (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => handleEditGrade(grade)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteGrade(grade)}
-              disabled={deleteGradeMutation.isPending}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-          </div>
-        )
-      },
-    },
+      cell: (grade: any) => (
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => handleEditGrade(grade)}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDeleteGrade(grade)}
+            disabled={deleteGradeMutation.isPending}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </Button>
+        </div>
+      ),
+    }] : []),
   ]
 
   const categoryColumns = [
@@ -382,30 +379,27 @@ export function GradesPage() {
       header: "Weight",
       cell: (category: any) => category.weight ? `${category.weight}%` : "-"
     },
-    {
+    ...(canManage ? [{
       header: "Actions",
-      cell: (category: any) => {
-        if (!canManage) return null
-        return (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => handleEditCategory(category)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteCategory(category)}
-              disabled={deleteCategoryMutation.isPending}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-          </div>
-        )
-      },
-    },
+      cell: (category: any) => (
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => handleEditCategory(category)}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDeleteCategory(category)}
+            disabled={deleteCategoryMutation.isPending}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </Button>
+        </div>
+      ),
+    }] : []),
   ]
 
   const itemColumns = [
@@ -421,30 +415,27 @@ export function GradesPage() {
       header: "Category",
       cell: (item: any) => item.category?.name ?? "-"
     },
-    {
+    ...(canManage ? [{
       header: "Actions",
-      cell: (item: any) => {
-        if (!canManage) return null
-        return (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => handleEditItem(item)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteItem(item)}
-              disabled={deleteItemMutation.isPending}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-          </div>
-        )
-      },
-    },
+      cell: (item: any) => (
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => handleEditItem(item)}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDeleteItem(item)}
+            disabled={deleteItemMutation.isPending}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </Button>
+        </div>
+      ),
+    }] : []),
   ]
 
   return (

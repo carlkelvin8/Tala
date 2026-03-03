@@ -132,6 +132,31 @@ export function AttendancePage() {
       header: "Check Out",
       cell: (record: any) => (record.checkOutAt ? new Date(record.checkOutAt).toLocaleTimeString() : "—"),
     },
+    {
+      header: "Location",
+      cell: (record: any) => {
+        if (record.latitude && record.longitude) {
+          const mapsUrl = `https://www.google.com/maps?q=${record.latitude},${record.longitude}`
+          return (
+            <div className="flex flex-col gap-1">
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                <MapPin className="h-3 w-3" />
+                View on Map
+              </a>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {record.latitude.toFixed(6)}, {record.longitude.toFixed(6)}
+              </span>
+            </div>
+          )
+        }
+        return <span className="text-xs text-slate-400">—</span>
+      },
+    },
   ]
 
   return (
@@ -177,6 +202,19 @@ export function AttendancePage() {
               <MapPin className="h-3 w-3" />
               <span>Verification: {verificationMethod}</span>
             </div>
+            {latestRecord?.latitude && latestRecord?.longitude && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3 w-3 text-blue-600" />
+                <a
+                  href={`https://www.google.com/maps?q=${latestRecord.latitude},${latestRecord.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  View Location
+                </a>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
