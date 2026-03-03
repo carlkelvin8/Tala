@@ -271,6 +271,7 @@ export function ProfilePage() {
   }
 
   const handleFrameChange = async (frame: AvatarFrameType) => {
+    const previousFrame = selectedFrame
     setSelectedFrame(frame)
     try {
       await apiRequest<ApiResponse<any>>("/api/auth/avatar-frame", {
@@ -279,122 +280,134 @@ export function ProfilePage() {
       })
       updateStoredUser({ avatarFrame: frame })
       toast.success("Avatar frame updated")
+      // Refetch profile to ensure sync
+      refetch()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update frame")
+      // Revert on error
+      setSelectedFrame(previousFrame)
+      const errorMessage = err instanceof Error ? err.message : "Failed to update frame"
+      toast.error(errorMessage)
+      console.error("Frame update error:", err)
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Profile Settings</h1>
-          <p className="mt-1 text-sm text-slate-600">Manage your account information and preferences</p>
+          <h1 className="text-3xl font-bold text-slate-900">Profile Settings</h1>
+          <p className="mt-2 text-sm text-slate-600">Manage your account information and customize your profile appearance</p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-12">
           {/* Left Column - Profile Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-              {isError ? (
-                <div className="text-center text-sm text-red-600">
-                  {(error as Error).message === "Unauthorized"
-                    ? "Please log out and log back in."
-                    : "Unable to load profile."}
-                </div>
-              ) : isLoading ? (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="h-24 w-24 animate-pulse rounded-full bg-slate-100" />
-                  <div className="h-5 w-32 animate-pulse rounded bg-slate-100" />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-center">
-                  {/* Avatar */}
-                  <div className="mb-4">
-                    <AvatarWithRing user={storedUser} size="xl" frameType={selectedFrame} showStatusDot={true} />
+          <div className="lg:col-span-4">
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm sticky top-6">
+              {/* Header Background */}
+              <div className={cn("h-20 relative", accent.bg)}>
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-black/5" />
+              </div>
+
+              <div className="px-6 pb-6">
+                {isError ? (
+                  <div className="text-center text-sm text-red-600 mt-4">
+                    {(error as Error).message === "Unauthorized"
+                      ? "Please log out and log back in."
+                      : "Unable to load profile."}
                   </div>
-
-                  <h2 className="text-lg font-bold text-slate-900">{displayName}</h2>
-                  <span className={cn("mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold", accent.bg, accent.text)}>
-                    {roleLabels[role] ?? role}
-                  </span>
-
-                  {/* Status */}
-                  <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-                    <CheckCircle2 className={cn("h-3.5 w-3.5", isActive ? "text-emerald-500" : "text-slate-300")} />
-                    {isActive ? "Active" : "Inactive"}
+                ) : isLoading ? (
+                  <div className="flex flex-col items-center gap-4 -mt-10">
+                    <div className="h-20 w-20 animate-pulse rounded-full bg-slate-100 ring-4 ring-white" />
+                    <div className="h-5 w-32 animate-pulse rounded bg-slate-100" />
                   </div>
-
-                  {/* Avatar Actions */}
-                  <div className="mt-6 flex gap-2 w-full">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingAvatar}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      <Camera className="h-3.5 w-3.5" />
-                      {isUploadingAvatar ? "Uploading..." : "Change Photo"}
-                    </button>
-                    {avatarPreview && (
-                      <button
-                        onClick={handleAvatarReset}
-                        disabled={isUploadingAvatar}
-                        className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Frame Selector */}
-                  <div className="mt-6 w-full pt-6 border-t border-slate-200">
-                    <AvatarFrameSelector
-                      user={storedUser}
-                      selectedFrame={selectedFrame}
-                      onSelectFrame={handleFrameChange}
-                    />
-                  </div>
-
-                  {/* Quick Info */}
-                  <div className="mt-6 w-full space-y-3 text-left">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Mail className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="text-slate-600 truncate">{email}</span>
+                ) : (
+                  <div className="flex flex-col items-center text-center">
+                    {/* Avatar */}
+                    <div className="-mt-10 mb-4 ring-4 ring-white rounded-full">
+                      <AvatarWithRing user={storedUser} size="xl" frameType={selectedFrame} showStatusDot={true} />
                     </div>
-                    {roleProfile?.studentNo && (
+
+                    <h2 className="text-xl font-bold text-slate-900">{displayName}</h2>
+                    <span className={cn("mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold", accent.bg, accent.text)}>
+                      {roleLabels[role] ?? role}
+                    </span>
+
+                    {/* Status */}
+                    <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                      <CheckCircle2 className={cn("h-3.5 w-3.5", isActive ? "text-emerald-500" : "text-slate-300")} />
+                      {isActive ? "Active Account" : "Inactive"}
+                    </div>
+
+                    {/* Quick Info */}
+                    <div className="mt-6 w-full space-y-3 text-left bg-slate-50 rounded-xl p-4">
                       <div className="flex items-center gap-2 text-xs">
-                        <Hash className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-slate-600">{roleProfile.studentNo}</span>
+                        <Mail className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="text-slate-600 truncate">{email}</span>
                       </div>
-                    )}
-                    {createdAt && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-slate-600">{createdAt}</span>
-                      </div>
-                    )}
+                      {roleProfile?.studentNo && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Hash className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="text-slate-600">{roleProfile.studentNo}</span>
+                        </div>
+                      )}
+                      {createdAt && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="text-slate-600">Joined {createdAt}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Avatar Actions */}
+                    <div className="mt-6 flex gap-2 w-full">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all disabled:opacity-50"
+                      >
+                        <Camera className="h-4 w-4" />
+                        {isUploadingAvatar ? "Uploading..." : "Change Photo"}
+                      </button>
+                      {avatarPreview && (
+                        <button
+                          onClick={handleAvatarReset}
+                          disabled={isUploadingAvatar}
+                          className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-all disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Frame Selector */}
+                    <div className="mt-6 w-full pt-6 border-t border-slate-200">
+                      <AvatarFrameSelector
+                        user={storedUser}
+                        selectedFrame={selectedFrame}
+                        onSelectFrame={handleFrameChange}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
           {/* Right Column - Forms */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Account Information */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div className="lg:col-span-8 space-y-6">{/* Account Information */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Account Information</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Update your personal details</p>
+                  <h3 className="text-lg font-bold text-slate-900">Account Information</h3>
+                  <p className="text-xs text-slate-500 mt-1">Update your personal details</p>
                 </div>
                 {!isEditingProfile && (
                   <button
                     onClick={() => setIsEditingProfile(true)}
-                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all"
                   >
-                    <Edit className="h-3.5 w-3.5" />
+                    <Edit className="h-4 w-4" />
                     Edit
                   </button>
                 )}
@@ -510,18 +523,18 @@ export function ProfilePage() {
             </div>
 
             {/* Security / password */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Security</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Change your login password</p>
+                  <h3 className="text-lg font-bold text-slate-900">Security</h3>
+                  <p className="text-xs text-slate-500 mt-1">Change your login password</p>
                 </div>
                 {!isChangingPassword && (
                   <button
                     onClick={() => setIsChangingPassword(true)}
-                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all"
                   >
-                    <Lock className="h-3.5 w-3.5" />
+                    <Lock className="h-4 w-4" />
                     Change
                   </button>
                 )}

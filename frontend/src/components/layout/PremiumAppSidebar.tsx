@@ -96,7 +96,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
         {/* User Profile Card */}
         <SidebarGroup className="mb-4">
           <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-slate-50 border border-slate-200">
-            <AvatarWithRing user={user} size="md" frameType="gradient" showStatusDot={false} />
+            <AvatarWithRing user={user} size="md" showStatusDot={false} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate leading-tight">{displayName}</p>
               {user && (

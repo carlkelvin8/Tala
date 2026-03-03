@@ -42,6 +42,7 @@ export function ModernLoginPage() {
           firstName?: string;
           lastName?: string;
           avatarUrl?: string;
+          avatarFrame?: string;
         }; 
         accessToken: string; 
         refreshToken: string 

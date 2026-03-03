@@ -81,7 +81,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
 
           {/* User pill */}
           <div className="flex items-center gap-2.5">
-            <AvatarWithRing user={user} size="sm" frameType="none" showStatusDot={false} />
+            <AvatarWithRing user={user} size="sm" showStatusDot={false} />
             <div className="hidden leading-tight sm:block">
               <p className="text-xs font-semibold text-slate-800 leading-none">{displayName}</p>
               <span className={cn("mt-1 inline-block rounded-md px-1.5 py-0.5 text-[10px] font-semibold", roleBadge)}>
