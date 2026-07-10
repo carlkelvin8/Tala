@@ -1,15 +1,16 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import the merit service functions for business logic
 import { assignMerit, listMerits } from "../services/meritService.js"
-// Import the helper to retrieve the authenticated user from context
 import { getAuthUser } from "../middlewares/auth.js"
-// Import the pagination helper to parse and bound page/pageSize query params
 import { getPagination } from "../lib/pagination.js"
-// Import the MeritType enum from Prisma for type-safe type casting
-import { MeritType } from "@prisma/client"
+import { MeritType, RoleType } from "@prisma/client"
+
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
 
 /* POST /api/merits/ — assign a merit or demerit to a student */
 export async function create(c: Context) {
@@ -27,21 +28,19 @@ export async function create(c: Context) {
   }
 }
 
-/* GET /api/merits/ — return a paginated list of merit/demerit records */
 export async function list(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Parse and bound the pagination parameters
   const { page, pageSize, skip, take } = getPagination(query)
-  // Delegate to the merit service with optional filters and pagination
+  const sectionId = resolveSectionId(authUser, query.sectionId)
   const result = await listMerits(
     {
-      studentId: query.studentId,                    // Optional student ID filter
-      type: query.type as MeritType | undefined      // Optional type filter (cast to enum)
+      studentId: query.studentId,
+      type: query.type as MeritType | undefined,
+      sectionId
     },
-    skip, // Number of records to skip
-    take  // Maximum number of records to return
+    skip,
+    take
   )
-  // Return the paginated list with metadata
   return c.json(ok("Merit/Demerit fetched", result.items, { page, pageSize, total: result.total }))
 }

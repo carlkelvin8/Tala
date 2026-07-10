@@ -7,7 +7,7 @@ import { Select } from "../components/ui/select" // Import the reusable Select c
 import { useForm } from "react-hook-form" // Import useForm for form state management and validation
 import { z } from "zod" // Import zod for schema-based validation
 import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { getStoredUser } from "../lib/auth" // Import the function to get the current user for role-based UI
+import { usePermissions } from "../hooks/usePermissions"
 import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
 import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
 import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
@@ -32,7 +32,7 @@ type FormValues = z.infer<typeof schema> // Derive the TypeScript type from the 
 
 // The merits and demerits management page component
 export function MeritsPage() {
-  const user = getStoredUser() // Get the current authenticated user for role-based UI rendering
+  const perms = usePermissions()
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { type: "MERIT" } }) // Initialize the form with zod validation and MERIT as the default type
   const [studentSearch, setStudentSearch] = useState("") // State for the student search input value
   const meritsQuery = useQuery({ // Fetch the list of merit/demerit records
@@ -89,7 +89,7 @@ export function MeritsPage() {
   return (
     <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
       <PageHeader title="Merits & Demerits" description="Record performance points and discipline notes" /> {/* Page title and description */}
-      {user && user.role !== "STUDENT" && ( // Only show the create form for non-student roles
+      {perms.canCreate && (
         <FormSection title="Assign Merit/Demerit" description="Track point-based performance changes"> {/* Form section wrapper */}
           <form className="grid gap-4 md:grid-cols-4" onSubmit={onSubmit}> {/* 4-column grid form */}
             <FormField label="Student" required error={form.formState.errors.studentId?.message}> {/* Student field with validation error display */}

@@ -1,13 +1,16 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import the attendance service functions for business logic
 import { checkIn, checkOut, listAttendance } from "../services/attendanceService.js"
-// Import the helper to retrieve the authenticated user from context
 import { getAuthUser } from "../middlewares/auth.js"
-// Import the pagination helper to parse and bound page/pageSize query params
 import { getPagination } from "../lib/pagination.js"
+import { RoleType } from "@prisma/client"
+
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
 
 /* POST /api/attendance/check-in — record a check-in for the authenticated user */
 export async function checkInHandler(c: Context) {
@@ -43,25 +46,21 @@ export async function checkOutHandler(c: Context) {
   }
 }
 
-/* GET /api/attendance/ — return a paginated list of attendance records */
 export async function list(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Parse and bound the pagination parameters (page, pageSize, skip, take)
   const { page, pageSize, skip, take } = getPagination(query)
-  // Parse the optional date filter; convert to a Date object if provided
   const date = query.date ? new Date(query.date) : undefined
-  // Delegate to the attendance service with all filters and pagination values
+  const sectionId = resolveSectionId(authUser, query.sectionId)
   const result = await listAttendance(
     {
-      date,                        // Optional date filter
-      userId: query.userId,        // Optional user ID filter
-      sectionId: query.sectionId,  // Optional section ID filter
-      flightId: query.flightId     // Optional flight/group ID filter
+      date,
+      userId: query.userId,
+      sectionId,
+      flightId: query.flightId
     },
-    skip, // Number of records to skip for the current page
-    take  // Maximum number of records to return
+    skip,
+    take
   )
-  // Return the paginated list with metadata (page, pageSize, total)
   return c.json(ok("Attendance fetched", result.items, { page, pageSize, total: result.total }))
 }

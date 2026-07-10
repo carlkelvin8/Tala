@@ -1,15 +1,17 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import the enrollment service functions for business logic
 import { createEnrollment, listEnrollments, updateEnrollmentStatus } from "../services/enrollmentService.js"
-// Import the pagination helper to parse and bound page/pageSize query params
 import { getPagination } from "../lib/pagination.js"
-// Import the EnrollmentStatus enum from Prisma for type-safe status casting
-import { EnrollmentStatus } from "@prisma/client"
-// Import the Prisma client for direct database queries (used in the update handler)
+import { EnrollmentStatus, RoleType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
+import { getAuthUser } from "../middlewares/auth.js"
+
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
 
 /* POST /api/enrollments/ — create a new enrollment record */
 export async function create(c: Context) {
@@ -26,24 +28,21 @@ export async function create(c: Context) {
   }
 }
 
-/* GET /api/enrollments/ — return a paginated list of enrollment records */
 export async function list(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Parse and bound the pagination parameters
   const { page, pageSize, skip, take } = getPagination(query)
-  // Delegate to the enrollment service with all filters and pagination values
+  const sectionId = resolveSectionId(authUser, query.sectionId)
   const result = await listEnrollments(
     {
-      status: query.status as EnrollmentStatus | undefined, // Optional status filter (cast to enum)
-      sectionId: query.sectionId,                           // Optional section ID filter
-      flightId: query.flightId,                             // Optional flight ID filter
-      search: query.search                                  // Optional free-text search
+      status: query.status as EnrollmentStatus | undefined,
+      sectionId,
+      flightId: query.flightId,
+      search: query.search
     },
-    skip, // Number of records to skip
-    take  // Maximum number of records to return
+    skip,
+    take
   )
-  // Return the paginated list with metadata
   return c.json(ok("Enrollments fetched", result.items, { page, pageSize, total: result.total }))
 }
 

@@ -20,10 +20,10 @@ export async function createExamSession(data: {
   return session
 }
 
-/* Return all exam sessions ordered by scheduled date descending */
-export async function listExamSessions() {
-  // Fetch all exam sessions, most recently scheduled first
-  return prisma.examSession.findMany({ orderBy: { scheduledAt: "desc" } })
+export async function listExamSessions(filters?: { sectionId?: string }) {
+  const where: Record<string, unknown> = {}
+  if (filters?.sectionId) where.sectionId = filters.sectionId
+  return prisma.examSession.findMany({ where, orderBy: { scheduledAt: "desc" } })
 }
 
 /* Start a new exam attempt for a student */

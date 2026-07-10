@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input" // Import the reusable Input comp
 import { Textarea } from "../components/ui/textarea" // Import the Textarea component for the description field
 import { Button } from "../components/ui/button" // Import the reusable Button component
 import { Select } from "../components/ui/select" // Import the Select component for the category dropdown
-import { getStoredUser, getAccessToken } from "../lib/auth" // Import auth utilities: get current user and access token for file uploads
+import { getAccessToken } from "../lib/auth" // Import auth utilities: get current user and access token for file uploads
 import { useForm } from "react-hook-form" // Import useForm for form state management and validation
 import { z } from "zod" // Import zod for schema-based validation
 import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
@@ -23,6 +23,21 @@ import { useRef, useState } from "react" // Import useRef for file input refs an
 import { Drawer } from "../components/ui/drawer" // Import the Drawer component for the edit panel
 import { ConfirmDialog } from "../components/ui/confirm-dialog" // Import the ConfirmDialog for delete confirmation
 import { Paperclip, X, FileText, ExternalLink, Edit, Trash2, Eye } from "lucide-react" // Import icons for the UI
+import { usePermissions } from "../hooks/usePermissions"
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".jpg", ".jpeg"]
+
+function validateFile(file: File): string | null {
+  const ext = "." + file.name.split(".").pop()?.toLowerCase()
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return "Only PDF, DOCX, and JPG files are allowed"
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024} MB`
+  }
+  return null
+}
 
 // Zod validation schema for the material creation form
 const schema = z.object({
@@ -42,8 +57,8 @@ const categoryColors: Record<string, string> = {
 
 // The learning materials management page component
 export function MaterialsPage() {
-  const user = getStoredUser() // Get the current authenticated user for role-based UI
-  const canManage = user?.role !== "STUDENT" // Students can only view materials, not create/edit/delete
+  const perms = usePermissions()
+  const canManage = perms.canEdit || perms.canDelete // Students can only view materials, not create/edit/delete
   const fileInputRef = useRef<HTMLInputElement>(null) // Ref to the hidden file input for the create form
   const editFileInputRef = useRef<HTMLInputElement>(null) // Ref to the hidden file input for the edit form
   const [selectedFile, setSelectedFile] = useState<File | null>(null) // State for the selected file in the create form
@@ -273,20 +288,24 @@ export function MaterialsPage() {
       header: "Actions", // Column header
       cell: (m: any) => ( // Render edit and delete buttons
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => handleEdit(m)}> {/* Edit button */}
-            <Edit className="h-4 w-4 mr-1" /> {/* Edit icon */}
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleDelete(m)} // Open delete confirmation
-            disabled={deleteMutation.isPending} // Disable while a delete is in progress
-            className="text-red-600 hover:text-red-700 hover:bg-red-50" // Red styling for destructive action
-          >
-            <Trash2 className="h-4 w-4 mr-1" /> {/* Trash icon */}
-            Delete
-          </Button>
+          {perms.canEdit && (
+            <Button size="sm" variant="outline" onClick={() => handleEdit(m)}> {/* Edit button */}
+              <Edit className="h-4 w-4 mr-1" /> {/* Edit icon */}
+              Edit
+            </Button>
+          )}
+          {perms.canDelete && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleDelete(m)} // Open delete confirmation
+              disabled={deleteMutation.isPending} // Disable while a delete is in progress
+              className="text-red-600 hover:text-red-700 hover:bg-red-50" // Red styling for destructive action
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> {/* Trash icon */}
+              Delete
+            </Button>
+          )}
         </div>
       ),
     }] : []), // Empty array if user is a student (no actions column)
@@ -296,7 +315,7 @@ export function MaterialsPage() {
     <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
       <PageHeader title="Learning Materials" description="Publish, organize, and review NSTP learning resources" /> {/* Page title and description */}
 
-      {user && user.role !== "STUDENT" && ( // Only show the create form for non-student roles
+      {perms.canCreate && ( // Only show the create form for non-student roles
         <FormSection
           title="Upload Learning Material"
           description="Share modules, lectures, and activities with students"
@@ -315,7 +334,7 @@ export function MaterialsPage() {
               </Select>
             </FormField>
 
-            <FormField label="Attachment" hint="PDF, Word, PowerPoint, image, or MP4"> {/* File attachment field */}
+            <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)"> {/* File attachment field */}
               <div
                 className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3.5 text-sm text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-50" // Dashed border dropzone-style button
                 onClick={() => fileInputRef.current?.click()} // Trigger the hidden file input on click
@@ -343,8 +362,15 @@ export function MaterialsPage() {
                 ref={fileInputRef} // Attach the ref for programmatic triggering
                 type="file" // File input type
                 className="hidden" // Hide the native file input
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4" // Restrict to allowed file types
-                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} // Update the selected file state when a file is chosen
+                accept=".pdf,.docx,.jpg,.jpeg" // Restrict to allowed file types
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    const error = validateFile(file)
+                    if (error) { toast.error(error); return }
+                  }
+                  setSelectedFile(file ?? null)
+                }}
               />
             </FormField>
 
@@ -406,7 +432,7 @@ export function MaterialsPage() {
             </Select>
           </FormField>
 
-          <FormField label="Attachment" hint="PDF, Word, PowerPoint, image, or MP4"> {/* File attachment field in the edit form */}
+          <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)"> {/* File attachment field in the edit form */}
             <div
               className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3.5 text-sm text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-50" // Dashed border dropzone-style button
               onClick={() => editFileInputRef.current?.click()} // Trigger the hidden file input on click
@@ -446,8 +472,15 @@ export function MaterialsPage() {
               ref={editFileInputRef} // Attach the ref for programmatic triggering
               type="file" // File input type
               className="hidden" // Hide the native file input
-              accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4" // Restrict to allowed file types
-              onChange={(e) => setEditFile(e.target.files?.[0] ?? null)} // Update the edit file state when a file is chosen
+              accept=".pdf,.docx,.jpg,.jpeg" // Restrict to allowed file types
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const error = validateFile(file)
+                  if (error) { toast.error(error); return }
+                }
+                setEditFile(file ?? null)
+              }}
             />
           </FormField>
 

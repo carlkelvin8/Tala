@@ -1,171 +1,229 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for CRUD operations and useQuery for fetching sections
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { Input } from "../components/ui/input" // Import the reusable Input component
-import { useForm } from "react-hook-form" // Import useForm for form state management and validation
-import { z } from "zod" // Import zod for schema-based validation
-import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { getStoredUser } from "../lib/auth" // Import the function to get the current user for role-based UI
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
-import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { toast } from "sonner" // Import toast for notifications
-import { FormSection } from "../components/ui/form-section" // Import the FormSection wrapper for the create form
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for the list section
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { Badge } from "../components/ui/badge" // Import the Badge component for the section count badge
-import { Drawer } from "../components/ui/drawer" // Import the Drawer component for the edit panel
-import { ConfirmDialog } from "../components/ui/confirm-dialog" // Import the ConfirmDialog for delete confirmation
-import { Users, Plus, Edit, Trash2 } from "lucide-react" // Import icons: Users for section items, Plus for create, Edit for edit, Trash2 for delete
-import { useState } from "react" // Import useState for managing edit/delete state
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Select } from "../components/ui/select"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { getStoredUser } from "../lib/auth"
+import { PageHeader } from "../components/ui/page-header"
+import { FormField } from "../components/ui/form-field"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { toast } from "sonner"
+import { FormSection } from "../components/ui/form-section"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { Badge } from "../components/ui/badge"
+import { Drawer } from "../components/ui/drawer"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { Users, Plus, Edit, Trash2, Zap } from "lucide-react"
+import { useState } from "react"
 
-// Zod validation schema for the section creation form
-const schema = z.object({
-  code: z.string().min(1, "Code is required"), // Section code must not be empty
-  name: z.string().min(1, "Name is required") // Section name must not be empty
+const MAX_SECTIONS_PER_COURSE = 50
+
+const createSchema = z.object({
+  code: z.string().min(1, "Code is required"),
+  name: z.string().min(1, "Name is required"),
+  courseId: z.string().nullable().optional()
 })
 
-type FormValues = z.infer<typeof schema> // Derive the TypeScript type from the zod schema
+const generateSchema = z.object({
+  prefix: z.string().min(1, "Prefix is required"),
+  start: z.coerce.number().int().min(1, "Start must be at least 1"),
+  end: z.coerce.number().int().min(1, "End must be at least 1"),
+  courseId: z.string().min(1, "Course is required"),
+  separator: z.string().default("-")
+}).refine((data) => data.end >= data.start, {
+  message: "End must be greater than or equal to start",
+  path: ["end"]
+}).refine((data) => (data.end - data.start + 1) <= 50, {
+  message: "Cannot generate more than 50 sections at once",
+  path: ["end"]
+})
 
-// The sections management page component
+type CreateFormValues = z.infer<typeof createSchema>
+type GenerateFormValues = z.infer<typeof generateSchema>
+
 export function SectionsPage() {
-  const user = getStoredUser() // Get the current authenticated user for role-based UI
-  const canManage = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR" // Only admins and implementors can create/edit/delete sections
-  const form = useForm<FormValues>({ resolver: zodResolver(schema) }) // Initialize the form with zod validation
-  const [editingSection, setEditingSection] = useState<any | null>(null) // State for the section currently being edited
-  const [deletingSection, setDeletingSection] = useState<any | null>(null) // State for the section pending deletion
-  const [editCode, setEditCode] = useState("") // State for the edit form's code field value
-  const [editName, setEditName] = useState("") // State for the edit form's name field value
+  const user = getStoredUser()
+  const canManage = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
+  const createForm = useForm<CreateFormValues>({ resolver: zodResolver(createSchema) })
+  const generateForm = useForm<GenerateFormValues>({
+    resolver: zodResolver(generateSchema),
+    defaultValues: { prefix: "SEC", start: 1, end: 10, courseId: "", separator: "-" }
+  })
+  const [editingSection, setEditingSection] = useState<any | null>(null)
+  const [deletingSection, setDeletingSection] = useState<any | null>(null)
+  const [editCode, setEditCode] = useState("")
+  const [editName, setEditName] = useState("")
+  const [editCourseId, setEditCourseId] = useState<string | null>(null)
 
-  const sectionsQuery = useQuery({ // Fetch the list of sections
-    queryKey: ["sections"], // Cache key for the sections list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/sections"), // Fetch all sections from the API
-    refetchInterval: 10000, // Auto-refetch every 10 seconds
-    retry: false // Don't retry on failure
+  const sectionsQuery = useQuery({
+    queryKey: ["sections"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/sections"),
+    refetchInterval: 10000,
+    retry: false
   })
 
-  const mutation = useMutation({ // Mutation for creating a new section
-    mutationFn: (values: FormValues) =>
-      apiRequest<ApiResponse<any>>("/api/sections", { // POST to the sections endpoint
+  const coursesQuery = useQuery({
+    queryKey: ["courses"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/courses"),
+    retry: false
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (values: CreateFormValues) =>
+      apiRequest<ApiResponse<any>>("/api/sections", {
         method: "POST",
-        body: JSON.stringify(values) // Send the form values as JSON
+        body: JSON.stringify(values)
       }),
     onSuccess: () => {
-      sectionsQuery.refetch() // Refresh the sections list after creation
-      toast.success("Section created") // Show success notification
+      sectionsQuery.refetch()
+      toast.success("Section created")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to create section") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Unable to create section")
     }
   })
 
-  const updateMutation = useMutation({ // Mutation for updating an existing section
-    mutationFn: ({ id, code, name }: { id: string; code: string; name: string }) =>
-      apiRequest<ApiResponse<any>>(`/api/sections/${id}`, { // PATCH to the specific section endpoint
+  const generateMutation = useMutation({
+    mutationFn: (values: GenerateFormValues) =>
+      apiRequest<ApiResponse<any>>("/api/sections/generate", {
+        method: "POST",
+        body: JSON.stringify(values)
+      }),
+    onSuccess: (res) => {
+      sectionsQuery.refetch()
+      toast.success(res.message || "Sections generated")
+      generateForm.reset({ prefix: "SEC", start: 1, end: 10, courseId: "", separator: "-" })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unable to generate sections")
+    }
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, code, name, courseId }: { id: string; code: string; name: string; courseId: string | null }) =>
+      apiRequest<ApiResponse<any>>(`/api/sections/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ code, name }) // Send the updated code and name
+        body: JSON.stringify({ code, name, courseId })
       }),
     onSuccess: () => {
-      sectionsQuery.refetch() // Refresh the sections list after update
-      toast.success("Section updated") // Show success notification
-      setEditingSection(null) // Close the edit drawer
+      sectionsQuery.refetch()
+      toast.success("Section updated")
+      setEditingSection(null)
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Update failed") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Update failed")
     }
   })
 
-  const deleteMutation = useMutation({ // Mutation for deleting a section
+  const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest<ApiResponse<any>>(`/api/sections/${id}`, { // DELETE to the specific section endpoint
+      apiRequest<ApiResponse<any>>(`/api/sections/${id}`, {
         method: "DELETE"
       }),
     onSuccess: () => {
-      sectionsQuery.refetch() // Refresh the sections list after deletion
-      toast.success("Section deleted") // Show success notification
+      sectionsQuery.refetch()
+      toast.success("Section deleted")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Delete failed") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Delete failed")
     }
   })
 
-  const handleEdit = (section: any) => { // Handler to open the edit drawer for a specific section
-    setEditingSection(section) // Set the section being edited
-    setEditCode(section.code) // Pre-populate the edit code field
-    setEditName(section.name) // Pre-populate the edit name field
+  const handleEdit = (section: any) => {
+    setEditingSection(section)
+    setEditCode(section.code)
+    setEditName(section.name)
+    setEditCourseId(section.courseId ?? null)
   }
 
-  const handleSaveEdit = () => { // Handler to save the edit form
-    if (editingSection) { // Only proceed if a section is being edited
-      updateMutation.mutate({ // Trigger the update mutation
-        id: editingSection.id, // Pass the section's ID
-        code: editCode, // Pass the updated code
-        name: editName // Pass the updated name
+  const handleSaveEdit = () => {
+    if (editingSection) {
+      updateMutation.mutate({
+        id: editingSection.id,
+        code: editCode,
+        name: editName,
+        courseId: editCourseId
       })
     }
   }
 
-  const handleDelete = (section: any) => { // Handler to open the delete confirmation dialog
-    setDeletingSection(section) // Set the section pending deletion
+  const handleDelete = (section: any) => {
+    setDeletingSection(section)
   }
 
-  const confirmDelete = () => { // Handler called when the user confirms deletion
-    if (deletingSection) { // Only proceed if a section is pending deletion
-      deleteMutation.mutate(deletingSection.id) // Trigger the delete mutation
-      setDeletingSection(null) // Close the confirmation dialog
+  const confirmDelete = () => {
+    if (deletingSection) {
+      deleteMutation.mutate(deletingSection.id)
+      setDeletingSection(null)
     }
   }
 
-  const onSubmit = form.handleSubmit(async (values) => { // Form submit handler for creating a new section
-    await mutation.mutateAsync(values) // Trigger the create mutation
-    form.reset() // Reset the form after successful creation
+  const onCreateSubmit = createForm.handleSubmit(async (values) => {
+    await createMutation.mutateAsync(values)
+    createForm.reset()
   })
 
-  const sections = sectionsQuery.data?.data ?? [] // Extract the sections array, defaulting to empty array
-  const columns = [ // Column definitions for the responsive table
+  const onGenerateSubmit = generateForm.handleSubmit(async (values) => {
+    await generateMutation.mutateAsync(values)
+  })
+
+  const sections = sectionsQuery.data?.data ?? []
+  const courses = coursesQuery.data?.data ?? []
+
+  const columns = [
     {
-      header: "Code", // Column header
-      cell: (section: any) => ( // Render the section code with a users icon
+      header: "Code",
+      cell: (section: any) => (
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary-600" /> {/* Users icon in primary color */}
-          <span className="font-medium text-slate-900">{section.code}</span> {/* Section code in bold dark text */}
+          <Users className="h-4 w-4 text-primary-600" />
+          <span className="font-medium text-slate-900">{section.code}</span>
         </div>
       )
     },
     {
-      header: "Name", // Column header
-      cell: (section: any) => section.name // Render the section name
+      header: "Name",
+      cell: (section: any) => section.name
     },
     {
-      header: "Created", // Column header
+      header: "Course",
+      cell: (section: any) => section.course?.name ?? (
+        <span className="text-slate-400 italic">Unassigned</span>
+      )
+    },
+    {
+      header: "Created",
       cell: (section: any) =>
-        new Date(section.createdAt).toLocaleDateString(undefined, { // Format the creation date
+        new Date(section.createdAt).toLocaleDateString(undefined, {
           year: "numeric",
           month: "short",
           day: "numeric"
         })
     },
     {
-      header: "Actions", // Column header for action buttons
-      cell: (section: any) => { // Render edit and delete buttons
-        if (!canManage) return null // Don't render actions for non-managers
+      header: "Actions",
+      cell: (section: any) => {
+        if (!canManage) return null
         return (
-          <div className="flex gap-2"> {/* Row of action buttons */}
-            <Button size="sm" variant="outline" onClick={() => handleEdit(section)}> {/* Edit button */}
-              <Edit className="h-4 w-4 mr-1" /> {/* Edit icon */}
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => handleEdit(section)}>
+              <Edit className="h-4 w-4 mr-1" />
               Edit
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleDelete(section)} // Open delete confirmation
-              disabled={deleteMutation.isPending} // Disable while a delete is in progress
-              className="text-red-600 hover:text-red-700 hover:bg-red-50" // Red styling for destructive action
+              onClick={() => handleDelete(section)}
+              disabled={deleteMutation.isPending}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
-              <Trash2 className="h-4 w-4 mr-1" /> {/* Trash icon */}
+              <Trash2 className="h-4 w-4 mr-1" />
               Delete
             </Button>
           </div>
@@ -174,125 +232,202 @@ export function SectionsPage() {
     }
   ]
 
+  const previewPrefix = generateForm.watch("prefix") || "SEC"
+  const previewStart = generateForm.watch("start") || 1
+  const previewEnd = generateForm.watch("end") || 1
+  const previewSep = generateForm.watch("separator") || "-"
+  const previewCount = Math.max(0, (previewEnd || 0) - (previewStart || 0) + 1)
+
   return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
+    <div className="space-y-6">
       <PageHeader
         title="Sections"
-        description="Manage class sections and student groups"
-        actions={ // Badge showing the total number of sections
+        description="Manage and generate class sections"
+        actions={
           <Badge variant="outline" className="flex items-center gap-1 text-xs">
-            <Users className="h-3 w-3" /> {/* Small users icon */}
-            <span>{sections.length} sections</span> {/* Dynamic count of sections */}
+            <Users className="h-3 w-3" />
+            <span>{sections.length} sections</span>
           </Badge>
         }
       />
 
-      {canManage && ( // Only show the create form for admins and implementors
-        <FormSection title="Create Section" description="Add a new class section to the system">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}> {/* Two-column grid form */}
-            <FormField label="Code" required error={form.formState.errors.code?.message}> {/* Code field with validation error */}
-              <Input placeholder="e.g. SEC-1A" {...form.register("code")} /> {/* Code input registered with react-hook-form */}
+      {canManage && (
+        <FormSection title="Generate Sections" description="Automatically create multiple sections for a course">
+          <form className="grid gap-4 md:grid-cols-3" onSubmit={onGenerateSubmit}>
+            <FormField label="Course" required error={generateForm.formState.errors.courseId?.message}>
+              <Select {...generateForm.register("courseId")}>
+                <option value="">Select a course</option>
+                {courses.map((course: any) => (
+                  <option key={course.id} value={course.id}>
+                    {course.code} - {course.name}
+                  </option>
+                ))}
+              </Select>
             </FormField>
-            <FormField label="Name" required error={form.formState.errors.name?.message}> {/* Name field with validation error */}
-              <Input placeholder="e.g. Section 1-A" {...form.register("name")} /> {/* Name input registered with react-hook-form */}
+            <FormField label="Prefix" required error={generateForm.formState.errors.prefix?.message}>
+              <Input placeholder="e.g. SEC" {...generateForm.register("prefix")} />
             </FormField>
-            {mutation.isError && ( // Show error alert if creation failed
-              <Alert variant="danger" className="md:col-span-2"> {/* Error alert spanning both columns */}
-                {(mutation.error as Error).message}
+            <FormField label="Separator" error={generateForm.formState.errors.separator?.message}>
+              <Input placeholder="-" {...generateForm.register("separator")} />
+            </FormField>
+            <FormField label="Start Number" required error={generateForm.formState.errors.start?.message}>
+              <Input type="number" min={1} placeholder="1" {...generateForm.register("start")} />
+            </FormField>
+            <FormField label="End Number" required error={generateForm.formState.errors.end?.message}>
+              <Input type="number" min={1} placeholder="10" {...generateForm.register("end")} />
+            </FormField>
+            <div className="flex items-end">
+              <div className="text-sm text-slate-500 pb-2">
+                Preview: <span className="font-medium text-slate-700">{previewPrefix}{previewSep}{String(previewStart).padStart(2, "0")}</span>
+                {previewCount > 1 && (
+                  <> to <span className="font-medium text-slate-700">{previewPrefix}{previewSep}{String(previewEnd).padStart(2, "0")}</span></>
+                )}
+                <span className="ml-1 text-slate-400">({previewCount} sections)</span>
+              </div>
+            </div>
+            {generateMutation.isError && (
+              <Alert variant="danger" className="md:col-span-3">
+                {(generateMutation.error as Error).message}
               </Alert>
             )}
-            <div className="md:col-span-2"> {/* Submit button spanning both columns */}
-              <Button type="submit" disabled={mutation.isPending}> {/* Submit button, disabled while creating */}
-                <Plus className="h-4 w-4 mr-1" /> {/* Plus icon */}
-                {mutation.isPending ? "Creating..." : "Create Section"} {/* Loading text while creating */}
+            <div className="md:col-span-3">
+              <Button type="submit" disabled={generateMutation.isPending}>
+                <Zap className="h-4 w-4 mr-1" />
+                {generateMutation.isPending ? "Generating..." : "Generate Sections"}
               </Button>
             </div>
           </form>
         </FormSection>
       )}
 
-      <SectionCard title="All Sections" description="Class sections in the system"> {/* Card wrapper for the sections list */}
-        {sectionsQuery.isError && ( // Show error alert if fetch failed
+      {canManage && (
+        <FormSection title="Create Single Section" description="Add one section manually">
+          <form className="grid gap-4 md:grid-cols-3" onSubmit={onCreateSubmit}>
+            <FormField label="Code" required error={createForm.formState.errors.code?.message}>
+              <Input placeholder="e.g. SEC-1A" {...createForm.register("code")} />
+            </FormField>
+            <FormField label="Name" required error={createForm.formState.errors.name?.message}>
+              <Input placeholder="e.g. Section 1-A" {...createForm.register("name")} />
+            </FormField>
+            <FormField label="Course" error={createForm.formState.errors.courseId?.message}>
+              <Select {...createForm.register("courseId")}>
+                <option value="">No course (optional)</option>
+                {courses.map((course: any) => (
+                  <option key={course.id} value={course.id}>
+                    {course.code} - {course.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            {createMutation.isError && (
+              <Alert variant="danger" className="md:col-span-3">
+                {(createMutation.error as Error).message}
+              </Alert>
+            )}
+            <div className="md:col-span-3">
+              <Button type="submit" disabled={createMutation.isPending}>
+                <Plus className="h-4 w-4 mr-1" />
+                {createMutation.isPending ? "Creating..." : "Create Section"}
+              </Button>
+            </div>
+          </form>
+        </FormSection>
+      )}
+
+      <SectionCard title="All Sections" description="Class sections in the system">
+        {sectionsQuery.isError && (
           <Alert variant="danger">
             {(sectionsQuery.error as Error).message === "Unauthorized"
-              ? "Please log out and log back in to refresh your session." // Specific message for auth errors
-              : "Unable to load sections."} {/* Generic error message */}
+              ? "Please log out and log back in to refresh your session."
+              : "Unable to load sections."}
           </Alert>
         )}
-        {sectionsQuery.isLoading ? ( // Show loading skeleton while fetching
-          <LoadingSkeleton rows={3} columns={3} /> // Skeleton matching the table structure
-        ) : sections.length === 0 ? ( // Show empty state if no sections exist
+        {sectionsQuery.isLoading ? (
+          <LoadingSkeleton rows={3} columns={3} />
+        ) : sections.length === 0 ? (
           <EmptyState
             title="No sections yet"
             description={
               canManage
-                ? "Create your first section to organize students." // Message for managers
-                : "No sections have been created yet." // Message for non-managers
+                ? "Use the generator above to create sections automatically."
+                : "No sections have been created yet."
             }
           />
         ) : (
           <ResponsiveTableCards
-            data={sections} // Pass the sections array as data
-            columns={columns} // Pass the column definitions
-            rowKey={(section) => section.id} // Use the section ID as the React key
-            renderTitle={(section) => section.code} // Use the section code as the card title on mobile
+            data={sections}
+            columns={columns}
+            rowKey={(section) => section.id}
+            renderTitle={(section) => section.code}
           />
         )}
       </SectionCard>
 
-      {/* Edit Section Drawer */}
       <Drawer
-        open={!!editingSection} // Open when a section is being edited
-        onOpenChange={(open) => !open && setEditingSection(null)} // Close by clearing the editing state
-        title="Edit Section" // Drawer title
+        open={!!editingSection}
+        onOpenChange={(open) => !open && setEditingSection(null)}
+        title="Edit Section"
       >
-        <div className="p-4 space-y-4"> {/* Drawer content with padding and spacing */}
-          <FormField label="Code" required> {/* Code field in the edit form */}
+        <div className="p-4 space-y-4">
+          <FormField label="Code" required>
             <Input
-              value={editCode} // Controlled input value
-              onChange={(e) => setEditCode(e.target.value)} // Update edit code state on change
-              placeholder="e.g. SEC-1A" // Placeholder text
+              value={editCode}
+              onChange={(e) => setEditCode(e.target.value)}
+              placeholder="e.g. SEC-1A"
             />
           </FormField>
 
-          <FormField label="Name" required> {/* Name field in the edit form */}
+          <FormField label="Name" required>
             <Input
-              value={editName} // Controlled input value
-              onChange={(e) => setEditName(e.target.value)} // Update edit name state on change
-              placeholder="e.g. Section 1-A" // Placeholder text
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="e.g. Section 1-A"
             />
           </FormField>
 
-          {updateMutation.isError && ( // Show error alert if update failed
+          <FormField label="Course">
+            <Select
+              value={editCourseId ?? ""}
+              onChange={(e) => setEditCourseId(e.target.value || null)}
+            >
+              <option value="">No course (optional)</option>
+              {courses.map((course: any) => (
+                <option key={course.id} value={course.id}>
+                  {course.code} - {course.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+
+          {updateMutation.isError && (
             <Alert variant="danger">
               {(updateMutation.error as Error).message}
             </Alert>
           )}
 
-          <div className="flex gap-2"> {/* Row of action buttons */}
+          <div className="flex gap-2">
             <Button
-              onClick={handleSaveEdit} // Save the edit on click
-              disabled={updateMutation.isPending || !editCode || !editName} // Disable if saving or required fields are empty
+              onClick={handleSaveEdit}
+              disabled={updateMutation.isPending || !editCode || !editName}
             >
-              {updateMutation.isPending ? "Saving..." : "Save Changes"} {/* Loading text while saving */}
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
-            <Button variant="outline" onClick={() => setEditingSection(null)}> {/* Cancel button closes the drawer */}
+            <Button variant="outline" onClick={() => setEditingSection(null)}>
               Cancel
             </Button>
           </div>
         </div>
       </Drawer>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        open={!!deletingSection} // Open when a section is pending deletion
-        onOpenChange={(open) => !open && setDeletingSection(null)} // Close by clearing the deleting state
-        title="Delete Section" // Dialog title
-        description={`Are you sure you want to delete "${deletingSection?.code}"? This action cannot be undone.`} // Dynamic description with the section code
-        confirmLabel="Delete" // Confirm button label
-        cancelLabel="Cancel" // Cancel button label
-        destructive // Style the confirm button as destructive (red)
-        onConfirm={confirmDelete} // Call the confirm handler when confirmed
+        open={!!deletingSection}
+        onOpenChange={(open) => !open && setDeletingSection(null)}
+        title="Delete Section"
+        description={`Are you sure you want to delete "${deletingSection?.code}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={confirmDelete}
       />
     </div>
   )

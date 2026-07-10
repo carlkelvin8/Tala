@@ -21,27 +21,24 @@ export async function assignMerit(data: {
   return merit
 }
 
-/* Return a paginated list of merit/demerit records with optional filters */
-export async function listMerits(filters: { studentId?: string; type?: MeritType }, skip: number, take: number) {
-  // Build the Prisma where clause dynamically based on provided filters
+export async function listMerits(filters: { studentId?: string; type?: MeritType; sectionId?: string }, skip: number, take: number) {
   const where: Record<string, unknown> = {}
-  // Add student ID filter if provided
   if (filters.studentId) where.studentId = filters.studentId
-  // Add type filter (MERIT or DEMERIT) if provided
   if (filters.type) where.type = filters.type
-  // Run the count and data queries in parallel for performance
+  if (filters.sectionId) {
+    where.student = {
+      studentProfile: { sectionId: filters.sectionId }
+    }
+  }
   const [items, total] = await Promise.all([
-    // Fetch the paginated merit/demerit records with the student's user data included
     prisma.meritDemerit.findMany({
-      where,                       // Apply the dynamic filter
-      skip,                        // Skip records for previous pages
-      take,                        // Limit to the page size
-      include: { student: true },  // Include the full student user object
-      orderBy: { createdAt: "desc" } // Most recently created records first
+      where,
+      skip,
+      take,
+      include: { student: true },
+      orderBy: { createdAt: "desc" }
     }),
-    // Count the total number of matching records for pagination metadata
     prisma.meritDemerit.count({ where })
   ])
-  // Return both the page of items and the total count
   return { items, total }
 }

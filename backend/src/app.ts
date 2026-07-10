@@ -30,13 +30,17 @@ import { meritRoutes } from "./routes/meritRoutes.js"
 import { examRoutes } from "./routes/examRoutes.js"
 // Import the section route handlers (CRUD for class sections)
 import { sectionRoutes } from "./routes/sectionRoutes.js"
-// Import the flight route handlers (CRUD for cadet flights/groups)
+import { courseRoutes } from "./routes/courseRoutes.js"
 import { flightRoutes } from "./routes/flightRoutes.js"
 // Import the report route handlers (enrollment reports in JSON and CSV)
 import { reportRoutes } from "./routes/reportRoutes.js"
 // Import the dashboard route handlers (summary statistics)
 import { dashboardRoutes } from "./routes/dashboardRoutes.js"
 // Import the global error handler middleware to catch unhandled errors
+import { absenceRoutes } from "./routes/absenceRoutes.js"
+import { termRoutes } from "./routes/termRoutes.js"
+import { remarkRoutes } from "./routes/remarkRoutes.js"
+import { trainingDayRoutes } from "./routes/trainingDayRoutes.js"
 import { errorHandler } from "./middlewares/errorHandler.js"
 // Import the ok helper to build a standard success response shape
 import { ok } from "./lib/response.js"
@@ -97,12 +101,16 @@ app.route("/api/merits", meritRoutes)
 app.route("/api/exams", examRoutes)
 // Mount section routes at /api/sections
 app.route("/api/sections", sectionRoutes)
-// Mount flight/group routes at /api/flights
+app.route("/api/courses", courseRoutes)
 app.route("/api/flights", flightRoutes)
 // Mount report routes at /api/reports
 app.route("/api/reports", reportRoutes)
 // Mount dashboard summary routes at /api/dashboard
 app.route("/api/dashboard", dashboardRoutes)
+app.route("/api/absences", absenceRoutes)
+app.route("/api/terms", termRoutes)
+app.route("/api/remarks", remarkRoutes)
+app.route("/api/training", trainingDayRoutes)
 
 // Register the global error handler as a catch-all middleware — runs after all routes
 app.use("*", errorHandler)

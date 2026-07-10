@@ -1,11 +1,15 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import the exam service functions for business logic
 import { createExamSession, endExamAttempt, listExamSessions, logMonitoringEvent, startExamAttempt } from "../services/examService.js"
-// Import the helper to retrieve the authenticated user from context
 import { getAuthUser } from "../middlewares/auth.js"
+import { RoleType } from "@prisma/client"
+
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
 
 /* POST /api/exams/ — create a new exam session */
 export async function createSession(c: Context) {
@@ -24,11 +28,11 @@ export async function createSession(c: Context) {
   }
 }
 
-/* GET /api/exams/ — return all exam sessions ordered by scheduled date */
 export async function listSessions(c: Context) {
-  // Delegate to the exam service to fetch all sessions
-  const sessions = await listExamSessions()
-  // Return the list of exam sessions
+  const authUser = getAuthUser(c)
+  const query = c.req.query()
+  const sectionId = resolveSectionId(authUser, query.sectionId)
+  const sessions = await listExamSessions(sectionId ? { sectionId } : undefined)
   return c.json(ok("Exam sessions fetched", sessions))
 }
 

@@ -1,34 +1,22 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import the material service functions for business logic
 import { createMaterial, listMaterials, updateMaterial, deleteMaterial } from "../services/materialService.js"
-// Import the pagination helper to parse and bound page/pageSize query params
 import { getPagination } from "../lib/pagination.js"
-// Import the helper to retrieve the authenticated user from context
 import { getAuthUser } from "../middlewares/auth.js"
-// Import the MaterialCategory enum from Prisma for type-safe category casting
-import { MaterialCategory } from "@prisma/client"
-// Import Node.js file system functions for writing uploaded files to disk
+import { MaterialCategory, RoleType } from "@prisma/client"
 import { writeFile, mkdir } from "node:fs/promises"
-// Import path utilities for building file paths and extracting extensions
 import { join, extname } from "node:path"
-// Import the crypto module to generate unique filenames for uploaded files
 import { randomUUID } from "node:crypto"
 
 // Set of MIME types that are allowed for file uploads — rejects all other types
 const ALLOWED_TYPES = new Set([
   "application/pdf",                                                                    // PDF documents
-  "application/msword",                                                                 // Legacy Word documents (.doc)
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",           // Modern Word documents (.docx)
-  "application/vnd.ms-powerpoint",                                                      // Legacy PowerPoint files (.ppt)
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",         // Modern PowerPoint files (.pptx)
   "image/jpeg",  // JPEG images
-  "image/png",   // PNG images
-  "image/gif",   // GIF images
-  "video/mp4",   // MP4 video files
 ])
+
+// Maximum file size: 10 MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 /* POST /api/materials/upload — handle multipart file upload and save to disk */
 export async function upload(c: Context) {
@@ -43,7 +31,11 @@ export async function upload(c: Context) {
     }
     // Reject the request if the file's MIME type is not in the allowed set
     if (!ALLOWED_TYPES.has(file.type)) {
-      return c.json(fail("Unsupported file type. Allowed: PDF, Word, PowerPoint, images, MP4"), 400)
+      return c.json(fail("Unsupported file type. Allowed: PDF, DOCX, JPG"), 400)
+    }
+    // Reject the request if the file exceeds the maximum size
+    if (file.size > MAX_FILE_SIZE) {
+      return c.json(fail(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024} MB`), 400)
     }
     // Extract the file extension from the original filename; fall back to ".bin" if none
     const ext = extname(file.name) || ".bin"
@@ -81,23 +73,28 @@ export async function create(c: Context) {
   }
 }
 
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
+
 /* GET /api/materials/ — return a paginated list of learning materials */
 export async function list(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Parse and bound the pagination parameters
   const { page, pageSize, skip, take } = getPagination(query)
-  // Delegate to the material service with optional filters and pagination
+  const sectionId = resolveSectionId(authUser, query.sectionId)
   const result = await listMaterials(
     {
-      category: query.category as MaterialCategory | undefined, // Optional category filter (cast to enum)
-      sectionId: query.sectionId,                               // Optional section ID filter
-      flightId: query.flightId,                                 // Optional flight ID filter
+      category: query.category as MaterialCategory | undefined,
+      sectionId,
+      flightId: query.flightId,
     },
-    skip, // Number of records to skip
-    take  // Maximum number of records to return
+    skip,
+    take
   )
-  // Return the paginated list with metadata
   return c.json(ok("Materials fetched", result.items, { page, pageSize, total: result.total }))
 }
 

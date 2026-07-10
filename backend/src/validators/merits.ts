@@ -9,10 +9,10 @@ export const meritSchema = z.object({
   reason: z.string().min(1)             // Mandatory justification text — must not be empty
 })
 
-/* Schema for query parameters when listing merit/demerit records */
 export const meritQuerySchema = z.object({
-  studentId: z.string().uuid().optional(),       // Filter by a specific student's UUID
-  type: z.enum(["MERIT", "DEMERIT"]).optional(), // Filter by type (MERIT or DEMERIT)
-  page: z.string().optional(),                   // Page number for pagination
-  pageSize: z.string().optional()                // Items per page for pagination
+  studentId: z.string().uuid().optional(),
+  type: z.enum(["MERIT", "DEMERIT"]).optional(),
+  sectionId: z.string().uuid().optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional()
 })

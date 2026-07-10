@@ -9,6 +9,7 @@ const pageTitles: Record<string, string> = {
   "/enrollment": "Enrollment Management",
   "/students": "Student Directory",
   "/sections": "Section Management",
+  "/courses": "Course Management",
   "/flights": "Flight Management",
   "/materials": "Learning Materials",
   "/attendance": "Attendance Tracking",
@@ -18,6 +19,8 @@ const pageTitles: Record<string, string> = {
   "/reports": "Reports & Analytics",
   "/users": "User Management",
   "/profile": "My Profile",
+  "/training": "Training Monitoring",
+  "/terms": "Academic Terms",
 }
 
 export function SiteHeader() {

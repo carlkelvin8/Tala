@@ -7,7 +7,7 @@ import { Select } from "../components/ui/select" // Import the Select component 
 import { useForm } from "react-hook-form" // Import useForm for form state management and validation
 import { z } from "zod" // Import zod for schema-based validation
 import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { getStoredUser } from "../lib/auth" // Import the function to get the current user for role-based UI
+import { usePermissions } from "../hooks/usePermissions" // Import the permissions hook for role-based UI
 import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
 import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
 import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
@@ -49,8 +49,7 @@ type ItemFormValues = z.infer<typeof itemSchema> // Derive TypeScript type from 
 
 // The grades management page component with tabs for grades, items, and categories
 export function GradesPage() {
-  const user = getStoredUser() // Get the current authenticated user for role-based UI
-  const canManage = user?.role !== "STUDENT" // Students can only view grades, not create/edit/delete
+  const perms = usePermissions() // Get permissions for role-based UI
   const [activeTab, setActiveTab] = useState<"grades" | "items" | "categories">("grades") // State for the active tab, defaults to grades
   const gradeForm = useForm<GradeFormValues>({ resolver: zodResolver(gradeSchema) }) // Form for encoding grades
   const categoryForm = useForm<CategoryFormValues>({ resolver: zodResolver(categorySchema) }) // Form for creating categories
@@ -209,10 +208,10 @@ export function GradesPage() {
     { header: "Item", cell: (grade: any) => grade.gradeItem?.title ?? "-" }, // Grade item title
     { header: "Score", cell: (grade: any) => `${grade.score} / ${grade.gradeItem?.maxScore ?? 0}` }, // Score out of max score
     { header: "Category", cell: (grade: any) => grade.gradeItem?.category?.name ?? "-" }, // Category name
-    ...(canManage ? [{ header: "Actions", cell: (grade: any) => ( // Actions column only for non-students
+    ...(perms.canEdit || perms.canDelete ? [{ header: "Actions", cell: (grade: any) => ( // Actions column only for permitted roles
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={() => handleEditGrade(grade)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
-        <Button size="sm" variant="outline" onClick={() => handleDeleteGrade(grade)} disabled={deleteGradeMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+        {perms.canEdit && <Button size="sm" variant="outline" onClick={() => handleEditGrade(grade)}><Edit className="h-4 w-4 mr-1" />Edit</Button>}
+        {perms.canDelete && <Button size="sm" variant="outline" onClick={() => handleDeleteGrade(grade)} disabled={deleteGradeMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>}
       </div>
     )}] : []),
   ]
@@ -220,10 +219,10 @@ export function GradesPage() {
   const categoryColumns = [ // Column definitions for the categories table
     { header: "Name", cell: (category: any) => <span className="font-medium text-slate-900">{category.name}</span> }, // Category name
     { header: "Weight", cell: (category: any) => category.weight ? `${category.weight}%` : "-" }, // Weight percentage or dash
-    ...(canManage ? [{ header: "Actions", cell: (category: any) => ( // Actions column only for non-students
+    ...(perms.canEdit || perms.canDelete ? [{ header: "Actions", cell: (category: any) => ( // Actions column only for permitted roles
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={() => handleEditCategory(category)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
-        <Button size="sm" variant="outline" onClick={() => handleDeleteCategory(category)} disabled={deleteCategoryMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+        {perms.canEdit && <Button size="sm" variant="outline" onClick={() => handleEditCategory(category)}><Edit className="h-4 w-4 mr-1" />Edit</Button>}
+        {perms.canDelete && <Button size="sm" variant="outline" onClick={() => handleDeleteCategory(category)} disabled={deleteCategoryMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>}
       </div>
     )}] : []),
   ]
@@ -232,10 +231,10 @@ export function GradesPage() {
     { header: "Title", cell: (item: any) => <span className="font-medium text-slate-900">{item.title}</span> }, // Item title
     { header: "Max Score", cell: (item: any) => item.maxScore }, // Maximum score value
     { header: "Category", cell: (item: any) => item.category?.name ?? "-" }, // Category name
-    ...(canManage ? [{ header: "Actions", cell: (item: any) => ( // Actions column only for non-students
+    ...(perms.canEdit || perms.canDelete ? [{ header: "Actions", cell: (item: any) => ( // Actions column only for permitted roles
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={() => handleEditItem(item)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
-        <Button size="sm" variant="outline" onClick={() => handleDeleteItem(item)} disabled={deleteItemMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+        {perms.canEdit && <Button size="sm" variant="outline" onClick={() => handleEditItem(item)}><Edit className="h-4 w-4 mr-1" />Edit</Button>}
+        {perms.canDelete && <Button size="sm" variant="outline" onClick={() => handleDeleteItem(item)} disabled={deleteItemMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>}
       </div>
     )}] : []),
   ]
@@ -286,7 +285,7 @@ export function GradesPage() {
       {/* Grades Tab */}
       {activeTab === "grades" && ( // Only render when the grades tab is active
         <>
-          {user && user.role !== "STUDENT" && ( // Only show the encode form for non-students
+          {perms.canCreate && ( // Only show the encode form for permitted roles
             <FormSection title="Encode Grade" description="Search for student and enter assessment score.">
               <form className="space-y-4" onSubmit={onGradeSubmit}> {/* Grade encoding form */}
                 <FormField label="Student" required error={gradeForm.formState.errors.studentId?.message}>
@@ -366,7 +365,7 @@ export function GradesPage() {
       {/* Grade Items Tab */}
       {activeTab === "items" && ( // Only render when the items tab is active
         <>
-          {user && user.role !== "STUDENT" && ( // Only show the create form for non-students
+          {perms.canCreate && ( // Only show the create form for permitted roles
             <FormSection title="Create Grade Item" description="Define a new assessment or activity.">
               <form className="grid gap-4 md:grid-cols-3" onSubmit={onItemSubmit}> {/* Three-column grid form */}
                 <FormField label="Title" required error={itemForm.formState.errors.title?.message}>
@@ -404,7 +403,7 @@ export function GradesPage() {
       {/* Categories Tab */}
       {activeTab === "categories" && ( // Only render when the categories tab is active
         <>
-          {user && user.role !== "STUDENT" && ( // Only show the create form for non-students
+          {perms.canCreate && ( // Only show the create form for permitted roles
             <FormSection title="Create Category" description="Define a grading category with optional weight.">
               <form className="grid gap-4 md:grid-cols-2" onSubmit={onCategorySubmit}> {/* Two-column grid form */}
                 <FormField label="Name" required error={categoryForm.formState.errors.name?.message}>

@@ -17,7 +17,7 @@ import { NavLink, useNavigate } from "react-router-dom" // Import NavLink for ac
 import { navItems } from "../lib/navigation" // Import the master navigation items list
 import { getStoredUser, clearAuthSession, getUserDisplayName, getUserInitials } from "../lib/auth" // Import auth utilities
 import { cn } from "../lib/utils" // Import the cn utility for conditional class merging
-import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid } from "lucide-react" // Import all navigation icons
+import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar } from "lucide-react" // Import all navigation icons
 
 // Map of URL paths to their corresponding icon components
 const iconMap = {
@@ -25,6 +25,7 @@ const iconMap = {
   "/enrollment": ClipboardList, // Enrollment icon
   "/students": Users, // Students icon
   "/sections": Grid, // Sections icon (grid layout)
+  "/courses": BookOpen, // Courses icon
   "/flights": Plane, // Flights icon
   "/materials": BookOpen, // Materials icon
   "/attendance": CalendarCheck, // Attendance icon
@@ -34,6 +35,8 @@ const iconMap = {
   "/reports": BarChart3, // Reports icon
   "/users": UserCog, // User management icon
   "/profile": User2, // Profile icon
+  "/training": Target, // Training monitoring icon
+  "/terms": Calendar, // Terms icon
 } as const // Mark as const to preserve literal types
 
 // Map of role keys to human-readable role labels
@@ -81,14 +84,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Group items by category
   const mainItems = items.filter((item) => // Filter items for the "Main" navigation group
-    ["/dashboard", "/enrollment", "/students", "/sections", "/flights"].includes(item.path)
+    ["/dashboard", "/enrollment", "/students", "/courses", "/sections", "/flights"].includes(item.path)
   )
   
   // Debug: Log to verify sections is included
   console.log("Main items:", mainItems.map(i => i.path)) // Debug log to verify sections appears in main items
   console.log("Icon for /sections:", iconMap["/sections"]) // Debug log to verify the sections icon is mapped
   const academicItems = items.filter((item) => // Filter items for the "Academic" navigation group
-    ["/materials", "/attendance", "/grades", "/merits", "/exams"].includes(item.path)
+    ["/materials", "/attendance", "/training", "/terms", "/grades", "/merits", "/exams"].includes(item.path)
   )
   const systemItems = items.filter((item) => // Filter items for the "System" navigation group
     ["/reports", "/users"].includes(item.path)

@@ -1,35 +1,38 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok response helper for standardised API envelopes
 import { ok } from "../lib/response.js"
-// Import the report service functions for data retrieval and CSV conversion
 import { enrollmentReport, toCsv } from "../services/reportService.js"
+import { getAuthUser } from "../middlewares/auth.js"
+import { RoleType } from "@prisma/client"
 
-/* GET /api/reports/enrollments — return the enrollment report as JSON */
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
+
 export async function enrollmentReportJson(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Delegate to the report service with optional date range and section/flight filters
+  const sectionId = resolveSectionId(authUser, query.sectionId)
   const data = await enrollmentReport({
-    from: query.from ? new Date(query.from) : undefined,   // Convert 'from' date string to Date or undefined
-    to: query.to ? new Date(query.to) : undefined,         // Convert 'to' date string to Date or undefined
-    sectionId: query.sectionId,                            // Optional section ID filter
-    flightId: query.flightId                               // Optional flight ID filter
+    from: query.from ? new Date(query.from) : undefined,
+    to: query.to ? new Date(query.to) : undefined,
+    sectionId,
+    flightId: query.flightId
   })
-  // Return the enrollment data as a JSON response
   return c.json(ok("Enrollment report fetched", data))
 }
 
-/* GET /api/reports/enrollments.csv — return the enrollment report as a downloadable CSV file */
 export async function enrollmentReportCsv(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Delegate to the report service with the same filters as the JSON endpoint
+  const sectionId = resolveSectionId(authUser, query.sectionId)
   const data = await enrollmentReport({
-    from: query.from ? new Date(query.from) : undefined,   // Convert 'from' date string to Date or undefined
-    to: query.to ? new Date(query.to) : undefined,         // Convert 'to' date string to Date or undefined
-    sectionId: query.sectionId,                            // Optional section ID filter
-    flightId: query.flightId                               // Optional flight ID filter
+    from: query.from ? new Date(query.from) : undefined,
+    to: query.to ? new Date(query.to) : undefined,
+    sectionId,
+    flightId: query.flightId
   })
   
   // Always include headers even if no data

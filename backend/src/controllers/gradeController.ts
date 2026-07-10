@@ -1,26 +1,28 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import all grade service functions (with local aliases to avoid name collisions)
-import { 
-  createGradeCategory,                                    // Creates a new grade category
-  createGradeItem,                                        // Creates a new grade item within a category
-  encodeStudentGrade,                                     // Records a student's score for a grade item
-  listGrades,                                             // Lists student grades with filters
-  updateGrade as updateGradeRecord,                       // Updates a student grade score
-  deleteGrade as deleteGradeRecord,                       // Deletes a student grade record
-  updateGradeItem as updateGradeItemRecord,               // Updates a grade item
-  deleteGradeItem as deleteGradeItemRecord,               // Deletes a grade item
-  updateGradeCategory as updateGradeCategoryRecord,       // Updates a grade category
-  deleteGradeCategory as deleteGradeCategoryRecord        // Deletes a grade category
+import {
+  createGradeCategory,
+  createGradeItem,
+  encodeStudentGrade,
+  listGrades,
+  updateGrade as updateGradeRecord,
+  deleteGrade as deleteGradeRecord,
+  updateGradeItem as updateGradeItemRecord,
+  deleteGradeItem as deleteGradeItemRecord,
+  updateGradeCategory as updateGradeCategoryRecord,
+  deleteGradeCategory as deleteGradeCategoryRecord
 } from "../services/gradeService.js"
-// Import the pagination helper to parse and bound page/pageSize query params
 import { getPagination } from "../lib/pagination.js"
-// Import the helper to retrieve the authenticated user from context
 import { getAuthUser } from "../middlewares/auth.js"
-// Import the Prisma client for direct database queries
 import { prisma } from "../lib/prisma.js"
+import { RoleType } from "@prisma/client"
+
+function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    return authUser.sectionId
+  }
+  return querySectionId
+}
 
 /* POST /api/grades/categories — create a new grade category */
 export async function createCategory(c: Context) {
@@ -66,15 +68,12 @@ export async function encode(c: Context) {
   }
 }
 
-/* GET /api/grades/ — return a paginated list of student grades */
 export async function list(c: Context) {
-  // Extract all query parameters from the URL
+  const authUser = getAuthUser(c)
   const query = c.req.query()
-  // Parse and bound the pagination parameters
   const { page, pageSize, skip, take } = getPagination(query)
-  // Delegate to the grade service with optional studentId filter and pagination
-  const result = await listGrades({ studentId: query.studentId }, skip, take)
-  // Return the paginated list with metadata
+  const sectionId = resolveSectionId(authUser, query.sectionId)
+  const result = await listGrades({ studentId: query.studentId, sectionId }, skip, take)
   return c.json(ok("Grades fetched", result.items, { page, pageSize, total: result.total }))
 }
 

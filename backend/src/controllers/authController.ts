@@ -31,26 +31,40 @@ export async function register(c: Context) {
 /* POST /api/auth/login — authenticate a user and issue JWT tokens */
 export async function login(c: Context) {
   try {
-    // Parse the JSON request body containing email/studentNo and password
     const body = await c.req.json()
-    // Delegate to the auth service to verify credentials and generate tokens
     const result = await loginUser(body.email, body.password)
-    // Return a success response with the user object and both tokens
+
+    let sectionId: string | null = null
+    if (result.user.role === "STUDENT") {
+      const profile = await prisma.studentProfile.findUnique({
+        where: { userId: result.user.id },
+        select: { sectionId: true }
+      })
+      sectionId = profile?.sectionId ?? null
+    } else if (result.user.role === "CADET_OFFICER") {
+      const enrollment = await prisma.enrollment.findFirst({
+        where: { userId: result.user.id, status: "APPROVED" },
+        select: { sectionId: true },
+        orderBy: { createdAt: "desc" }
+      })
+      sectionId = enrollment?.sectionId ?? null
+    }
+
     return c.json(
       ok("Login successful", {
-        user: { 
-          id: result.user.id,                              // User's unique ID
-          email: result.user.email,                        // User's email address
-          role: result.user.role,                          // User's assigned role
-          avatarUrl: result.user.avatarUrl ?? null,        // Avatar image URL or null if not set
-          avatarFrame: result.user.avatarFrame ?? "gradient" // Avatar frame style, defaulting to "gradient"
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          role: result.user.role,
+          avatarUrl: result.user.avatarUrl ?? null,
+          avatarFrame: result.user.avatarFrame ?? "gradient",
+          sectionId
         },
-        accessToken: result.accessToken,   // Short-lived JWT for API authentication
-        refreshToken: result.refreshToken  // Long-lived JWT for obtaining new access tokens
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken
       })
     )
   } catch (error) {
-    // Return 400 with the error message if login fails (e.g. invalid credentials)
     return c.json(fail(error instanceof Error ? error.message : "Login failed"), 400)
   }
 }

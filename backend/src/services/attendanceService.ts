@@ -4,6 +4,8 @@ import { AttendanceStatus } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 // Import the audit logging helper to record attendance events
 import { logAudit } from "./auditService.js"
+// Import the absence check service to auto-fail students who exceed absence limits
+import { checkAndMarkAbsences } from "./absenceService.js"
 
 // Reusable Prisma select shape for including user data in attendance queries
 // Selects only the fields needed for display — avoids exposing the password hash
@@ -32,6 +34,8 @@ export async function checkIn(userId: string, latitude: number, longitude: numbe
   })
   // Log the check-in event to the audit trail
   await logAudit("CREATE", "AttendanceRecord", record.id, userId)
+  // Check if the student has exceeded the absence limit
+  await checkAndMarkAbsences(userId)
   // Return the upserted attendance record
   return record
 }

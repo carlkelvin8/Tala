@@ -2,15 +2,15 @@ const ACCESS_TOKEN_KEY = "nstp_access_token" // localStorage key used to store t
 const REFRESH_TOKEN_KEY = "nstp_refresh_token" // localStorage key used to store the JWT refresh token
 const USER_KEY = "nstp_user" // localStorage key used to store the serialized authenticated user object
 
-// Type definition for the authenticated user stored in session
 export type AuthUser = {
-  id: string // Unique UUID identifier for the user
-  email: string // User's email address, used as login credential
-  role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT" // The user's assigned role, controls access permissions
-  avatarUrl?: string // Optional URL to the user's uploaded profile photo
-  avatarFrame?: string // Optional identifier for the selected avatar frame style
-  firstName?: string // Optional first name, populated after profile setup
-  lastName?: string // Optional last name, populated after profile setup
+  id: string
+  email: string
+  role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT"
+  avatarUrl?: string
+  avatarFrame?: string
+  firstName?: string
+  lastName?: string
+  sectionId?: string | null
 }
 
 // Persist the authenticated session data to localStorage after a successful login

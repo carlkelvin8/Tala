@@ -2,6 +2,8 @@
 import { prisma } from "../lib/prisma.js"
 // Import the audit logging helper to record session events
 import { logAudit } from "./auditService.js"
+// Import the absence check service to auto-fail students who exceed absence limits
+import { checkAndMarkAbsences } from "./absenceService.js"
 // Import geolocation utility functions for distance calculation and validation
 import {
   calculateDistance,    // Calculates straight-line distance between two GPS points
@@ -27,43 +29,43 @@ interface LocationVerificationResult {
  * Create a new attendance session (Admin/Teacher)
  */
 export async function createSession(data: {
-  title: string;           // Human-readable title for the session
-  date: Date;              // The date of the session
-  hostId: string;          // UUID of the user creating and hosting the session
-  hostLatitude?: number;   // Optional initial GPS latitude of the host
-  hostLongitude?: number;  // Optional initial GPS longitude of the host
-  radiusMeters?: number;   // Allowed check-in radius in metres (default: 50)
-  requireVerifier?: boolean; // Whether a verifier must also be in range (default: false)
-  sectionId?: string;      // Optional UUID to scope the session to a section
-  flightId?: string;       // Optional UUID to scope the session to a flight
+  title: string;
+  date: Date;
+  hostId: string;
+  hostLatitude?: number;
+  hostLongitude?: number;
+  radiusMeters?: number;
+  requireVerifier?: boolean;
+  sectionId?: string;
+  flightId?: string;
+  termId?: string;
+  remarks?: string;
 }) {
-  // Validate host coordinates if provided — reject invalid lat/lon values
   if (data.hostLatitude !== undefined && data.hostLongitude !== undefined) {
     if (!isValidCoordinates({ latitude: data.hostLatitude, longitude: data.hostLongitude })) {
       throw new Error("Invalid host coordinates");
     }
   }
 
-  // Create the attendance session record in the database
   const session = await prisma.attendanceSession.create({
     data: {
-      title: data.title,                          // Session title
-      date: data.date,                            // Session date
-      startTime: new Date(),                      // Record the actual start time as now
-      hostId: data.hostId,                        // Link to the host user
-      hostLatitude: data.hostLatitude,            // Host's initial latitude (may be null)
-      hostLongitude: data.hostLongitude,          // Host's initial longitude (may be null)
-      radiusMeters: data.radiusMeters ?? 50,      // Default radius of 50 metres if not specified
-      requireVerifier: data.requireVerifier ?? false, // Default to not requiring a verifier
-      sectionId: data.sectionId,                  // Optional section scope
-      flightId: data.flightId,                    // Optional flight scope
-      isActive: true,                             // New sessions are active by default
+      title: data.title,
+      date: data.date,
+      startTime: new Date(),
+      hostId: data.hostId,
+      hostLatitude: data.hostLatitude,
+      hostLongitude: data.hostLongitude,
+      radiusMeters: data.radiusMeters ?? 50,
+      requireVerifier: data.requireVerifier ?? false,
+      sectionId: data.sectionId,
+      flightId: data.flightId,
+      termId: data.termId,
+      remarks: data.remarks,
+      isActive: true,
     },
   });
 
-  // Log the session creation event to the audit trail
   await logAudit("CREATE", "AttendanceSession", session.id, data.hostId);
-  // Return the created session object
   return session;
 }
 
@@ -363,6 +365,8 @@ export async function markAttendanceWithLocation(
 
   // Log the attendance marking event to the audit trail
   await logAudit("CREATE", "AttendanceRecord", record.id, userId);
+  // Check if the student has exceeded the absence limit
+  await checkAndMarkAbsences(userId);
   // Return the created attendance record
   return record;
 }
@@ -411,32 +415,60 @@ export async function getActiveSessions(filters?: {
 /**
  * End attendance session
  */
-export async function endSession(sessionId: string, hostId: string) {
+export async function endSession(sessionId: string, hostId: string, remarks?: string) {
   // Fetch the session to verify it exists and check host ownership
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
   });
 
   if (!session) {
-    throw new Error("Session not found"); // Reject if the session doesn't exist
+    throw new Error("Session not found");
   }
 
-  // Enforce that only the session host can end the session
   if (session.hostId !== hostId) {
     throw new Error("Only the host can end the session");
   }
 
-  // Mark the session as inactive and record the end time
+  // Auto-mark ABSENT for enrolled students who did not check in
+  const enrolledStudents = await prisma.studentProfile.findMany({
+    where: {
+      OR: [
+        { sectionId: session.sectionId ?? undefined },
+        { flightId: session.flightId ?? undefined }
+      ].filter(w => w.sectionId || w.flightId)
+    },
+    select: { userId: true }
+  })
+
+  const markedUserIds = await prisma.attendanceRecord.findMany({
+    where: { sessionId },
+    select: { userId: true }
+  })
+
+  const markedSet = new Set(markedUserIds.map(r => r.userId))
+  const absentStudents = enrolledStudents.filter(s => !markedSet.has(s.userId))
+
+  for (const student of absentStudents) {
+    await prisma.attendanceRecord.create({
+      data: {
+        userId: student.userId,
+        date: session.date,
+        status: "ABSENT",
+        sessionId
+      }
+    })
+  }
+
+  // Mark the session as inactive, record end time, and save remarks
   const updated = await prisma.attendanceSession.update({
     where: { id: sessionId },
     data: {
-      isActive: false,    // Deactivate the session
-      endTime: new Date(), // Record the actual end time
+      isActive: false,
+      endTime: new Date(),
+      remarks: remarks || session.remarks
     },
   });
 
-  // Log the session end event to the audit trail
   await logAudit("UPDATE", "AttendanceSession", sessionId, hostId);
-  // Return the updated (ended) session object
   return updated;
 }

@@ -15,7 +15,10 @@ import { ReportsPage } from "./pages/ReportsPage" // Import the reports and CSV 
 import { UsersPage } from "./pages/UsersPage" // Import the user management page (admin only)
 import { ProfilePage } from "./pages/ProfilePage" // Import the user profile settings page
 import { FlightsPage } from "./pages/FlightsPage" // Import the flight groups management page
-import { SectionsPage } from "./pages/SectionsPage" // Import the class sections management page
+import { SectionsPage } from "./pages/SectionsPage"
+import { CoursesPage } from "./pages/CoursesPage" // Import the class sections management page
+import { TrainingPage } from "./pages/TrainingPage" // Import the training monitoring page
+import { TermsPage } from "./pages/TermsPage" // Import the academic terms management page
 import { NotFoundPage } from "./pages/NotFoundPage" // Import the 404 not found page
 import { AppLayout } from "./components/layout/AppLayout" // Import the shared app layout wrapper (sidebar + topbar) for most pages
 import { ProtectedRoute } from "./components/ProtectedRoute" // Import the route guard component that checks authentication and role
@@ -48,10 +51,20 @@ export function App() {
       >
         <Route path="/enrollment" element={<EnrollmentPage />} /> {/* Enrollment management page inside AppLayout */}
         <Route path="/students" element={<StudentsPage />} /> {/* Student directory page inside AppLayout */}
+        <Route path="/courses" element={<CoursesPage />} />
         <Route path="/sections" element={<SectionsPage />} /> {/* Sections management page inside AppLayout */}
         <Route path="/flights" element={<FlightsPage />} /> {/* Flights management page inside AppLayout */}
         <Route path="/materials" element={<MaterialsPage />} /> {/* Learning materials page inside AppLayout */}
         <Route path="/attendance" element={<AttendancePage />} /> {/* Attendance tracking page inside AppLayout */}
+        <Route path="/training" element={<TrainingPage />} /> {/* Training monitoring page inside AppLayout */}
+        <Route
+          path="/terms"
+          element={
+            <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
+              <TermsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/grades" element={<GradesPage />} /> {/* Grades management page inside AppLayout */}
         <Route path="/merits" element={<MeritsPage />} /> {/* Merits and demerits page inside AppLayout */}
         <Route path="/exams" element={<ExamsPage />} /> {/* Exam sessions page inside AppLayout */}

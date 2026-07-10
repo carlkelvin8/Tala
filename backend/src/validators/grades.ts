@@ -21,9 +21,9 @@ export const studentGradeSchema = z.object({
   score: z.number().nonnegative() // Score must be zero or positive (cannot be negative)
 })
 
-/* Schema for query parameters when listing student grades */
 export const gradeQuerySchema = z.object({
-  studentId: z.string().uuid().optional(), // Filter grades by a specific student's UUID
-  page: z.string().optional(),             // Page number for pagination
-  pageSize: z.string().optional()          // Items per page for pagination
+  studentId: z.string().uuid().optional(),
+  sectionId: z.string().uuid().optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional()
 })

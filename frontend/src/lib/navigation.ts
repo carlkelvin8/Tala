@@ -12,10 +12,13 @@ export const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Dashboard is accessible to all roles
   { label: "Enrollment", path: "/enrollment", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] }, // Enrollment management is hidden from students
   { label: "Students", path: "/students", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] }, // Student directory is hidden from students
-  { label: "Sections", path: "/sections", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] }, // Section management is hidden from students
+  { label: "Sections", path: "/sections", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
+  { label: "Courses", path: "/courses", roles: ["ADMIN", "IMPLEMENTOR"] }, // Section management is hidden from students
   { label: "Flights", path: "/flights", roles: ["ADMIN", "CADET_OFFICER"] }, // Flight management is only for admins and cadet officers
   { label: "Learning Materials", path: "/materials", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Materials are accessible to all roles
   { label: "Attendance", path: "/attendance", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Attendance is accessible to all roles
+  { label: "Training Monitoring", path: "/training", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] }, // Training day tracking for instructors
+  { label: "Terms", path: "/terms", roles: ["ADMIN", "IMPLEMENTOR"] }, // Academic term management
   { label: "Grades", path: "/grades", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Grades are accessible to all roles
   { label: "Merits/Demerits", path: "/merits", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Merits/demerits are accessible to all roles
   { label: "Exams", path: "/exams", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Exams are accessible to all roles

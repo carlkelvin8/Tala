@@ -36,39 +36,38 @@ export async function encodeStudentGrade(studentId: string, gradeItemId: string,
 }
 
 /* Return a paginated list of student grades with optional filters */
-export async function listGrades(filters: { studentId?: string }, skip: number, take: number) {
-  // Build the Prisma where clause dynamically based on provided filters
+export async function listGrades(filters: { studentId?: string; sectionId?: string }, skip: number, take: number) {
   const where: Record<string, unknown> = {}
-  // Add student ID filter if provided
   if (filters.studentId) where.studentId = filters.studentId
-  // Run the count and data queries in parallel for performance
+  if (filters.sectionId) {
+    where.student = {
+      studentProfile: { sectionId: filters.sectionId }
+    }
+  }
   const [items, total] = await Promise.all([
-    // Fetch the paginated student grade records with related data
     prisma.studentGrade.findMany({
-      where,  // Apply the dynamic filter
-      skip,   // Skip records for previous pages
-      take,   // Limit to the page size
+      where,
+      skip,
+      take,
       include: {
         student: {
           select: {
-            id: true,    // Student's user ID
-            email: true, // Student's email address
+            id: true,
+            email: true,
             studentProfile: {
               select: {
-                firstName: true, // Student's first name
-                lastName: true   // Student's last name
+                firstName: true,
+                lastName: true
               }
             }
           }
         },
-        gradeItem: { include: { category: true } } // Include the grade item and its parent category
+        gradeItem: { include: { category: true } }
       },
-      orderBy: { createdAt: "desc" } // Most recently created grades first
+      orderBy: { createdAt: "desc" }
     }),
-    // Count the total number of matching grade records for pagination metadata
     prisma.studentGrade.count({ where })
   ])
-  // Return both the page of items and the total count
   return { items, total }
 }
 
