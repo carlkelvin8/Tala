@@ -17,6 +17,7 @@ import { ProfilePage } from "./pages/ProfilePage" // Import the user profile set
 import { FlightsPage } from "./pages/FlightsPage" // Import the flight groups management page
 import { SectionsPage } from "./pages/SectionsPage"
 import { CoursesPage } from "./pages/CoursesPage" // Import the class sections management page
+import { ScannerPage } from "./pages/ScannerPage" // Import the QR scanner page
 import { TrainingPage } from "./pages/TrainingPage" // Import the training monitoring page
 import { TermsPage } from "./pages/TermsPage" // Import the academic terms management page
 import { NotFoundPage } from "./pages/NotFoundPage" // Import the 404 not found page
@@ -56,6 +57,14 @@ export function App() {
         <Route path="/flights" element={<FlightsPage />} /> {/* Flights management page inside AppLayout */}
         <Route path="/materials" element={<MaterialsPage />} /> {/* Learning materials page inside AppLayout */}
         <Route path="/attendance" element={<AttendancePage />} /> {/* Attendance tracking page inside AppLayout */}
+        <Route
+          path="/scanner"
+          element={
+            <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
+              <ScannerPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/training" element={<TrainingPage />} /> {/* Training monitoring page inside AppLayout */}
         <Route
           path="/terms"

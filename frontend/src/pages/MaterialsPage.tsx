@@ -1,31 +1,34 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for CRUD operations and useQuery for fetching materials
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Input } from "../components/ui/input" // Import the reusable Input component
-import { Textarea } from "../components/ui/textarea" // Import the Textarea component for the description field
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { Select } from "../components/ui/select" // Import the Select component for the category dropdown
-import { getAccessToken } from "../lib/auth" // Import auth utilities: get current user and access token for file uploads
-import { useForm } from "react-hook-form" // Import useForm for form state management and validation
-import { z } from "zod" // Import zod for schema-based validation
-import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
-import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { toast } from "sonner" // Import toast for notifications
-import { FormSection } from "../components/ui/form-section" // Import the FormSection wrapper for the create form
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for the list section
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { getFullName, getApiFileUrl } from "../lib/display" // Import display utilities: getFullName for creator name, getApiFileUrl for file URLs
-import { useRef, useState } from "react" // Import useRef for file input refs and useState for local state
-import { Drawer } from "../components/ui/drawer" // Import the Drawer component for the edit panel
-import { ConfirmDialog } from "../components/ui/confirm-dialog" // Import the ConfirmDialog for delete confirmation
-import { Paperclip, X, FileText, ExternalLink, Edit, Trash2, Eye } from "lucide-react" // Import icons for the UI
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Input } from "../components/ui/input"
+import { Textarea } from "../components/ui/textarea"
+import { Button } from "../components/ui/button"
+import { Select } from "../components/ui/select"
+import { Badge } from "../components/ui/badge"
+import { getAccessToken } from "../lib/auth"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { PageHeader } from "../components/ui/page-header"
+import { FormField } from "../components/ui/form-field"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { toast } from "sonner"
+import { FormSection } from "../components/ui/form-section"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { getFullName, getApiFileUrl } from "../lib/display"
+import { useRef, useState, useMemo } from "react"
+import { Drawer } from "../components/ui/drawer"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { Paperclip, X, FileText, ExternalLink, Edit, Trash2, Upload, BookOpen, BookMarked, Megaphone, ClipboardList, FileImage, File, Search, Clock, Sparkles } from "lucide-react"
 import { usePermissions } from "../hooks/usePermissions"
+import { cn } from "../lib/utils"
+import { motion } from "framer-motion"
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024
 const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".jpg", ".jpeg"]
 
 function validateFile(file: File): string | null {
@@ -39,330 +42,463 @@ function validateFile(file: File): string | null {
   return null
 }
 
-// Zod validation schema for the material creation form
-const schema = z.object({
-  title: z.string().min(1, "Title is required"), // Title must not be empty
-  description: z.string().optional(), // Description is optional
-  category: z.enum(["MODULE", "LECTURE", "ANNOUNCEMENT", "ACTIVITY"]), // Category must be one of the valid values
-})
-type FormValues = z.infer<typeof schema> // Derive the TypeScript type from the zod schema
-
-// Map of category values to Tailwind color classes for the category badge
-const categoryColors: Record<string, string> = {
-  MODULE:       "bg-violet-50 text-violet-700", // Violet badge for modules
-  LECTURE:      "bg-sky-50 text-sky-700", // Sky blue badge for lectures
-  ANNOUNCEMENT: "bg-amber-50 text-amber-700", // Amber badge for announcements
-  ACTIVITY:     "bg-emerald-50 text-emerald-700", // Emerald badge for activities
+function getFileIcon(fileUrl: string | null) {
+  if (!fileUrl) return null
+  const ext = fileUrl.split(".").pop()?.toLowerCase()
+  if (ext === "pdf") return { icon: FileText, color: "text-red-500", bg: "bg-red-50", label: "PDF" }
+  if (ext === "docx") return { icon: FileText, color: "text-blue-600", bg: "bg-blue-50", label: "DOCX" }
+  if (["jpg", "jpeg"].includes(ext || "")) return { icon: FileImage, color: "text-emerald-500", bg: "bg-emerald-50", label: "IMG" }
+  return { icon: File, color: "text-darksilver", bg: "bg-white", label: ext?.toUpperCase() || "FILE" }
 }
 
-// The learning materials management page component
+function relativeTime(dateStr: string): string {
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 4) return `${weeks}w ago`
+  return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+}
+
+const schema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  category: z.enum(["MODULE", "LECTURE", "ANNOUNCEMENT", "ACTIVITY"]),
+})
+type FormValues = z.infer<typeof schema>
+
+const CATEGORIES = ["MODULE", "LECTURE", "ANNOUNCEMENT", "ACTIVITY"] as const
+
+const categoryMeta: Record<string, { label: string; icon: typeof BookOpen; color: string; bg: string; dot: string }> = {
+  MODULE:       { label: "Module",       icon: BookMarked,   color: "text-violet-600",  bg: "bg-violet-50",   dot: "bg-violet-500" },
+  LECTURE:      { label: "Lecture",      icon: BookOpen,     color: "text-royal",     bg: "bg-sky-50",      dot: "bg-sky-500" },
+  ANNOUNCEMENT: { label: "Announcement", icon: Megaphone,    color: "text-amber-600",   bg: "bg-amber-50",    dot: "bg-amber-500" },
+  ACTIVITY:     { label: "Activity",     icon: ClipboardList,color: "text-emerald-600",  bg: "bg-emerald-50",  dot: "bg-emerald-500" },
+}
+
 export function MaterialsPage() {
   const perms = usePermissions()
-  const canManage = perms.canEdit || perms.canDelete // Students can only view materials, not create/edit/delete
-  const fileInputRef = useRef<HTMLInputElement>(null) // Ref to the hidden file input for the create form
-  const editFileInputRef = useRef<HTMLInputElement>(null) // Ref to the hidden file input for the edit form
-  const [selectedFile, setSelectedFile] = useState<File | null>(null) // State for the selected file in the create form
-  const [isUploading, setIsUploading] = useState(false) // State to track whether a file upload is in progress
-  const [editingMaterial, setEditingMaterial] = useState<any | null>(null) // State for the material currently being edited
-  const [deletingMaterial, setDeletingMaterial] = useState<any | null>(null) // State for the material pending deletion
-  const [editTitle, setEditTitle] = useState("") // State for the edit form's title field
-  const [editDescription, setEditDescription] = useState("") // State for the edit form's description field
-  const [editCategory, setEditCategory] = useState<string>("MODULE") // State for the edit form's category field
-  const [editFile, setEditFile] = useState<File | null>(null) // State for the new file selected in the edit form
-  const [editFileUrl, setEditFileUrl] = useState<string | null>(null) // State for the existing file URL in the edit form
+  const canManage = perms.canEdit || perms.canDelete
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const editFileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [editingMaterial, setEditingMaterial] = useState<any | null>(null)
+  const [deletingMaterial, setDeletingMaterial] = useState<any | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editCategory, setEditCategory] = useState<string>("MODULE")
+  const [editFile, setEditFile] = useState<File | null>(null)
+  const [editFileUrl, setEditFileUrl] = useState<string | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL")
+  const [searchQuery, setSearchQuery] = useState("")
 
-  const form = useForm<FormValues>({ // Initialize the form with zod validation and MODULE as the default category
+  const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { category: "MODULE" },
   })
 
-  const materialsQuery = useQuery({ // Fetch the list of materials
-    queryKey: ["materials"], // Cache key for the materials list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/materials"), // Fetch all materials from the API
-    refetchInterval: 5000 // Auto-refetch every 5 seconds
+  const materialsQuery = useQuery({
+    queryKey: ["materials"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/materials"),
+    refetchInterval: 5000
   })
 
-  const mutation = useMutation({ // Mutation for creating a new material
-    mutationFn: (values: FormValues & { fileUrl?: string }) => // Include optional fileUrl from the upload step
-      apiRequest<ApiResponse<any>>("/api/materials", { // POST to the materials endpoint
+  const mutation = useMutation({
+    mutationFn: (values: FormValues & { fileUrl?: string }) =>
+      apiRequest<ApiResponse<any>>("/api/materials", {
         method: "POST",
-        body: JSON.stringify(values), // Send the form values as JSON
+        body: JSON.stringify(values),
       }),
     onSuccess: () => {
-      materialsQuery.refetch() // Refresh the materials list after creation
-      toast.success("Material saved") // Show success notification
+      materialsQuery.refetch()
+      toast.success("Material saved")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to save material") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Unable to save material")
     },
   })
 
-  const updateMutation = useMutation({ // Mutation for updating an existing material
+  const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest<ApiResponse<any>>(`/api/materials/${id}`, { // PATCH to the specific material endpoint
+      apiRequest<ApiResponse<any>>(`/api/materials/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(data), // Send the updated data as JSON
+        body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      materialsQuery.refetch() // Refresh the materials list after update
-      toast.success("Material updated") // Show success notification
-      setEditingMaterial(null) // Close the edit drawer
+      materialsQuery.refetch()
+      toast.success("Material updated")
+      setEditingMaterial(null)
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Update failed") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Update failed")
     },
   })
 
-  const deleteMutation = useMutation({ // Mutation for deleting a material
+  const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest<ApiResponse<any>>(`/api/materials/${id}`, { // DELETE to the specific material endpoint
+      apiRequest<ApiResponse<any>>(`/api/materials/${id}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
-      materialsQuery.refetch() // Refresh the materials list after deletion
-      toast.success("Material deleted") // Show success notification
+      materialsQuery.refetch()
+      toast.success("Material deleted")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Delete failed") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Delete failed")
     },
   })
 
-  const onSubmit = form.handleSubmit(async (values) => { // Form submit handler for creating a new material
-    setIsUploading(true) // Set uploading state to show loading UI
+  const onSubmit = form.handleSubmit(async (values) => {
+    setIsUploading(true)
     try {
-      let fileUrl: string | undefined // Variable to hold the uploaded file URL
-      if (selectedFile) { // Only upload if a file was selected
-        const formData = new FormData() // Create a FormData object for the multipart upload
-        formData.append("file", selectedFile) // Append the selected file to the form data
-        const token = getAccessToken() // Get the JWT token for authentication
-        const base = import.meta.env.VITE_API_URL ?? "" // Get the API base URL
-        const res = await fetch(`${base}/api/materials/upload`, { // Upload the file to the materials upload endpoint
+      let fileUrl: string | undefined
+      if (selectedFile) {
+        const formData = new FormData()
+        formData.append("file", selectedFile)
+        const token = getAccessToken()
+        const base = import.meta.env.VITE_API_URL ?? ""
+        const res = await fetch(`${base}/api/materials/upload`, {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {}, // Include the auth token if available
-          body: formData, // Send the multipart form data
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
         })
-        if (!res.ok) { // If the upload failed
-          const json = await res.json() // Parse the error response
-          throw new Error(json.message ?? "File upload failed") // Throw an error with the server's message
+        if (!res.ok) {
+          const json = await res.json()
+          throw new Error(json.message ?? "File upload failed")
         }
-        const json = await res.json() // Parse the successful upload response
-        fileUrl = json.data?.fileUrl // Extract the uploaded file URL from the response
+        const json = await res.json()
+        fileUrl = json.data?.fileUrl
       }
-      await mutation.mutateAsync({ ...values, fileUrl }) // Create the material record with the form values and optional file URL
-      form.reset({ title: "", description: "", category: "MODULE" }) // Reset the form after successful creation
-      setSelectedFile(null) // Clear the selected file
+      await mutation.mutateAsync({ ...values, fileUrl })
+      form.reset({ title: "", description: "", category: "MODULE" })
+      setSelectedFile(null)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to submit material") // Show error notification
+      toast.error(err instanceof Error ? err.message : "Failed to submit material")
     } finally {
-      setIsUploading(false) // Always reset the uploading state
+      setIsUploading(false)
     }
   })
 
-  const handleEdit = (material: any) => { // Handler to open the edit drawer for a specific material
-    setEditingMaterial(material) // Set the material being edited
-    setEditTitle(material.title) // Pre-populate the title field
-    setEditDescription(material.description || "") // Pre-populate the description field
-    setEditCategory(material.category) // Pre-populate the category field
-    setEditFileUrl(material.fileUrl || null) // Pre-populate the existing file URL
-    setEditFile(null) // Clear any previously selected new file
+  const handleEdit = (material: any) => {
+    setEditingMaterial(material)
+    setEditTitle(material.title)
+    setEditDescription(material.description || "")
+    setEditCategory(material.category)
+    setEditFileUrl(material.fileUrl || null)
+    setEditFile(null)
   }
 
-  const handleSaveEdit = async () => { // Async handler to save the edit form
-    if (!editingMaterial) return // Only proceed if a material is being edited
-    setIsUploading(true) // Set uploading state
+  const handleSaveEdit = async () => {
+    if (!editingMaterial) return
+    setIsUploading(true)
     try {
-      let fileUrl = editFileUrl // Start with the existing file URL
-      if (editFile) { // Only upload if a new file was selected
-        const formData = new FormData() // Create a FormData object for the multipart upload
-        formData.append("file", editFile) // Append the new file
-        const token = getAccessToken() // Get the JWT token
-        const base = import.meta.env.VITE_API_URL ?? "" // Get the API base URL
-        const res = await fetch(`${base}/api/materials/upload`, { // Upload the new file
+      let fileUrl = editFileUrl
+      if (editFile) {
+        const formData = new FormData()
+        formData.append("file", editFile)
+        const token = getAccessToken()
+        const base = import.meta.env.VITE_API_URL ?? ""
+        const res = await fetch(`${base}/api/materials/upload`, {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {}, // Include auth token
-          body: formData, // Send the multipart form data
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
         })
-        if (!res.ok) { // If the upload failed
-          const json = await res.json() // Parse the error response
-          throw new Error(json.message ?? "File upload failed") // Throw an error
+        if (!res.ok) {
+          const json = await res.json()
+          throw new Error(json.message ?? "File upload failed")
         }
-        const json = await res.json() // Parse the successful upload response
-        fileUrl = json.data?.fileUrl // Extract the new file URL
+        const json = await res.json()
+        fileUrl = json.data?.fileUrl
       }
-      await updateMutation.mutateAsync({ // Update the material record
-        id: editingMaterial.id, // Pass the material's ID
-        data: { // Pass the updated data
-          title: editTitle, // Updated title
-          description: editDescription, // Updated description
-          category: editCategory, // Updated category
-          fileUrl, // Updated file URL (new or existing)
+      await updateMutation.mutateAsync({
+        id: editingMaterial.id,
+        data: {
+          title: editTitle,
+          description: editDescription,
+          category: editCategory,
+          fileUrl,
         },
       })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update material") // Show error notification
+      toast.error(err instanceof Error ? err.message : "Failed to update material")
     } finally {
-      setIsUploading(false) // Always reset the uploading state
+      setIsUploading(false)
     }
   }
 
-  const handleDelete = (material: any) => { // Handler to open the delete confirmation dialog
-    setDeletingMaterial(material) // Set the material pending deletion
+  const handleDelete = (material: any) => {
+    setDeletingMaterial(material)
   }
 
-  const confirmDelete = () => { // Handler called when the user confirms deletion
-    if (deletingMaterial) { // Only proceed if a material is pending deletion
-      deleteMutation.mutate(deletingMaterial.id) // Trigger the delete mutation
-      setDeletingMaterial(null) // Close the confirmation dialog
+  const confirmDelete = () => {
+    if (deletingMaterial) {
+      deleteMutation.mutate(deletingMaterial.id)
+      setDeletingMaterial(null)
     }
   }
 
-  const handleViewFile = (fileUrl: string) => { // Handler to open a material's file in a new tab
-    const url = getApiFileUrl(fileUrl) // Convert the relative path to an absolute URL
-    if (url) { // Only open if a valid URL was returned
-      window.open(url, "_blank", "noopener,noreferrer") // Open in a new tab with security attributes
+  const handleViewFile = (fileUrl: string) => {
+    const url = getApiFileUrl(fileUrl)
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer")
     }
   }
 
-  const rows = materialsQuery.data?.data ?? [] // Extract the materials array, defaulting to empty array
+  const rows = materialsQuery.data?.data ?? []
 
-  const columns = [ // Column definitions for the responsive table
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: rows.length }
+    for (const cat of CATEGORIES) counts[cat] = 0
+    for (const m of rows) {
+      if (categoryMeta[m.category]) counts[m.category] = (counts[m.category] || 0) + 1
+    }
+    return counts
+  }, [rows])
+
+  const filteredRows = useMemo(() => {
+    let result = categoryFilter === "ALL" ? rows : rows.filter((m: any) => m.category === categoryFilter)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((m: any) =>
+        m.title.toLowerCase().includes(q) ||
+        (m.description?.toLowerCase() || "").includes(q)
+      )
+    }
+    return result
+  }, [rows, categoryFilter, searchQuery])
+
+  const columns = [
     {
-      header: "Title", // Column header
-      cell: (m: any) => ( // Render the material title with an optional file icon
-        <div className="flex items-center gap-2">
-          {m.fileUrl && ( // Only show the file icon if a file is attached
-            <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" /> // Blue file icon
-          )}
-          <span className="font-medium text-slate-900">{m.title}</span> // Material title in bold dark text
-        </div>
-      ),
+      header: "Title",
+      cell: (m: any) => {
+        const cat = categoryMeta[m.category]
+        const Icon = cat?.icon ?? FileText
+        return (
+          <div className="flex items-center gap-3">
+            <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", cat?.bg ?? "bg-white")}>
+              <Icon className={cn("h-4.5 w-4.5", cat?.color ?? "text-darksilver")} strokeWidth={1.75} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-black truncate">{m.title}</p>
+              {m.description && (
+                <p className="text-xs text-darksilver truncate mt-0.5 max-w-[240px]">{m.description}</p>
+              )}
+            </div>
+          </div>
+        )
+      },
     },
     {
-      header: "Category", // Column header
-      cell: (m: any) => ( // Render the category as a colored badge
-        <span className={`inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold ${categoryColors[m.category] ?? "bg-slate-50 text-slate-600"}`}> {/* Apply category-specific colors */}
-          {m.category} {/* Category value text */}
-        </span>
-      ),
+      header: "Category",
+      cell: (m: any) => {
+        const cat = categoryMeta[m.category]
+        return (
+          <span className={cn("inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold whitespace-nowrap", cat?.bg ?? "bg-white", cat?.color ?? "text-darksilver")}>
+            <span className={cn("h-1.5 w-1.5 rounded-full", cat?.dot ?? "bg-darksilver")} />
+            {cat?.label ?? m.category}
+          </span>
+        )
+      },
     },
     {
-      header: "Created By", // Column header
-      cell: (m: any) => ( // Render the creator's name and email
+      header: "Created By",
+      cell: (m: any) => (
         <div className="leading-tight">
-          <p className="text-sm text-slate-800">{getFullName(m.createdBy)}</p> {/* Creator's full name using the display utility */}
-          {m.createdBy?.email && ( // Only show email if available
-            <p className="text-xs text-slate-400">{m.createdBy.email}</p> // Creator's email in muted text
+          <p className="text-sm font-medium text-black">{getFullName(m.createdBy)}</p>
+          {m.createdBy?.email && (
+            <p className="text-xs text-darksilver">{m.createdBy.email}</p>
           )}
         </div>
       ),
     },
     {
-      header: "Date", // Column header
-      cell: (m: any) =>
-        m.createdAt
-          ? new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) // Format the creation date
-          : "—", // Show em dash if no date
+      header: "Date",
+      cell: (m: any) => (
+        <div className="flex items-center gap-1.5 text-sm text-darksilver whitespace-nowrap">
+          <Clock className="h-3.5 w-3.5 text-darksilver shrink-0" />
+          <span title={new Date(m.createdAt).toLocaleString()}>
+            {m.createdAt ? relativeTime(m.createdAt) : "—"}
+          </span>
+        </div>
+      ),
     },
     {
-      header: "File", // Column header
-      cell: (m: any) => ( // Render a view file button or "No file" text
-        <div>
-          {m.fileUrl ? ( // Only show the button if a file is attached
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleViewFile(m.fileUrl)} // Open the file in a new tab
-              title="View or download file" // Tooltip text
-              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" // Blue styling for the file button
+      header: "File",
+      cell: (m: any) => {
+        if (!m.fileUrl) {
+          return <span className="text-xs text-darksilver">—</span>
+        }
+        const fileInfo = getFileIcon(m.fileUrl)
+        const ExtIcon = fileInfo?.icon ?? File
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleViewFile(m.fileUrl)}
+              className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors", fileInfo?.bg ?? "bg-white", fileInfo?.color ?? "text-darksilver", "hover:brightness-90")}
             >
-              <ExternalLink className="h-4 w-4 mr-1" /> {/* External link icon */}
-              View File
-            </Button>
-          ) : (
-            <span className="text-xs text-slate-400">No file</span> // Show "No file" if no attachment
-          )}
-        </div>
-      ),
+              <ExtIcon className="h-3.5 w-3.5" strokeWidth={2} />
+              {fileInfo?.label}
+            </button>
+          </div>
+        )
+      },
     },
-    ...(canManage ? [{ // Only add the actions column for non-student roles
-      header: "Actions", // Column header
-      cell: (m: any) => ( // Render edit and delete buttons
-        <div className="flex gap-2">
+    ...(canManage ? [{
+      header: "",
+      cell: (m: any) => (
+        <div className="flex gap-1">
           {perms.canEdit && (
-            <Button size="sm" variant="outline" onClick={() => handleEdit(m)}> {/* Edit button */}
-              <Edit className="h-4 w-4 mr-1" /> {/* Edit icon */}
-              Edit
+            <Button size="sm" variant="outline" onClick={() => handleEdit(m)} className="h-8 w-8 p-0" title="Edit">
+              <Edit className="h-3.5 w-3.5" />
             </Button>
           )}
           {perms.canDelete && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleDelete(m)} // Open delete confirmation
-              disabled={deleteMutation.isPending} // Disable while a delete is in progress
-              className="text-red-600 hover:text-red-700 hover:bg-red-50" // Red styling for destructive action
+              onClick={() => handleDelete(m)}
+              disabled={deleteMutation.isPending}
+              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+              title="Delete"
             >
-              <Trash2 className="h-4 w-4 mr-1" /> {/* Trash icon */}
-              Delete
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
       ),
-    }] : []), // Empty array if user is a student (no actions column)
+    }] : []),
   ]
 
-  return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
-      <PageHeader title="Learning Materials" description="Publish, organize, and review NSTP learning resources" /> {/* Page title and description */}
+  const editingCat = editingMaterial ? categoryMeta[editingMaterial.category] : null
 
-      {perms.canCreate && ( // Only show the create form for non-student roles
+  return (
+    <div className="space-y-6">
+      <motion.div
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated"
+        initial={{ opacity: 0, y: 32, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <motion.div
+          className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.18, 0.1] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl"
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <motion.div
+            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20"
+            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <motion.div
+              className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              <motion.span animate={{ rotate: [0, 20, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}>
+                <Sparkles className="h-3.5 w-3.5" />
+              </motion.span>
+              <span>NSTP Learning Resources</span>
+            </motion.div>
+            <motion.h1
+              className="text-xl sm:text-2xl font-bold text-white tracking-tight"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Learning Materials
+            </motion.h1>
+            <motion.p
+              className="mt-1 text-sm text-silver max-w-2xl"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Publish, organize, and review NSTP learning resources.
+            </motion.p>
+          </div>
+        </div>
+      </motion.div>
+
+      {perms.canCreate && (
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+        >
         <FormSection
           title="Upload Learning Material"
           description="Share modules, lectures, and activities with students"
+          className="shadow-card"
         >
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}> {/* Two-column grid form */}
-            <FormField label="Title" required error={form.formState.errors.title?.message} className="md:col-span-2"> {/* Title field spanning both columns */}
-              <Input placeholder="e.g. NSTP Orientation Module 1" {...form.register("title")} /> {/* Title input registered with react-hook-form */}
+          <form className="grid gap-5 md:grid-cols-2" onSubmit={onSubmit}>
+            <FormField label="Title" required error={form.formState.errors.title?.message} className="md:col-span-2">
+              <Input placeholder="e.g. NSTP Orientation Module 1" {...form.register("title")} className="h-11" />
             </FormField>
 
-            <FormField label="Category" required> {/* Category field */}
-              <Select {...form.register("category")}> {/* Category dropdown registered with react-hook-form */}
-                <option value="MODULE">Module</option> {/* Module option */}
-                <option value="LECTURE">Lecture</option> {/* Lecture option */}
-                <option value="ANNOUNCEMENT">Announcement</option> {/* Announcement option */}
-                <option value="ACTIVITY">Activity</option> {/* Activity option */}
+            <FormField label="Category" required>
+              <Select {...form.register("category")} className="h-11">
+                <option value="MODULE">Module</option>
+                <option value="LECTURE">Lecture</option>
+                <option value="ANNOUNCEMENT">Announcement</option>
+                <option value="ACTIVITY">Activity</option>
               </Select>
             </FormField>
 
-            <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)"> {/* File attachment field */}
+            <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)">
               <div
-                className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3.5 text-sm text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-50" // Dashed border dropzone-style button
-                onClick={() => fileInputRef.current?.click()} // Trigger the hidden file input on click
+                className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-silver/40 bg-white px-4 text-sm text-darksilver transition-all hover:border-silver/50 hover:bg-silver/10"
+                onClick={() => fileInputRef.current?.click()}
               >
-                {selectedFile ? ( // Show the selected file name if a file is chosen
+                {selectedFile ? (
                   <>
-                    <FileText className="h-4 w-4 shrink-0 text-sky-500" /> {/* Blue file icon */}
-                    <span className="flex-1 truncate text-slate-700">{selectedFile.name}</span> {/* File name, truncated if too long */}
+                    {(() => {
+                      const ext = selectedFile.name.split(".").pop()?.toLowerCase()
+                      if (ext === "pdf") return <FileText className="h-4 w-4 shrink-0 text-red-400" />
+                      if (ext === "docx") return <FileText className="h-4 w-4 shrink-0 text-blue-400" />
+                      if (["jpg", "jpeg"].includes(ext || "")) return <FileImage className="h-4 w-4 shrink-0 text-emerald-400" />
+                      return <Paperclip className="h-4 w-4 shrink-0" />
+                    })()}
+                    <span className="flex-1 truncate text-black/80">{selectedFile.name}</span>
                     <button
-                      type="button" // Prevent form submission
-                      className="text-slate-400 hover:text-red-500" // Red on hover for the remove button
-                      onClick={(e) => { e.stopPropagation(); setSelectedFile(null) }} // Remove the selected file without triggering the file picker
+                      type="button"
+                      className="text-darksilver hover:text-red-500 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setSelectedFile(null) }}
                     >
-                      <X className="h-4 w-4" /> {/* X icon to remove the file */}
+                      <X className="h-4 w-4" />
                     </button>
                   </>
                 ) : (
                   <>
-                    <Paperclip className="h-4 w-4 shrink-0" /> {/* Paperclip icon when no file is selected */}
-                    <span>Choose file…</span> {/* Placeholder text */}
+                    <Paperclip className="h-4 w-4 shrink-0" />
+                    <span>Choose file…</span>
                   </>
                 )}
               </div>
               <input
-                ref={fileInputRef} // Attach the ref for programmatic triggering
-                type="file" // File input type
-                className="hidden" // Hide the native file input
-                accept=".pdf,.docx,.jpg,.jpeg" // Restrict to allowed file types
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.docx,.jpg,.jpeg"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) {
@@ -374,105 +510,212 @@ export function MaterialsPage() {
               />
             </FormField>
 
-            <FormField label="Description" className="md:col-span-2"> {/* Description field spanning both columns */}
-              <Textarea placeholder="Add a brief description for students" {...form.register("description")} /> {/* Textarea registered with react-hook-form */}
+            <FormField label="Description" className="md:col-span-2">
+              <Textarea placeholder="Add a brief description for students" {...form.register("description")} className="min-h-[80px]" />
             </FormField>
 
-            {mutation.isError && ( // Show error alert if creation failed
-              <Alert variant="danger" className="md:col-span-2"> {/* Error alert spanning both columns */}
+            {mutation.isError && (
+              <Alert variant="danger" className="md:col-span-2">
                 {(mutation.error as Error).message}
               </Alert>
             )}
 
-            <div className="md:col-span-2"> {/* Submit button spanning both columns */}
-              <Button type="submit" disabled={mutation.isPending || isUploading}> {/* Disable while saving or uploading */}
-                {isUploading ? "Uploading…" : mutation.isPending ? "Saving…" : "Save Material"} {/* Dynamic button text */}
+            <div className="md:col-span-2">
+              <Button
+                type="submit"
+                disabled={mutation.isPending || isUploading}
+                className="h-11 bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
+              >
+                {isUploading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Uploading…
+                  </span>
+                ) : mutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Save Material
+                  </span>
+                )}
               </Button>
             </div>
           </form>
         </FormSection>
+        </motion.div>
       )}
 
-      <SectionCard title="Materials" description="Latest uploads and announcements"> {/* Card wrapper for the materials list */}
-        {materialsQuery.isError && <Alert variant="danger">Unable to load materials.</Alert>} {/* Error alert if fetch failed */}
-        {materialsQuery.isLoading ? ( // Show loading skeleton while fetching
-          <LoadingSkeleton rows={3} columns={4} /> // Skeleton matching the table structure
-        ) : rows.length === 0 ? ( // Show empty state if no materials exist
-          <EmptyState title="No materials yet" description="Upload a new learning resource to get started." />
-        ) : (
-          <ResponsiveTableCards
-            data={rows} // Pass the materials array as data
-            columns={columns} // Pass the column definitions
-            rowKey={(m) => m.id} // Use the material ID as the React key
-            renderTitle={(m) => m.title} // Use the material title as the card title on mobile
-          />
-        )}
-      </SectionCard>
-
-      <Drawer // Edit material drawer
-        open={!!editingMaterial} // Open when a material is being edited
-        onOpenChange={(open) => !open && setEditingMaterial(null)} // Close by clearing the editing state
-        title="Edit Learning Material" // Drawer title
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.22, ease: [0.16, 1, 0.3, 1] as const }}
       >
-        <div className="p-4 space-y-4"> {/* Drawer content with padding and spacing */}
-          <FormField label="Title" required> {/* Title field in the edit form */}
+      <SectionCard
+        title="Materials"
+        description="Latest uploads and announcements"
+        className="shadow-card"
+      >
+        {rows.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 px-6 pt-2">
+              {CATEGORIES.map((cat) => {
+                const meta = categoryMeta[cat]
+                const count = categoryCounts[cat] || 0
+                const isActive = categoryFilter === cat
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(isActive ? "ALL" : cat)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                      isActive
+                        ? `${meta.bg} ${meta.color} ring-1 ring-inset ring-silver/30`
+                        : "bg-white text-darksilver hover:bg-silver/20 hover:text-black/80"
+                    )}
+                  >
+                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                    {meta.label}
+                    <span className={cn(
+                      "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                      isActive ? "bg-white/60" : "bg-white"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="px-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input
+                  placeholder="Search by title or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 pl-10"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {materialsQuery.isError && (
+          <div className="px-6 pt-4">
+            <Alert variant="danger">Unable to load materials.</Alert>
+          </div>
+        )}
+
+        <div className="px-6 pt-3 pb-2">
+          {materialsQuery.isLoading ? (
+            <LoadingSkeleton rows={3} columns={4} />
+          ) : rows.length === 0 ? (
+            <div className="py-4">
+              <EmptyState title="No materials yet" description="Upload a new learning resource to get started." />
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-4">
+              <EmptyState
+                title="No results found"
+                description={searchQuery ? "Try a different search term." : "No materials in this category."}
+              />
+            </div>
+          ) : (
+            <ResponsiveTableCards
+              data={filteredRows}
+              columns={columns}
+              rowKey={(m) => m.id}
+              renderTitle={(m) => m.title}
+            />
+          )}
+        </div>
+      </SectionCard>
+      </motion.div>
+
+      <Drawer
+        open={!!editingMaterial}
+        onOpenChange={(open) => !open && setEditingMaterial(null)}
+        title="Edit Learning Material"
+      >
+        {editingCat && (
+          <div className={cn("h-1 w-full", editingCat.bg)} />
+        )}
+        <div className="p-4 space-y-5">
+          {editingMaterial && (
+            <div className="flex items-center gap-3 pb-2 border-b border-silver/20">
+              <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", editingCat?.bg ?? "bg-white")}>
+                {editingCat && <editingCat.icon className={cn("h-5 w-5", editingCat.color)} strokeWidth={1.75} />}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-black truncate">{editingMaterial.title}</p>
+                <p className="text-xs text-darksilver">{editingCat?.label ?? editingMaterial.category}</p>
+              </div>
+            </div>
+          )}
+
+          <FormField label="Title" required>
             <Input
-              value={editTitle} // Controlled input value
-              onChange={(e) => setEditTitle(e.target.value)} // Update edit title state on change
-              placeholder="e.g. NSTP Orientation Module 1" // Placeholder text
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="e.g. NSTP Orientation Module 1"
+              className="h-11"
             />
           </FormField>
 
-          <FormField label="Category" required> {/* Category field in the edit form */}
-            <Select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}> {/* Controlled select */}
-              <option value="MODULE">Module</option> {/* Module option */}
-              <option value="LECTURE">Lecture</option> {/* Lecture option */}
-              <option value="ANNOUNCEMENT">Announcement</option> {/* Announcement option */}
-              <option value="ACTIVITY">Activity</option> {/* Activity option */}
+          <FormField label="Category" required>
+            <Select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="h-11">
+              <option value="MODULE">Module</option>
+              <option value="LECTURE">Lecture</option>
+              <option value="ANNOUNCEMENT">Announcement</option>
+              <option value="ACTIVITY">Activity</option>
             </Select>
           </FormField>
 
-          <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)"> {/* File attachment field in the edit form */}
+          <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)">
             <div
-              className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3.5 text-sm text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-50" // Dashed border dropzone-style button
-              onClick={() => editFileInputRef.current?.click()} // Trigger the hidden file input on click
+              className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-silver/40 bg-white px-4 text-sm text-darksilver transition-all hover:border-silver/50 hover:bg-silver/10"
+              onClick={() => editFileInputRef.current?.click()}
             >
-              {editFile ? ( // Show the new file name if a new file is selected
+              {editFile ? (
                 <>
-                  <FileText className="h-4 w-4 shrink-0 text-sky-500" /> {/* Blue file icon */}
-                  <span className="flex-1 truncate text-slate-700">{editFile.name}</span> {/* New file name */}
+                  <FileText className="h-4 w-4 shrink-0 text-sky-500" />
+                  <span className="flex-1 truncate text-black/80">{editFile.name}</span>
                   <button
-                    type="button" // Prevent form submission
-                    className="text-slate-400 hover:text-red-500" // Red on hover
-                    onClick={(e) => { e.stopPropagation(); setEditFile(null) }} // Remove the new file selection
+                    type="button"
+                    className="text-darksilver hover:text-red-500 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); setEditFile(null) }}
                   >
-                    <X className="h-4 w-4" /> {/* X icon */}
+                    <X className="h-4 w-4" />
                   </button>
                 </>
-              ) : editFileUrl ? ( // Show the existing file indicator if no new file is selected
+              ) : editFileUrl ? (
                 <>
-                  <FileText className="h-4 w-4 shrink-0 text-sky-500" /> {/* Blue file icon */}
-                  <span className="flex-1 truncate text-slate-700">Current file attached</span> {/* Existing file indicator */}
+                  <FileText className="h-4 w-4 shrink-0 text-sky-500" />
+                  <span className="flex-1 truncate text-black/80">Current file attached</span>
                   <button
-                    type="button" // Prevent form submission
-                    className="text-sky-600 hover:text-sky-700 text-xs" // Blue view button
-                    onClick={(e) => { e.stopPropagation(); handleViewFile(editFileUrl) }} // View the existing file
+                    type="button"
+                    className="text-royal hover:text-sky-700 text-xs font-medium shrink-0"
+                    onClick={(e) => { e.stopPropagation(); handleViewFile(editFileUrl) }}
                   >
                     View
                   </button>
                 </>
               ) : (
                 <>
-                  <Paperclip className="h-4 w-4 shrink-0" /> {/* Paperclip icon when no file */}
-                  <span>Choose file…</span> {/* Placeholder text */}
+                  <Paperclip className="h-4 w-4 shrink-0" />
+                  <span>Choose file…</span>
                 </>
               )}
             </div>
             <input
-              ref={editFileInputRef} // Attach the ref for programmatic triggering
-              type="file" // File input type
-              className="hidden" // Hide the native file input
-              accept=".pdf,.docx,.jpg,.jpeg" // Restrict to allowed file types
+              ref={editFileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.docx,.jpg,.jpeg"
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) {
@@ -484,43 +727,45 @@ export function MaterialsPage() {
             />
           </FormField>
 
-          <FormField label="Description"> {/* Description field in the edit form */}
+          <FormField label="Description">
             <Textarea
-              value={editDescription} // Controlled textarea value
-              onChange={(e) => setEditDescription(e.target.value)} // Update edit description state on change
-              placeholder="Add a brief description for students" // Placeholder text
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Add a brief description for students"
+              className="min-h-[80px]"
             />
           </FormField>
 
-          {updateMutation.isError && ( // Show error alert if update failed
+          {updateMutation.isError && (
             <Alert variant="danger">
               {(updateMutation.error as Error).message}
             </Alert>
           )}
 
-          <div className="flex gap-2"> {/* Row of action buttons */}
+          <div className="flex gap-2 pt-2">
             <Button
-              onClick={handleSaveEdit} // Save the edit on click
-              disabled={updateMutation.isPending || isUploading || !editTitle} // Disable if saving, uploading, or title is empty
+              onClick={handleSaveEdit}
+              disabled={updateMutation.isPending || isUploading || !editTitle}
+              className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black"
             >
-              {isUploading ? "Uploading..." : updateMutation.isPending ? "Saving..." : "Save Changes"} {/* Dynamic button text */}
+              {isUploading ? "Uploading..." : updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
-            <Button variant="outline" onClick={() => setEditingMaterial(null)}> {/* Cancel button closes the drawer */}
+            <Button variant="outline" onClick={() => setEditingMaterial(null)}>
               Cancel
             </Button>
           </div>
         </div>
       </Drawer>
 
-      <ConfirmDialog // Delete confirmation dialog
-        open={!!deletingMaterial} // Open when a material is pending deletion
-        onOpenChange={(open) => !open && setDeletingMaterial(null)} // Close by clearing the deleting state
-        title="Delete Material" // Dialog title
-        description={`Are you sure you want to delete "${deletingMaterial?.title}"? This action cannot be undone.`} // Dynamic description with the material title
-        confirmLabel="Delete" // Confirm button label
-        cancelLabel="Cancel" // Cancel button label
-        destructive // Style the confirm button as destructive (red)
-        onConfirm={confirmDelete} // Call the confirm handler when confirmed
+      <ConfirmDialog
+        open={!!deletingMaterial}
+        onOpenChange={(open) => !open && setDeletingMaterial(null)}
+        title="Delete Material"
+        description={`Are you sure you want to delete "${deletingMaterial?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={confirmDelete}
       />
     </div>
   )

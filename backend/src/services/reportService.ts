@@ -1,80 +1,160 @@
-// Import the Prisma client for database access
 import { prisma } from "../lib/prisma.js"
 
 /* Fetch enrollment records for reporting, with optional date range and scope filters */
 export async function enrollmentReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }) {
-  // Build the Prisma where clause dynamically based on provided filters
   const where: Record<string, unknown> = {}
-  // Add section ID filter if provided
   if (filters.sectionId) where.sectionId = filters.sectionId
-  // Add flight ID filter if provided
   if (filters.flightId) where.flightId = filters.flightId
   
-  // Only add date filter if both from and to are provided, or if either is provided
   if (filters.from || filters.to) {
-    // Build the date range filter object
     const dateFilter: Record<string, Date> = {}
-    // Add the lower bound if a 'from' date was provided
     if (filters.from) dateFilter.gte = filters.from
     if (filters.to) {
-      // Set to end of day for 'to' date so the entire day is included
       const toDate = new Date(filters.to)
-      toDate.setHours(23, 59, 59, 999) // Set time to 23:59:59.999 to include the full day
-      dateFilter.lte = toDate // Add the upper bound
+      toDate.setHours(23, 59, 59, 999)
+      dateFilter.lte = toDate
     }
-    // Apply the date range filter to the createdAt field
     where.createdAt = dateFilter
   }
   
-  // Fetch enrollment records with related user, section, and flight data
   return prisma.enrollment.findMany({ 
-    where, // Apply the dynamic filter
+    where, 
     include: { 
       user: {
-        select: {
-          id: true,    // User's unique ID
-          email: true, // User's email address
-          role: true,  // User's assigned role
-          studentProfile: {
-            select: {
-              firstName: true, // Student's first name
-              lastName: true   // Student's last name
-            }
-          }
-        }
+        select: { id: true, email: true, role: true, studentProfile: { select: { firstName: true, lastName: true } } }
       }, 
-      section: true, // Include the full section object
-      flight: true   // Include the full flight object
+      section: true, 
+      flight: true 
     },
-    orderBy: { createdAt: 'desc' } // Most recently created enrollments first
+    orderBy: { createdAt: 'desc' }
+  })
+}
+
+/* Fetch attendance records for reporting */
+export async function attendanceReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }) {
+  const where: Record<string, unknown> = {}
+  
+  if (filters.sectionId || filters.flightId) {
+    where.user = {
+      studentProfile: {
+        ...(filters.sectionId && { sectionId: filters.sectionId }),
+        ...(filters.flightId && { flightId: filters.flightId }),
+      }
+    }
+  }
+
+  if (filters.from || filters.to) {
+    const dateFilter: Record<string, Date> = {}
+    if (filters.from) dateFilter.gte = filters.from
+    if (filters.to) {
+      const toDate = new Date(filters.to)
+      toDate.setHours(23, 59, 59, 999)
+      dateFilter.lte = toDate
+    }
+    where.date = dateFilter
+  }
+
+  return prisma.attendanceRecord.findMany({
+    where,
+    include: {
+      user: {
+        select: {
+          id: true, email: true,
+          studentProfile: { select: { firstName: true, lastName: true, sectionId: true, flightId: true } }
+        }
+      }
+    },
+    orderBy: { date: 'desc' },
+    take: 5000
+  })
+}
+
+/* Fetch grade records for reporting */
+export async function gradesReport(filters: { sectionId?: string }) {
+  const where: Record<string, unknown> = {}
+  
+  if (filters.sectionId) {
+    where.student = {
+      studentProfile: { sectionId: filters.sectionId }
+    }
+  }
+
+  return prisma.studentGrade.findMany({
+    where,
+    include: {
+      student: {
+        select: {
+          id: true, email: true,
+          studentProfile: { select: { firstName: true, lastName: true } }
+        }
+      },
+      gradeItem: {
+        select: { title: true, maxScore: true, category: { select: { name: true, weight: true } } }
+      }
+    },
+    orderBy: { id: 'desc' },
+    take: 5000
+  })
+}
+
+/* Fetch merit/demerit records for reporting */
+export async function meritsReport(filters: { from?: Date; to?: Date; sectionId?: string }) {
+  const where: Record<string, unknown> = {}
+  
+  if (filters.sectionId) {
+    where.student = {
+      studentProfile: { sectionId: filters.sectionId }
+    }
+  }
+
+  if (filters.from || filters.to) {
+    const dateFilter: Record<string, Date> = {}
+    if (filters.from) dateFilter.gte = filters.from
+    if (filters.to) {
+      const toDate = new Date(filters.to)
+      toDate.setHours(23, 59, 59, 999)
+      dateFilter.lte = toDate
+    }
+    where.createdAt = dateFilter
+  }
+
+  return prisma.meritDemerit.findMany({
+    where,
+    include: {
+      student: {
+        select: {
+          id: true, email: true,
+          studentProfile: { select: { firstName: true, lastName: true } }
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5000
   })
 }
 
 /* Convert an array of flat objects to a CSV string */
 export function toCsv(rows: Record<string, unknown>[]) {
-  // Return an empty string if there are no rows to convert
   if (rows.length === 0) return ""
   
-  // Extract the column headers from the keys of the first row object
   const headers = Object.keys(rows[0])
-  // Build the CSV lines: first the header row, then one line per data row
   const lines = [
-    headers.join(","), // Join header names with commas to form the header row
+    headers.join(","),
     ...rows.map((row) => 
-      // For each row, map each header to its corresponding value
       headers.map((key) => {
         const value = row[key]
-        // Properly escape CSV values
-        if (value === null || value === undefined) return "" // Represent null/undefined as empty string
-        const str = String(value) // Convert the value to a string
-        // Escape quotes and wrap in quotes if contains comma, quote, or newline
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"` // Escape internal quotes by doubling them
+        if (value === null || value === undefined) return ""
+        let str = String(value)
+        // Prevent CSV injection: prefix dangerous characters with a single quote
+        if (/^[=+\-@\t\r]/.test(str)) {
+          str = "'" + str
         }
-        return str // Return the plain string if no escaping is needed
-      }).join(",") // Join the cell values with commas to form the data row
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+        return str
+      }).join(",")
     )
   ]
-  // Join all lines with newline characters to form the complete CSV string
   return lines.join("\n")
 }

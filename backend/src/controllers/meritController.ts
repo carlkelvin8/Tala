@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { assignMerit, listMerits } from "../services/meritService.js"
+import { assignMerit, listMerits, updateMerit, deleteMerit } from "../services/meritService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { getPagination } from "../lib/pagination.js"
 import { MeritType, RoleType } from "@prisma/client"
@@ -12,19 +12,37 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
   return querySectionId
 }
 
-/* POST /api/merits/ — assign a merit or demerit to a student */
 export async function create(c: Context) {
   try {
-    // Retrieve the authenticated user (the staff member assigning the merit/demerit)
     const authUser = getAuthUser(c)
-    // Parse the JSON body containing studentId, type, points, and reason
     const body = await c.req.json()
-    // Delegate to the merit service, injecting the encoder's ID for audit purposes
     const merit = await assignMerit({ ...body, encodedById: authUser.id })
-    // Return the created merit/demerit record
     return c.json(ok("Merit/Demerit assigned", merit))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Assign failed"), 400)
+  }
+}
+
+export async function update(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const id = c.req.param("id")
+    const body = await c.req.json()
+    const merit = await updateMerit(id, body, authUser.id)
+    return c.json(ok("Merit/Demerit updated", merit))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)
+  }
+}
+
+export async function remove(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const id = c.req.param("id")
+    await deleteMerit(id, authUser.id)
+    return c.json(ok("Merit/Demerit deleted"))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Delete failed"), 400)
   }
 }
 

@@ -8,7 +8,6 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { getStoredUser } from "../lib/auth"
-import { PageHeader } from "../components/ui/page-header"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
@@ -20,8 +19,9 @@ import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Badge } from "../components/ui/badge"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
-import { Users, Plus, Edit, Trash2, Zap } from "lucide-react"
-import { useState } from "react"
+import { LayoutGrid, Sparkles, Users, Plus, Edit, Trash2, Zap, Save, X, Hash, BookOpen, ChevronRight } from "lucide-react"
+import { useState, useMemo } from "react"
+import { cn } from "../lib/utils"
 
 const MAX_SECTIONS_PER_COURSE = 50
 
@@ -177,24 +177,30 @@ export function SectionsPage() {
   const sections = sectionsQuery.data?.data ?? []
   const courses = coursesQuery.data?.data ?? []
 
+  const totalSections = useMemo(() => sections.length, [sections])
+
   const columns = [
     {
       header: "Code",
       cell: (section: any) => (
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary-600" />
-          <span className="font-medium text-slate-900">{section.code}</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-royal/10">
+            <Hash className="h-3.5 w-3.5 text-royal" />
+          </span>
+          <span className="font-semibold text-black">{section.code}</span>
         </div>
       )
     },
     {
       header: "Name",
-      cell: (section: any) => section.name
+      cell: (section: any) => (
+        <span className="text-darksilver">{section.name}</span>
+      )
     },
     {
       header: "Course",
       cell: (section: any) => section.course?.name ?? (
-        <span className="text-slate-400 italic">Unassigned</span>
+        <span className="text-darksilver italic">Unassigned</span>
       )
     },
     {
@@ -211,21 +217,22 @@ export function SectionsPage() {
       cell: (section: any) => {
         if (!canManage) return null
         return (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => handleEdit(section)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleEdit(section)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-royal hover:bg-sky-50 transition-colors"
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+            <button
               onClick={() => handleDelete(section)}
               disabled={deleteMutation.isPending}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              title="Delete"
             >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         )
       }
@@ -239,20 +246,34 @@ export function SectionsPage() {
   const previewCount = Math.max(0, (previewEnd || 0) - (previewStart || 0) + 1)
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Sections"
-        description="Manage and generate class sections"
-        actions={
-          <Badge variant="outline" className="flex items-center gap-1 text-xs">
-            <Users className="h-3 w-3" />
-            <span>{sections.length} sections</span>
-          </Badge>
-        }
-      />
+    <div className="space-y-6 animate-fade-in">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated">
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <div className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20">
+            <LayoutGrid className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Section Management</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Sections</h1>
+            <p className="mt-1 text-sm text-silver max-w-2xl">Manage and generate class sections for your courses.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 text-white border-white/20">
+              <Users className="h-3.5 w-3.5 text-emerald-400" />
+              <span>{totalSections} sections</span>
+            </Badge>
+          </div>
+        </div>
+      </div>
 
       {canManage && (
-        <FormSection title="Generate Sections" description="Automatically create multiple sections for a course">
+        <FormSection title="Generate Sections" description="Automatically create multiple sections for a course" className="shadow-card">
           <form className="grid gap-4 md:grid-cols-3" onSubmit={onGenerateSubmit}>
             <FormField label="Course" required error={generateForm.formState.errors.courseId?.message}>
               <Select {...generateForm.register("courseId")}>
@@ -265,24 +286,30 @@ export function SectionsPage() {
               </Select>
             </FormField>
             <FormField label="Prefix" required error={generateForm.formState.errors.prefix?.message}>
-              <Input placeholder="e.g. SEC" {...generateForm.register("prefix")} />
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="e.g. SEC" {...generateForm.register("prefix")} className="h-11 pl-10" />
+              </div>
             </FormField>
             <FormField label="Separator" error={generateForm.formState.errors.separator?.message}>
-              <Input placeholder="-" {...generateForm.register("separator")} />
+              <div className="relative">
+                <ChevronRight className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="-" {...generateForm.register("separator")} className="h-11 pl-10" />
+              </div>
             </FormField>
             <FormField label="Start Number" required error={generateForm.formState.errors.start?.message}>
-              <Input type="number" min={1} placeholder="1" {...generateForm.register("start")} />
+              <Input type="number" min={1} placeholder="1" {...generateForm.register("start")} className="h-11" />
             </FormField>
             <FormField label="End Number" required error={generateForm.formState.errors.end?.message}>
-              <Input type="number" min={1} placeholder="10" {...generateForm.register("end")} />
+              <Input type="number" min={1} placeholder="10" {...generateForm.register("end")} className="h-11" />
             </FormField>
             <div className="flex items-end">
-              <div className="text-sm text-slate-500 pb-2">
-                Preview: <span className="font-medium text-slate-700">{previewPrefix}{previewSep}{String(previewStart).padStart(2, "0")}</span>
+              <div className="text-sm text-darksilver pb-2">
+                Preview: <span className="font-medium text-black/80">{previewPrefix}{previewSep}{String(previewStart).padStart(2, "0")}</span>
                 {previewCount > 1 && (
-                  <> to <span className="font-medium text-slate-700">{previewPrefix}{previewSep}{String(previewEnd).padStart(2, "0")}</span></>
+                  <> to <span className="font-medium text-black/80">{previewPrefix}{previewSep}{String(previewEnd).padStart(2, "0")}</span></>
                 )}
-                <span className="ml-1 text-slate-400">({previewCount} sections)</span>
+                <span className="ml-1 text-darksilver">({previewCount} sections)</span>
               </div>
             </div>
             {generateMutation.isError && (
@@ -291,7 +318,7 @@ export function SectionsPage() {
               </Alert>
             )}
             <div className="md:col-span-3">
-              <Button type="submit" disabled={generateMutation.isPending}>
+              <Button type="submit" disabled={generateMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
                 <Zap className="h-4 w-4 mr-1" />
                 {generateMutation.isPending ? "Generating..." : "Generate Sections"}
               </Button>
@@ -301,13 +328,19 @@ export function SectionsPage() {
       )}
 
       {canManage && (
-        <FormSection title="Create Single Section" description="Add one section manually">
+        <FormSection title="Create Single Section" description="Add one section manually" className="shadow-card">
           <form className="grid gap-4 md:grid-cols-3" onSubmit={onCreateSubmit}>
             <FormField label="Code" required error={createForm.formState.errors.code?.message}>
-              <Input placeholder="e.g. SEC-1A" {...createForm.register("code")} />
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="e.g. SEC-1A" {...createForm.register("code")} className="h-11 pl-10" />
+              </div>
             </FormField>
             <FormField label="Name" required error={createForm.formState.errors.name?.message}>
-              <Input placeholder="e.g. Section 1-A" {...createForm.register("name")} />
+              <div className="relative">
+                <BookOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="e.g. Section 1-A" {...createForm.register("name")} className="h-11 pl-10" />
+              </div>
             </FormField>
             <FormField label="Course" error={createForm.formState.errors.courseId?.message}>
               <Select {...createForm.register("courseId")}>
@@ -325,7 +358,7 @@ export function SectionsPage() {
               </Alert>
             )}
             <div className="md:col-span-3">
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
                 <Plus className="h-4 w-4 mr-1" />
                 {createMutation.isPending ? "Creating..." : "Create Section"}
               </Button>
@@ -334,7 +367,7 @@ export function SectionsPage() {
         </FormSection>
       )}
 
-      <SectionCard title="All Sections" description="Class sections in the system">
+      <SectionCard title="All Sections" description="Class sections in the system" className="shadow-card">
         {sectionsQuery.isError && (
           <Alert variant="danger">
             {(sectionsQuery.error as Error).message === "Unauthorized"
@@ -368,23 +401,41 @@ export function SectionsPage() {
         onOpenChange={(open) => !open && setEditingSection(null)}
         title="Edit Section"
       >
-        <div className="p-4 space-y-4">
+        <div className="h-1 w-full bg-royal/100" />
+        <div className="p-4 space-y-5">
+          {editingSection && (
+            <div className="flex items-center gap-3 pb-3 border-b border-silver/20">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-royal/10">
+                <LayoutGrid className="h-5 w-5 text-royal" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-black truncate">{editingSection.code}</p>
+                <p className="text-xs text-darksilver truncate">{editingSection.name}</p>
+              </div>
+            </div>
+          )}
           <FormField label="Code" required>
-            <Input
-              value={editCode}
-              onChange={(e) => setEditCode(e.target.value)}
-              placeholder="e.g. SEC-1A"
-            />
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                placeholder="e.g. SEC-1A"
+                className="h-11 pl-10"
+              />
+            </div>
           </FormField>
-
           <FormField label="Name" required>
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder="e.g. Section 1-A"
-            />
+            <div className="relative">
+              <BookOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Section 1-A"
+                className="h-11 pl-10"
+              />
+            </div>
           </FormField>
-
           <FormField label="Course">
             <Select
               value={editCourseId ?? ""}
@@ -398,21 +449,22 @@ export function SectionsPage() {
               ))}
             </Select>
           </FormField>
-
           {updateMutation.isError && (
             <Alert variant="danger">
               {(updateMutation.error as Error).message}
             </Alert>
           )}
-
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <Button
               onClick={handleSaveEdit}
               disabled={updateMutation.isPending || !editCode || !editName}
+              className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
             >
+              <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
             <Button variant="outline" onClick={() => setEditingSection(null)}>
+              <X className="h-4 w-4 mr-1" />
               Cancel
             </Button>
           </div>

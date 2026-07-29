@@ -28,7 +28,7 @@ export function Drawer({ open, onOpenChange, title, children, className }: Drawe
 
   return createPortal(
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={() => onOpenChange(false)} />
+      <div className="absolute inset-0 bg-navy/40" onClick={() => onOpenChange(false)} />
       <div
         className={cn(
           "absolute right-0 top-0 h-full w-[90%] max-w-md bg-white shadow-xl",
@@ -37,9 +37,9 @@ export function Drawer({ open, onOpenChange, title, children, className }: Drawe
         )}
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
-            <div className="text-sm font-semibold text-slate-900">{title ?? "Menu"}</div>
-            <button className="text-sm text-slate-500 hover:text-slate-700" onClick={() => onOpenChange(false)}>
+          <div className="flex items-center justify-between border-b border-silver/30 px-4 py-4">
+            <div className="text-sm font-semibold text-black">{title ?? "Menu"}</div>
+            <button className="text-sm text-darksilver hover:text-black/80" onClick={() => onOpenChange(false)}>
               Close
             </button>
           </div>

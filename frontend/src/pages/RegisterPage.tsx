@@ -12,9 +12,7 @@ import { AuthLayout } from "../components/layout/AuthLayout"
 import { Link, useNavigate } from "react-router-dom"
 import { ApiResponse } from "../types"
 import { toast } from "sonner"
-import { User as UserIcon, Mail, Lock, Shield, Chrome } from "lucide-react"
-import { Button as UIButton } from "../components/ui/button"
-import { Separator } from "../components/ui/separator"
+import { User as UserIcon, Mail, Lock, Shield } from "lucide-react"
 import { useState } from "react"
 
 const schema = z.object({
@@ -63,45 +61,34 @@ export function RegisterPage() {
       footer={
         <span>
           Already have access?{" "}
-          <Link className="font-medium text-slate-900 hover:underline" to="/login">
+          <Link className="font-medium text-black hover:underline" to="/login">
             Sign in
           </Link>
         </span>
       }
     >
       <form className="grid gap-3 md:grid-cols-2" onSubmit={onSubmit}>
-        <div className="md:col-span-2 space-y-3">
-          <UIButton type="button" variant="outline" className="h-9 w-full">
-            <Chrome className="h-4 w-4" />
-            Continue with Google
-          </UIButton>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <Separator className="flex-1 bg-slate-200" />
-            <span>or continue with email</span>
-            <Separator className="flex-1 bg-slate-200" />
-          </div>
-        </div>
         <FormField label="First name" htmlFor="firstName" required error={form.formState.errors.firstName?.message}>
           <div className="relative">
-            <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
             <Input id="firstName" placeholder="Juan" className="h-9 pl-9" {...form.register("firstName")} />
           </div>
         </FormField>
         <FormField label="Last name" htmlFor="lastName" required error={form.formState.errors.lastName?.message}>
           <div className="relative">
-            <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
             <Input id="lastName" placeholder="Dela Cruz" className="h-9 pl-9" {...form.register("lastName")} />
           </div>
         </FormField>
         <FormField label="Email" htmlFor="email" required error={form.formState.errors.email?.message} className="md:col-span-2">
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
             <Input id="email" type="email" placeholder="you@school.edu" className="h-9 pl-9" {...form.register("email")} />
           </div>
         </FormField>
         <FormField label="Password" htmlFor="password" required error={form.formState.errors.password?.message}>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -109,17 +96,17 @@ export function RegisterPage() {
               className="h-9 pr-14 pl-9"
               {...form.register("password")}
             />
-            <UIButton
+            <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="absolute right-2 top-1/2 h-6 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-700"
+              className="absolute right-2 top-1/2 h-6 -translate-y-1/2 text-xs text-darksilver hover:text-black/80"
               onClick={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? "Hide" : "Show"}
-            </UIButton>
+            </Button>
           </div>
-          <p className="mt-1 text-xs text-slate-500">Use at least 8 characters. Avoid sharing credentials.</p>
+          <p className="mt-1 text-xs text-darksilver">Use at least 8 characters. Avoid sharing credentials.</p>
         </FormField>
         <FormField label="Role" htmlFor="role" required>
           <Select id="role" className="h-9" {...form.register("role")}>
@@ -136,13 +123,13 @@ export function RegisterPage() {
           </Button>
         </div>
         <div className="md:col-span-2 space-y-3">
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <Separator className="flex-1 bg-slate-200" />
+          <div className="flex items-center gap-3 text-xs text-darksilver">
+            <div className="flex-1 h-px bg-silver/30" />
             <span>Account policy</span>
-            <Separator className="flex-1 bg-slate-200" />
+            <div className="flex-1 h-px bg-silver/30" />
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-slate-200/70 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-            <Shield className="h-4 w-4 text-slate-500" />
+          <div className="flex items-center gap-3 rounded-lg border border-silver/30 bg-white px-4 py-3 text-xs text-darksilver">
+            <Shield className="h-4 w-4 text-darksilver" />
             <span>
               Accounts are role-based. Admin reviews may be required based on your selected role and program.
             </span>

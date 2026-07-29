@@ -54,7 +54,7 @@ export function AvatarWithRing({
   const avatarContent = (
     <div
       className={cn(
-        "flex items-center justify-center rounded-full bg-slate-900 text-white font-bold overflow-hidden", // Circular dark background with centered content and hidden overflow for the image
+        "flex items-center justify-center rounded-full bg-navy text-white font-bold overflow-hidden", // Circular dark background with centered content and hidden overflow for the image
         sizeClasses[size] // Apply the size-specific dimensions
       )}
     >

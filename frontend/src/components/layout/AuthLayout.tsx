@@ -17,20 +17,20 @@ export function AuthLayout({ title, description, children, footer, sideTitle, si
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-sm px-4 py-6 sm:max-w-md sm:px-5 sm:py-8">
-        <Card className="w-full rounded-xl border-slate-200 bg-white shadow-md">
+        <Card className="w-full rounded-xl border-silver/30 bg-white shadow-md">
           <CardHeader className="gap-1 px-4 py-4">
-            <Badge variant="outline" className="w-fit border-slate-200 text-slate-600">
-              NSTP Command Center
+            <Badge variant="outline" className="w-fit border-silver/30 text-darksilver">
+              National Service Training Program Management System
             </Badge>
-            <CardTitle className="text-[20px] font-semibold text-slate-900 sm:text-[22px]">{title}</CardTitle>
-            <CardDescription className="text-sm text-slate-500">{description}</CardDescription>
+            <CardTitle className="text-[20px] font-semibold text-black sm:text-[22px]">{title}</CardTitle>
+            <CardDescription className="text-sm text-darksilver">{description}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 px-4 py-4">
             {children}
             {footer && (
               <div className="space-y-4">
-                <Separator className="bg-slate-100" />
-                <div className="text-sm text-slate-500">{footer}</div>
+                <Separator className="bg-silver/20" />
+                <div className="text-sm text-darksilver">{footer}</div>
               </div>
             )}
           </CardContent>

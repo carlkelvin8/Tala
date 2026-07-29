@@ -27,17 +27,17 @@ export function DataTable() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <div className="rounded-2xl border border-silver/20 bg-white shadow-card">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-silver/20 px-6 py-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">Recent Attendance</h3>
-          <p className="mt-0.5 text-xs text-slate-400">
+          <h3 className="text-sm font-semibold text-black">Recent Attendance</h3>
+          <p className="mt-0.5 text-xs text-darksilver">
             {total > 0 ? `${total} total records` : "Latest attendance events"}
           </p>
         </div>
         {total > 0 && (
-          <span className="text-[11px] font-medium text-slate-400">
+          <span className="text-[11px] font-medium text-darksilver">
             Page {page} of {totalPages}
           </span>
         )}
@@ -62,18 +62,18 @@ export function DataTable() {
             <div className="max-h-[360px] overflow-y-auto scrollbar-thin">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white">
-                  <tr className="border-b border-slate-100">
+                  <tr className="border-b border-silver/20">
                     {["Cadet", "Date", "Status", "Check-in", "Check-out"].map((h) => (
                       <th
                         key={h}
-                        className="pb-3 pr-4 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400 last:pr-0"
+                        className="pb-3 pr-4 text-left text-[11px] font-semibold uppercase tracking-widest text-darksilver last:pr-0"
                       >
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-silver/20">
                   {records.map((record: any) => {
                     const userEmail: string = record.user?.email ?? "—"
                     const date = record.date
@@ -97,18 +97,18 @@ export function DataTable() {
                       : "—"
 
                     return (
-                      <tr key={record.id} className="group transition-colors hover:bg-slate-50/60">
+                      <tr key={record.id} className="group transition-colors hover:bg-white/60">
                         <td className="py-3 pr-4">
-                          <span className="max-w-[160px] truncate block text-slate-700 text-xs">
+                          <span className="max-w-[160px] truncate block text-black/80 text-xs">
                             {userEmail}
                           </span>
                         </td>
-                        <td className="py-3 pr-4 text-slate-600 whitespace-nowrap">{date}</td>
+                        <td className="py-3 pr-4 text-darksilver whitespace-nowrap">{date}</td>
                         <td className="py-3 pr-4 whitespace-nowrap">
                           <StatusBadge status={record.status} />
                         </td>
-                        <td className="py-3 pr-4 text-slate-400 whitespace-nowrap tabular-nums">{checkIn}</td>
-                        <td className="py-3 text-slate-400 whitespace-nowrap tabular-nums">{checkOut}</td>
+                        <td className="py-3 pr-4 text-darksilver whitespace-nowrap tabular-nums">{checkIn}</td>
+                        <td className="py-3 text-darksilver whitespace-nowrap tabular-nums">{checkOut}</td>
                       </tr>
                     )
                   })}
@@ -121,8 +121,8 @@ export function DataTable() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
-          <span className="text-xs text-slate-400">
+        <div className="flex items-center justify-between border-t border-silver/20 px-6 py-3">
+          <span className="text-xs text-darksilver">
             Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
           </span>
           <div className="flex items-center gap-1">
@@ -130,10 +130,10 @@ export function DataTable() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-lg border text-slate-500 transition-colors",
+                "flex h-7 w-7 items-center justify-center rounded-lg border text-darksilver transition-colors",
                 page === 1
-                  ? "border-slate-100 text-slate-300 cursor-not-allowed"
-                  : "border-slate-200 hover:bg-slate-50"
+                  ? "border-silver/20 text-silver cursor-not-allowed"
+                  : "border-silver/30 hover:bg-white"
               )}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -148,7 +148,7 @@ export function DataTable() {
               }, [])
               .map((p, i) =>
                 p === "…" ? (
-                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-slate-300">…</span>
+                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-silver">…</span>
                 ) : (
                   <button
                     key={p}
@@ -156,8 +156,8 @@ export function DataTable() {
                     className={cn(
                       "flex h-7 min-w-[28px] items-center justify-center rounded-lg border px-2 text-xs font-medium transition-colors",
                       page === p
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                        ? "border-black bg-navy text-white"
+                        : "border-silver/30 text-darksilver hover:bg-white"
                     )}
                   >
                     {p}
@@ -169,10 +169,10 @@ export function DataTable() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-lg border text-slate-500 transition-colors",
+                "flex h-7 w-7 items-center justify-center rounded-lg border text-darksilver transition-colors",
                 page === totalPages
-                  ? "border-slate-100 text-slate-300 cursor-not-allowed"
-                  : "border-slate-200 hover:bg-slate-50"
+                  ? "border-silver/20 text-silver cursor-not-allowed"
+                  : "border-silver/30 hover:bg-white"
               )}
             >
               <ChevronRight className="h-3.5 w-3.5" />

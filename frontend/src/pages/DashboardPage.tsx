@@ -1,29 +1,116 @@
-import { PremiumAppSidebar } from "../components/layout/PremiumAppSidebar" // Import the premium sidebar component used specifically on the dashboard
-import { ChartAreaInteractive } from "../components/chart-area-interactive" // Import the interactive area chart component for data visualization
-import { DataTable } from "../components/data-table" // Import the data table component for tabular data display
-import { SectionCards } from "../components/section-cards" // Import the section cards component for summary stat cards
-import { SiteHeader } from "../components/site-header" // Import the site header component for the dashboard topbar
-import { SidebarInset, SidebarProvider } from "../components/ui/sidebar" // Import SidebarInset (the main content area next to the sidebar) and SidebarProvider (context provider for sidebar state)
+import { getStoredUser, getUserDisplayName } from "../lib/auth"
+import { PremiumAppSidebar } from "../components/layout/PremiumAppSidebar"
+import { ChartAreaInteractive } from "../components/chart-area-interactive"
+import { DataTable } from "../components/data-table"
+import { SectionCards } from "../components/section-cards"
+import { SiteHeader } from "../components/site-header"
+import { SidebarInset, SidebarProvider } from "../components/ui/sidebar"
+import { Sparkles } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
-// The main dashboard page component — uses its own layout with PremiumAppSidebar
 export default function DashboardPage() {
+  const user = getStoredUser()
+  const displayName = user ? getUserDisplayName(user) : null
+
   return (
     <SidebarProvider
-      style={ // Inject CSS custom properties to control sidebar and header dimensions
+      style={
         {
-          "--sidebar-width": "calc(var(--spacing) * 72)", // Set the sidebar width to 72 spacing units using the CSS spacing variable
-          "--header-height": "calc(var(--spacing) * 14)", // Set the header height to 14 spacing units using the CSS spacing variable
-        } as React.CSSProperties // Cast to React.CSSProperties to allow CSS custom properties in the style prop
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 14)",
+        } as React.CSSProperties
       }
     >
-      <PremiumAppSidebar variant="inset" /> {/* Render the premium sidebar with the "inset" variant (sidebar is inset within the layout) */}
-      <SidebarInset className="bg-slate-50"> {/* The main content area next to the sidebar, with a light gray background */}
-        <SiteHeader /> {/* Render the dashboard-specific site header/topbar */}
-        <div className="flex flex-1 flex-col gap-6 p-6"> {/* Flex column container that fills remaining space, with gap between sections and padding */}
-          <SectionCards /> {/* Render the summary stat cards (e.g. total students, attendance rate) */}
-          <ChartAreaInteractive /> {/* Render the interactive area chart for trend visualization */}
-          <DataTable /> {/* Render the data table for detailed records */}
-        </div>
+      <PremiumAppSidebar variant="inset" />
+      <SidebarInset className="bg-white/50">
+        <SiteHeader />
+        <motion.div
+          className="flex flex-1 flex-col gap-6 p-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* Hero banner */}
+          <motion.div
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-8 py-7 shadow-card"
+            initial={{ opacity: 0, y: 32, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-grid opacity-[0.08]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.08 }}
+              transition={{ duration: 1 }}
+            />
+            <motion.div
+              className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-gold/10 blur-3xl"
+              animate={{ scale: [1, 1.15, 1], opacity: [0.1, 0.18, 0.1] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+              className="absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-royal/10 blur-3xl"
+              animate={{ scale: [1, 1.2, 1], opacity: [0.08, 0.15, 0.08] }}
+              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            />
+            <div className="relative">
+              <motion.div
+                className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-2"
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+              >
+                <motion.span
+                  animate={{ rotate: [0, 20, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                </motion.span>
+                <span>National Service Training Program Management System</span>
+              </motion.div>
+              <motion.h1
+                className="text-2xl font-bold text-white tracking-tight"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
+              >
+                {displayName ? `Welcome back, ${displayName}` : "Dashboard"}
+              </motion.h1>
+              <motion.p
+                className="mt-1.5 text-sm text-silver max-w-xl"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+              >
+                Real-time summary of your NSTP program. Monitor attendance, grades, merits, and enrollment at a glance.
+              </motion.p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <SectionCards />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <ChartAreaInteractive />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <DataTable />
+          </motion.div>
+        </motion.div>
       </SidebarInset>
     </SidebarProvider>
   )

@@ -1,222 +1,335 @@
-import { useEffect, useRef, useState } from "react" // Import useEffect for timer/cleanup side effects, useRef for video/stream refs, useState for local state
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for starting exam attempts and useQuery for fetching exam sessions
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { toast } from "sonner" // Import toast for notifications
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for sections
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { Camera, CameraOff, Video, VideoOff } from "lucide-react" // Import icons: Camera/CameraOff for toggle, Video/VideoOff for status
+import { useEffect, useRef, useState } from "react"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { cn } from "../lib/utils"
+import { Button } from "../components/ui/button"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { toast } from "sonner"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { FileText, Sparkles, Camera, CameraOff, Video, VideoOff, Clock, Shield, AlertTriangle, Eye, Monitor, Smartphone } from "lucide-react"
+import { motion } from "framer-motion"
 
-// The exams page component with camera-based proctoring
 export function ExamsPage() {
-  const [timeLeft, setTimeLeft] = useState(0) // State for the countdown timer in seconds
-  const [running, setRunning] = useState(false) // State for whether an exam is currently in progress
-  const [cameraEnabled, setCameraEnabled] = useState(false) // State for whether the camera is currently active
-  const [cameraError, setCameraError] = useState<string | null>(null) // State for camera error messages (null = no error)
-  const videoRef = useRef<HTMLVideoElement | null>(null) // Ref to the video element for displaying the camera feed
-  const streamRef = useRef<MediaStream | null>(null) // Ref to the MediaStream for cleanup when the component unmounts
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [running, setRunning] = useState(false)
+  const [cameraEnabled, setCameraEnabled] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
-  const sessionsQuery = useQuery({ // Fetch the list of exam sessions
-    queryKey: ["exams"], // Cache key for the exams list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams"), // Fetch all exam sessions from the API
-    refetchInterval: 5000 // Auto-refetch every 5 seconds
+  const sessionsQuery = useQuery({
+    queryKey: ["exams"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams"),
+    refetchInterval: 5000
   })
 
-  const attemptMutation = useMutation({ // Mutation for starting an exam attempt
-    mutationFn: (examSessionId: string) => // Function that sends the exam session ID to start an attempt
-      apiRequest<ApiResponse<any>>("/api/exams/attempts", { // POST to the exam attempts endpoint
+  const attemptMutation = useMutation({
+    mutationFn: (examSessionId: string) =>
+      apiRequest<ApiResponse<any>>("/api/exams/attempts", {
         method: "POST",
-        body: JSON.stringify({ examSessionId }) // Send the exam session ID as JSON
+        body: JSON.stringify({ examSessionId })
       }),
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to start exam") // Show error notification if attempt fails
+      toast.error(error instanceof Error ? error.message : "Unable to start exam")
     }
   })
 
-  useEffect(() => { // Effect for the countdown timer
-    if (!running || timeLeft <= 0) return // Don't start the timer if the exam isn't running or time has run out
-    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000) // Decrement the timer by 1 every second
-    return () => clearInterval(timer) // Cleanup: clear the interval when the effect re-runs or the component unmounts
-  }, [running, timeLeft]) // Re-run when running state or timeLeft changes
+  const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
 
-  // Cleanup camera stream on unmount
-  useEffect(() => { // Effect for cleaning up the camera stream when the component unmounts
-    return () => { // Cleanup function runs when the component unmounts
-      if (streamRef.current) { // Only cleanup if a stream exists
-        streamRef.current.getTracks().forEach(track => track.stop()) // Stop all tracks in the stream to release the camera
+  useEffect(() => {
+    if (!running || timeLeft <= 0) return
+    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
+    return () => clearInterval(timer)
+  }, [running, timeLeft])
+
+  // Auto-submit when timer reaches 0
+  useEffect(() => {
+    if (running && timeLeft <= 0 && currentAttemptId) {
+      setRunning(false)
+      toast.warning("Time's up! Auto-submitting your exam...")
+      finishExam()
+    }
+  }, [timeLeft, running, currentAttemptId])
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
       }
     }
-  }, []) // Empty dependency array: only runs on mount/unmount
+  }, [])
 
-  const startCamera = async () => { // Async handler to request camera access and start the video feed
+  const startCamera = async () => {
     try {
-      setCameraError(null) // Clear any previous camera error
-      const stream = await navigator.mediaDevices.getUserMedia({ // Request camera access from the browser
-        video: { 
-          width: { ideal: 1280 }, // Request 1280px width (ideal, not required)
-          height: { ideal: 720 } // Request 720px height (ideal, not required)
-        } 
+      setCameraError(null)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       })
-      
-      if (videoRef.current) { // Only proceed if the video element is mounted
-        videoRef.current.srcObject = stream // Attach the camera stream to the video element
-        streamRef.current = stream // Store the stream ref for cleanup
-        setCameraEnabled(true) // Update state to indicate camera is active
-        toast.success("Camera enabled successfully") // Show success notification
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        streamRef.current = stream
+        setCameraEnabled(true)
+        toast.success("Camera enabled successfully")
       }
     } catch (error) {
-      console.error("Camera error:", error) // Log the error for debugging
-      let errorMessage = "Unable to access camera" // Default error message
-      
-      if (error instanceof Error) { // Check for specific error types to provide helpful messages
+      console.error("Camera error:", error)
+      let errorMessage = "Unable to access camera"
+
+      if (error instanceof Error) {
         if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-          errorMessage = "Camera permission denied. Please allow camera access in your browser settings." // Permission denied error
+          errorMessage = "Camera permission denied. Please allow camera access in your browser settings."
         } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-          errorMessage = "No camera found. Please connect a camera and try again." // No camera hardware found
+          errorMessage = "No camera found. Please connect a camera and try again."
         } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-          errorMessage = "Camera is already in use by another application." // Camera in use by another app
+          errorMessage = "Camera is already in use by another application."
         }
       }
-      
-      setCameraError(errorMessage) // Set the error message in state for display
-      toast.error(errorMessage) // Show error notification
+
+      setCameraError(errorMessage)
+      toast.error(errorMessage)
     }
   }
 
-  const stopCamera = () => { // Handler to stop the camera and release the stream
-    if (streamRef.current) { // Only stop if a stream exists
-      streamRef.current.getTracks().forEach(track => track.stop()) // Stop all tracks to release the camera hardware
-      streamRef.current = null // Clear the stream ref
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
     }
-    if (videoRef.current) { // Only clear if the video element is mounted
-      videoRef.current.srcObject = null // Remove the stream from the video element
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
     }
-    setCameraEnabled(false) // Update state to indicate camera is inactive
-    toast.info("Camera disabled") // Show info notification
+    setCameraEnabled(false)
+    toast.info("Camera disabled")
   }
 
-  const startExam = async (durationMin: number, examSessionId: string) => { // Async handler to start an exam session
-    if (!cameraEnabled) { // Require camera to be enabled before starting
-      toast.error("Please enable camera before starting the exam") // Show error if camera is not enabled
-      return // Exit early
+  const startExam = async (durationMin: number, examSessionId: string) => {
+    if (!cameraEnabled) {
+      toast.error("Please enable camera before starting the exam")
+      return
     }
-    
-    setTimeLeft(durationMin * 60) // Convert duration from minutes to seconds for the countdown timer
-    setRunning(true) // Set the exam as running
-    await attemptMutation.mutateAsync(examSessionId) // Create the exam attempt record in the backend
-    toast.success("Exam started") // Show success notification
+
+    try {
+      const result = await attemptMutation.mutateAsync(examSessionId)
+      setCurrentAttemptId(result.data?.id ?? null)
+      setTimeLeft(durationMin * 60)
+      setRunning(true)
+      toast.success("Exam started — timer is now counting down")
+    } catch {
+      // Error handled by mutation onError
+    }
   }
 
-  const formatTime = (seconds: number) => { // Helper function to format seconds as MM:SS
-    const mins = Math.floor(seconds / 60) // Calculate the number of complete minutes
-    const secs = seconds % 60 // Calculate the remaining seconds
-    return `${mins}:${secs.toString().padStart(2, '0')}` // Format as "M:SS" with zero-padded seconds
+  const finishExam = async () => {
+    if (!currentAttemptId) return
+    try {
+      await apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST" })
+      toast.success("Exam submitted successfully")
+      setCurrentAttemptId(null)
+      setRunning(false)
+      sessionsQuery.refetch()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to submit exam")
+    }
   }
 
-  const rows = sessionsQuery.data?.data ?? [] // Extract the exam sessions array, defaulting to empty array
-  const columns = [ // Column definitions for the responsive table
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const rows = sessionsQuery.data?.data ?? []
+  const columns = [
     {
-      header: "Title", // Column header
-      cell: (session: any) => <span className="font-medium text-slate-900">{session.title}</span> // Render the exam title in bold dark text
+      header: "Title",
+      cell: (session: any) => (
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-royal/10">
+            <FileText className="h-4 w-4 text-royal" />
+          </div>
+          <span className="font-semibold text-black">{session.title}</span>
+        </div>
+      )
     },
     {
-      header: "Schedule", // Column header
-      cell: (session: any) => new Date(session.scheduledAt).toLocaleString() // Format the scheduled date and time
+      header: "Schedule",
+      cell: (session: any) => (
+        <div className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-darksilver" />
+          <span className="text-sm text-darksilver">{new Date(session.scheduledAt).toLocaleString()}</span>
+        </div>
+      )
     },
     {
-      header: "Duration", // Column header
-      cell: (session: any) => `${session.durationMin} mins` // Render the duration in minutes
+      header: "Duration",
+      cell: (session: any) => (
+        <span className="inline-flex items-center gap-1 rounded-full bg-silver/20 px-2.5 py-1 text-xs font-medium text-black/80">
+          <Clock className="h-3 w-3" />
+          {session.durationMin} mins
+        </span>
+      )
     }
   ]
 
   return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
-      <PageHeader title="Exams" description="Monitor sessions and launch supervised exams" /> {/* Page title and description */}
-      
-      <SectionCard title="Exam Monitoring" description="Enable camera for proctored exam sessions"> {/* Camera monitoring card */}
-        <div className="space-y-4"> {/* Vertical stack inside the card */}
+    <div className="space-y-6">
+      {/* Hero banner */}
+      <motion.div
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-card"
+        initial={{ opacity: 0, y: 32, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <motion.div
+          className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.18, 0.1] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl"
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <motion.div
+            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20"
+            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <motion.div
+              className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              <motion.span animate={{ rotate: [0, 20, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}>
+                <Sparkles className="h-3.5 w-3.5" />
+              </motion.span>
+              <span>Exam Proctoring</span>
+            </motion.div>
+            <motion.h1
+              className="text-xl sm:text-2xl font-bold text-white tracking-tight"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Exams
+            </motion.h1>
+            <motion.p
+              className="mt-1 text-sm text-silver max-w-2xl"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Monitor sessions and launch supervised exams with camera-based proctoring.
+            </motion.p>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+      <SectionCard title="Exam Monitoring" description="Enable camera for proctored exam sessions" className="shadow-card">
+        <div className="space-y-4">
           {/* Camera Controls */}
-          <div className="flex flex-wrap items-center gap-3"> {/* Row of camera control elements */}
-            {!cameraEnabled ? ( // Show enable button when camera is off
-              <Button onClick={startCamera} className="flex items-center gap-2"> {/* Enable camera button */}
-                <Camera className="h-4 w-4" /> {/* Camera icon */}
+          <div className="flex flex-wrap items-center gap-3">
+            {!cameraEnabled ? (
+              <Button onClick={startCamera} className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-royal hover:to-navy text-white">
+                <Camera className="h-4 w-4" />
                 Enable Camera
               </Button>
-            ) : ( // Show disable button when camera is on
-              <Button onClick={stopCamera} variant="outline" className="flex items-center gap-2"> {/* Disable camera button */}
-                <CameraOff className="h-4 w-4" /> {/* Camera off icon */}
+            ) : (
+              <Button onClick={stopCamera} variant="outline" className="flex items-center gap-2">
+                <CameraOff className="h-4 w-4" />
                 Disable Camera
               </Button>
             )}
-            
-            {running && ( // Only show the timer when an exam is running
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 border border-slate-200"> {/* Timer display container */}
-                <Video className="h-4 w-4 text-slate-600" /> {/* Video icon */}
-                <span className="text-sm font-semibold text-slate-900"> {/* Timer text */}
-                  Time Remaining: {formatTime(Math.max(timeLeft, 0))} {/* Format the remaining time, clamped to 0 */}
+
+            {running && (
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-royal/10 px-4 py-1.5">
+                <Video className="h-4 w-4 text-royal" />
+                <span className="text-sm font-semibold text-royal">
+                  Time Remaining: {formatTime(Math.max(timeLeft, 0))}
                 </span>
               </div>
             )}
-            
-            {cameraEnabled && ( // Only show the active indicator when camera is on
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200"> {/* Green active indicator */}
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> {/* Pulsing green dot */}
-                <span className="text-xs font-semibold text-green-700">Camera Active</span> {/* Active label */}
+
+            {running && currentAttemptId && (
+              <Button onClick={finishExam} variant="outline" className="flex items-center gap-2 border-green-200 text-green-700 hover:bg-green-50">
+                Submit Exam
+              </Button>
+            )}
+
+            {cameraEnabled && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs font-semibold text-green-700">Camera Active</span>
               </div>
             )}
           </div>
 
           {/* Camera Error */}
-          {cameraError && ( // Only show the error alert if there's a camera error
+          {cameraError && (
             <Alert variant="danger">
-              {cameraError} {/* Display the camera error message */}
+              {cameraError}
             </Alert>
           )}
 
           {/* Video Preview */}
-          <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-900 border-2 border-slate-200"> {/* 16:9 aspect ratio video container */}
-            <video 
-              ref={videoRef} // Attach the ref to control the video element programmatically
-              autoPlay // Automatically play the stream when srcObject is set
-              playsInline // Prevent fullscreen on iOS
-              muted // Mute the video to prevent audio feedback
-              className="h-full w-full object-cover" // Fill the container and cover the area
+          <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-navy border-2 border-silver/30">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-cover"
             />
-            {!cameraEnabled && ( // Show the disabled overlay when camera is off
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white"> {/* Full overlay with centered content */}
-                <VideoOff className="h-16 w-16 mb-4 text-slate-600" /> {/* Large video-off icon */}
-                <p className="text-sm font-medium text-slate-400">Camera is disabled</p> {/* Status text */}
-                <p className="text-xs text-slate-500 mt-1">Click "Enable Camera" to start</p> {/* Instruction text */}
+            {!cameraEnabled && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy text-white">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-royal/80 ring-1 ring-white/10 mb-4">
+                  <VideoOff className="h-8 w-8 text-darksilver" />
+                </div>
+                <p className="text-sm font-medium text-silver">Camera is disabled</p>
+                <p className="text-xs text-darksilver mt-1">Click "Enable Camera" to start</p>
               </div>
             )}
           </div>
 
           {/* Anti-cheat Notice */}
-          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4"> {/* Amber warning box for anti-cheat guidelines */}
-            <div className="flex gap-3"> {/* Row with icon and text */}
-              <div className="flex-shrink-0"> {/* Icon container that doesn't shrink */}
-                <svg className="h-5 w-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20"> {/* Warning triangle SVG icon */}
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /> {/* Warning triangle path */}
-                </svg>
+          <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-5">
+            <div className="flex gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
               </div>
-              <div> {/* Text content block */}
-                <h4 className="text-sm font-semibold text-amber-900">Anti-Cheat Guidelines</h4> {/* Section title */}
-                <ul className="mt-2 text-xs text-amber-800 space-y-1"> {/* Bulleted list of guidelines */}
-                  <li>• Keep your camera enabled throughout the exam</li> {/* Guideline 1 */}
-                  <li>• Do not switch tabs or minimize the browser</li> {/* Guideline 2 */}
-                  <li>• Ensure you are in a well-lit, quiet environment</li> {/* Guideline 3 */}
-                  <li>• Keep your face visible in the camera frame</li> {/* Guideline 4 */}
+              <div>
+                <h4 className="text-sm font-semibold text-amber-900">Anti-Cheat Guidelines</h4>
+                <ul className="mt-2 text-xs text-amber-800 space-y-1">
+                  <li>• Keep your camera enabled throughout the exam</li>
+                  <li>• Do not switch tabs or minimize the browser</li>
+                  <li>• Ensure you are in a well-lit, quiet environment</li>
+                  <li>• Keep your face visible in the camera frame</li>
                 </ul>
               </div>
             </div>
           </div>
 
-          {attemptMutation.isError && ( // Show error alert if starting the exam attempt failed
+          {attemptMutation.isError && (
             <Alert variant="danger">
               Unable to start the exam attempt. Please try again.
             </Alert>
@@ -224,30 +337,37 @@ export function ExamsPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Exam Sessions" description="Upcoming sessions and availability"> {/* Card for the exam sessions list */}
-        {sessionsQuery.isError && <Alert variant="danger">Unable to load exam sessions.</Alert>} {/* Error alert if fetch failed */}
-        {sessionsQuery.isLoading ? ( // Show loading skeleton while fetching
-          <LoadingSkeleton rows={3} columns={3} /> // Skeleton matching the table structure
-        ) : rows.length === 0 ? ( // Show empty state if no sessions exist
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+      <SectionCard title="Exam Sessions" description="Upcoming sessions and availability" className="shadow-card">
+        {sessionsQuery.isError && <Alert variant="danger">Unable to load exam sessions.</Alert>}
+        {sessionsQuery.isLoading ? (
+          <LoadingSkeleton rows={3} columns={3} />
+        ) : rows.length === 0 ? (
           <EmptyState title="No exam sessions scheduled" description="Create an exam session to begin monitoring." />
         ) : (
           <ResponsiveTableCards
-            data={rows} // Pass the exam sessions array as data
-            columns={columns} // Pass the column definitions
-            rowKey={(session) => session.id} // Use the session ID as the React key
-            renderTitle={(session) => session.title} // Use the exam title as the card title on mobile
-            renderActions={(session) => ( // Render the start exam button for each session
-              <Button 
-                size="sm" 
-                onClick={() => startExam(session.durationMin, session.id)} // Start the exam with this session's duration and ID
-                disabled={!cameraEnabled || running} // Disable if camera is off or an exam is already running
+            data={rows}
+            columns={columns}
+            rowKey={(session) => session.id}
+            renderTitle={(session) => session.title}
+            renderActions={(session) => (
+              <Button
+                size="sm"
+                onClick={() => startExam(session.durationMin, session.id)}
+                disabled={!cameraEnabled || running}
               >
-                {running ? "In Progress" : "Start Exam"} {/* Show "In Progress" if an exam is running */}
+                {running ? "In Progress" : "Start Exam"}
               </Button>
             )}
           />
         )}
       </SectionCard>
+      </motion.div>
+      </motion.div>
     </div>
   )
 }

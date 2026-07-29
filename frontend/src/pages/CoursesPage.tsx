@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { getStoredUser } from "../lib/auth"
-import { PageHeader } from "../components/ui/page-header"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
@@ -19,8 +18,9 @@ import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Badge } from "../components/ui/badge"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
-import { BookOpen, Plus, Edit, Trash2 } from "lucide-react"
+import { BookOpen, Plus, Edit, Trash2, Search, Save, X, Hash } from "lucide-react"
 import { useState } from "react"
+import { cn } from "../lib/utils"
 
 const schema = z.object({
   code: z.string().min(1, "Code is required"),
@@ -130,21 +130,32 @@ export function CoursesPage() {
       header: "Code",
       cell: (course: any) => (
         <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary-600" />
-          <span className="font-medium text-slate-900">{course.code}</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-royal/10">
+            <BookOpen className="h-3.5 w-3.5 text-royal" />
+          </span>
+          <span className="font-semibold text-black">{course.code}</span>
         </div>
       )
     },
     {
       header: "Name",
-      cell: (course: any) => course.name
+      cell: (course: any) => (
+        <span className="text-darksilver">{course.name}</span>
+      )
     },
     {
       header: "Sections",
       cell: (course: any) => {
         const count = course._count?.sections ?? 0
+        const isFull = count >= MAX_SECTIONS_PER_COURSE
         return (
-          <Badge variant={count >= MAX_SECTIONS_PER_COURSE ? "danger" : "outline"} className="text-xs">
+          <Badge
+            variant={isFull ? "danger" : "outline"}
+            className={cn(
+              "text-xs font-medium",
+              !isFull && "bg-white text-darksilver border-silver/30"
+            )}
+          >
             {count} / {MAX_SECTIONS_PER_COURSE}
           </Badge>
         )
@@ -164,21 +175,22 @@ export function CoursesPage() {
       cell: (course: any) => {
         if (!canManage) return null
         return (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => handleEdit(course)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleEdit(course)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-royal hover:bg-sky-50 transition-colors"
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+            <button
               onClick={() => handleDelete(course)}
               disabled={deleteMutation.isPending}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              title="Delete"
             >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         )
       }
@@ -186,26 +198,46 @@ export function CoursesPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Courses"
-        description="Manage courses and their sections (max 50 sections per course)"
-        actions={
-          <Badge variant="outline" className="flex items-center gap-1 text-xs">
-            <BookOpen className="h-3 w-3" />
-            <span>{courses.length} courses</span>
-          </Badge>
-        }
-      />
+    <div className="space-y-6 animate-fade-in">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated">
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <div className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20">
+            <BookOpen className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5">
+              <Search className="h-3.5 w-3.5" />
+              <span>Course Catalog</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Courses</h1>
+            <p className="mt-1 text-sm text-silver max-w-2xl">Manage courses and their sections (max 50 sections per course).</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 text-white border-white/20">
+              <BookOpen className="h-3.5 w-3.5 text-emerald-400" />
+              <span>{courses.length} courses</span>
+            </Badge>
+          </div>
+        </div>
+      </div>
 
       {canManage && (
-        <FormSection title="Create Course" description="Add a new course to the system">
+        <FormSection title="Create Course" description="Add a new course to the system" className="shadow-card">
           <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
             <FormField label="Code" required error={form.formState.errors.code?.message}>
-              <Input placeholder="e.g. NSTP-101" {...form.register("code")} />
+              <div className="relative">
+                <BookOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="e.g. NSTP-101" {...form.register("code")} className="h-11 pl-10" />
+              </div>
             </FormField>
             <FormField label="Name" required error={form.formState.errors.name?.message}>
-              <Input placeholder="e.g. National Service Training Program" {...form.register("name")} />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="e.g. National Service Training Program" {...form.register("name")} className="h-11 pl-10" />
+              </div>
             </FormField>
             {mutation.isError && (
               <Alert variant="danger" className="md:col-span-2">
@@ -213,7 +245,7 @@ export function CoursesPage() {
               </Alert>
             )}
             <div className="md:col-span-2">
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
                 <Plus className="h-4 w-4 mr-1" />
                 {mutation.isPending ? "Creating..." : "Create Course"}
               </Button>
@@ -222,7 +254,7 @@ export function CoursesPage() {
         </FormSection>
       )}
 
-      <SectionCard title="All Courses" description="Courses in the system">
+      <SectionCard title="All Courses" description="Courses in the system" className="shadow-card">
         {coursesQuery.isError && (
           <Alert variant="danger">
             {(coursesQuery.error as Error).message === "Unauthorized"
@@ -256,34 +288,57 @@ export function CoursesPage() {
         onOpenChange={(open) => !open && setEditingCourse(null)}
         title="Edit Course"
       >
-        <div className="p-4 space-y-4">
+        <div className="h-1 w-full bg-sky-500" />
+        <div className="p-4 space-y-5">
+          {editingCourse && (
+            <div className="flex items-center gap-3 pb-3 border-b border-silver/20">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50">
+                <BookOpen className="h-5 w-5 text-royal" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-black truncate">{editingCourse.code}</p>
+                <p className="text-xs text-darksilver truncate">{editingCourse.name}</p>
+              </div>
+            </div>
+          )}
           <FormField label="Code" required>
-            <Input
-              value={editCode}
-              onChange={(e) => setEditCode(e.target.value)}
-              placeholder="e.g. NSTP-101"
-            />
+            <div className="relative">
+              <BookOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                placeholder="e.g. NSTP-101"
+                className="h-11 pl-10"
+              />
+            </div>
           </FormField>
           <FormField label="Name" required>
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder="e.g. National Service Training Program"
-            />
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. National Service Training Program"
+                className="h-11 pl-10"
+              />
+            </div>
           </FormField>
           {updateMutation.isError && (
             <Alert variant="danger">
               {(updateMutation.error as Error).message}
             </Alert>
           )}
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <Button
               onClick={handleSaveEdit}
               disabled={updateMutation.isPending || !editCode || !editName}
+              className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
             >
+              <Save className="h-4 w-4 mr-1" />
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
             <Button variant="outline" onClick={() => setEditingCourse(null)}>
+              <X className="h-4 w-4 mr-1" />
               Cancel
             </Button>
           </div>

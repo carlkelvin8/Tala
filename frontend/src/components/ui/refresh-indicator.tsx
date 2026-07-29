@@ -10,7 +10,7 @@ export function RefreshIndicator({ isRefetching, className }: RefreshIndicatorPr
   if (!isRefetching) return null
   
   return (
-    <div className={cn("flex items-center gap-2 text-xs text-slate-500", className)}>
+    <div className={cn("flex items-center gap-2 text-xs text-darksilver", className)}>
       <RefreshCw className="h-3 w-3 animate-spin" />
       <span>Updating...</span>
     </div>

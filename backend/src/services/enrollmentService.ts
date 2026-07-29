@@ -7,6 +7,13 @@ import { logAudit } from "./auditService.js"
 
 /* Create a new enrollment record for a user */
 export async function createEnrollment(data: { userId: string; sectionId?: string; flightId?: string }) {
+  // Check for existing active enrollment for this user
+  const existing = await prisma.enrollment.findFirst({
+    where: { userId: data.userId, status: { not: "REJECTED" } }
+  })
+  if (existing) {
+    throw new Error("Student already has an active enrollment")
+  }
   // Insert a new enrollment record with the provided user, section, and flight IDs
   const enrollment = await prisma.enrollment.create({
     data: {

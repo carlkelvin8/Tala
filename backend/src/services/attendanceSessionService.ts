@@ -349,17 +349,18 @@ export async function markAttendanceWithLocation(
     }
   }
 
-  // Create the attendance record for this session
+  // Use server timestamp as the source of truth for check-in time
+  const serverNow = new Date()
   const record = await prisma.attendanceRecord.create({
     data: {
-      userId,                                        // Link to the student
-      date: session.date,                            // Use the session's date (not today's date)
-      checkInAt: timestamp,                          // Use the client-provided timestamp
-      latitude,                                      // Student's GPS latitude
-      longitude,                                     // Student's GPS longitude
-      status: AttendanceStatus.PRESENT,              // Mark as present
-      sessionId,                                     // Link to the attendance session
-      verifiedBy: session.verifierId || undefined,   // Link to the verifier if one was assigned
+      userId,
+      date: session.date,
+      checkInAt: serverNow,
+      latitude,
+      longitude,
+      status: AttendanceStatus.PRESENT,
+      sessionId,
+      verifiedBy: session.verifierId || undefined,
     },
   });
 
@@ -448,14 +449,14 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
   const markedSet = new Set(markedUserIds.map(r => r.userId))
   const absentStudents = enrolledStudents.filter(s => !markedSet.has(s.userId))
 
-  for (const student of absentStudents) {
-    await prisma.attendanceRecord.create({
-      data: {
+  if (absentStudents.length > 0) {
+    await prisma.attendanceRecord.createMany({
+      data: absentStudents.map(student => ({
         userId: student.userId,
         date: session.date,
-        status: "ABSENT",
+        status: "ABSENT" as const,
         sessionId
-      }
+      }))
     })
   }
 

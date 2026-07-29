@@ -7,9 +7,9 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-slate-100 shadow-sm",
-        minimal: "border-slate-100",
-        outline: "border-slate-200",
+        default: "border-silver/20 shadow-sm",
+        minimal: "border-silver/20",
+        outline: "border-silver/30",
       },
       padding: {
         default: "p-6",
@@ -46,7 +46,7 @@ const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn("text-sm font-semibold text-slate-900 leading-none", className)}
+      className={cn("text-sm font-semibold text-black leading-none", className)}
       {...props}
     />
   )
@@ -55,7 +55,7 @@ CardTitle.displayName = "CardTitle"
 
 const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-xs text-slate-400 leading-relaxed", className)} {...props} />
+    <p ref={ref} className={cn("text-xs text-darksilver leading-relaxed", className)} {...props} />
   )
 )
 CardDescription.displayName = "CardDescription"
@@ -71,7 +71,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex items-center px-6 pb-6 pt-0 border-t border-slate-100 mt-2", className)}
+      className={cn("flex items-center px-6 pb-6 pt-0 border-t border-silver/20 mt-2", className)}
       {...props}
     />
   )

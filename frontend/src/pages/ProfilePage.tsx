@@ -1,57 +1,43 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for password/profile/avatar updates and useQuery for fetching profile data
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { Input } from "../components/ui/input" // Import the reusable Input component
-import { Select } from "../components/ui/select" // Import the Select component for the gender dropdown
-import { ConfirmDialog } from "../components/ui/confirm-dialog" // Import the ConfirmDialog for profile update confirmation
-import { ImageCropper } from "../components/ui/image-cropper" // Import the ImageCropper for avatar photo editing
-import { AvatarWithRing } from "../components/ui/avatar-with-ring" // Import the avatar component with ring/frame support
-import { AvatarFrameSelector } from "../components/ui/avatar-frame-selector" // Import the frame selector component
-import { useForm } from "react-hook-form" // Import useForm for form state management and validation
-import { z } from "zod" // Import zod for schema-based validation
-import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { toast } from "sonner" // Import toast for notifications
-import { useRef, useState } from "react" // Import useRef for the file input ref and useState for local state
-import * as React from "react" // Import all of React for useEffect
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Select } from "../components/ui/select"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { ImageCropper } from "../components/ui/image-cropper"
+import { AvatarWithRing } from "../components/ui/avatar-with-ring"
+import { AvatarFrameSelector } from "../components/ui/avatar-frame-selector"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
+import { useRef, useState, useMemo } from "react"
+import * as React from "react"
 import {
-  Camera, // Camera icon for the change photo button
-  Trash2, // Trash icon for the remove photo button
-  Eye, // Eye icon for show password
-  EyeOff, // EyeOff icon for hide password
-  Mail, // Mail icon for the email field
-  Calendar, // Calendar icon for the join date
-  Hash, // Hash icon for the student number
-  CheckCircle2, // CheckCircle icon for the active status
-  Lock, // Lock icon for the change password button
-  Edit, // Edit icon for the edit profile button
-  Save, // Save icon for the save button
-  X, // X icon for the cancel button
+  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Fingerprint, Globe, Key, LogOut, RefreshCw, Circle
 } from "lucide-react"
-import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth" // Import auth utilities
-import { AvatarFrameType } from "../lib/avatar" // Import the frame type union
-import { cn } from "../lib/utils" // Import the cn utility for conditional class merging
+import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth"
+import { AvatarFrameType } from "../lib/avatar"
+import { cn } from "../lib/utils"
 
-// Zod schema for the change password form
 const passwordSchema = z.object({
-  currentPassword: z.string().min(8, "At least 8 characters required"), // Current password must be at least 8 characters
-  newPassword: z.string().min(8, "At least 8 characters required"), // New password must be at least 8 characters
+  currentPassword: z.string().min(8, "At least 8 characters required"),
+  newPassword: z.string().min(8, "At least 8 characters required"),
 })
-type PasswordFormValues = z.infer<typeof passwordSchema> // Derive TypeScript type from the password schema
+type PasswordFormValues = z.infer<typeof passwordSchema>
 
-// Zod schema for the profile edit form
 const profileSchema = z.object({
-  firstName: z.string().min(1, "First name is required"), // First name must not be empty
-  lastName: z.string().min(1, "Last name is required"), // Last name must not be empty
-  middleName: z.string().optional(), // Middle name is optional
-  contactNo: z.string().optional(), // Contact number is optional
-  address: z.string().optional(), // Address is optional
-  birthDate: z.string().optional(), // Birth date is optional
-  gender: z.string().optional(), // Gender is optional
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  middleName: z.string().optional(),
+  contactNo: z.string().optional(),
+  address: z.string().optional(),
+  birthDate: z.string().optional(),
+  gender: z.string().optional(),
 })
-type ProfileFormValues = z.infer<typeof profileSchema> // Derive TypeScript type from the profile schema
+type ProfileFormValues = z.infer<typeof profileSchema>
 
-// Map of role keys to human-readable role labels
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
   IMPLEMENTOR: "Implementor",
@@ -59,304 +45,395 @@ const roleLabels: Record<string, string> = {
   STUDENT: "Student",
 }
 
-// Map of role keys to Tailwind color classes for the role badge and accent elements
-const roleAccents: Record<string, { bg: string; text: string; dot: string }> = {
-  ADMIN:         { bg: "bg-violet-50",  text: "text-violet-600",  dot: "bg-violet-400" }, // Violet accent for admins
-  IMPLEMENTOR:   { bg: "bg-sky-50",     text: "text-sky-600",     dot: "bg-sky-400" }, // Sky blue accent for implementors
-  CADET_OFFICER: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400" }, // Amber accent for cadet officers
-  STUDENT:       { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400" }, // Emerald accent for students
+const roleAccents: Record<string, { bg: string; text: string; dot: string; gradient: string; light: string; dark: string; ring: string }> = {
+  ADMIN:         { bg: "bg-violet-50",  text: "text-violet-600",  dot: "bg-violet-400",  gradient: "from-violet-600 via-violet-500 to-purple-700",  light: "bg-violet-500/10", dark: "bg-violet-950", ring: "ring-violet-500/30" },
+  IMPLEMENTOR:   { bg: "bg-sky-50",     text: "text-royal",     dot: "bg-sky-400",     gradient: "from-sky-600 via-sky-500 to-blue-700",      light: "bg-royal/10",   dark: "bg-sky-950",   ring: "ring-sky-500/30" },
+  CADET_OFFICER: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   gradient: "from-amber-600 via-amber-500 to-orange-700", light: "bg-amber-500/10", dark: "bg-amber-950", ring: "ring-amber-500/30" },
+  STUDENT:       { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", gradient: "from-emerald-600 via-emerald-500 to-teal-700", light: "bg-emerald-500/10", dark: "bg-emerald-950", ring: "ring-emerald-500/30" },
 }
 
-// Reusable password input component with show/hide toggle
+const roleIcons: Record<string, typeof Shield> = {
+  ADMIN: Shield,
+  IMPLEMENTOR: Shield,
+  CADET_OFFICER: Shield,
+  STUDENT: User,
+}
+
+const strengthLabels = ["Weak", "Fair", "Good", "Strong", "Very Strong"]
+const strengthColors = ["bg-red-500", "bg-orange-500", "bg-amber-500", "bg-emerald-500", "bg-emerald-600"]
+
+function getPasswordStrength(pw: string): number {
+  let score = 0
+  if (pw.length >= 8) score++
+  if (pw.length >= 12) score++
+  if (/[A-Z]/.test(pw)) score++
+  if (/[a-z]/.test(pw)) score++
+  if (/\d/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  return Math.min(score, strengthLabels.length - 1)
+}
+
+function relativeTime(dateStr: string): string {
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(months / 12)}y ago`
+}
+
 function PasswordInput({
-  show, // Whether the password is currently visible
-  onToggle, // Callback to toggle visibility
-  error, // Optional validation error message
-  ...props // All other standard input props
+  show, onToggle, error, ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   show: boolean
   onToggle: () => void
   error?: string
 }) {
   return (
-    <div className="flex flex-col gap-1.5"> {/* Vertical stack for input and error message */}
-      <div className="relative"> {/* Relative container for the toggle button positioning */}
-        <Input type={show ? "text" : "password"} className="pr-10" {...props} /> {/* Input with right padding for the toggle button */}
+    <div className="flex flex-col gap-1.5">
+      <div className="relative group">
+        <Input type={show ? "text" : "password"} className="h-12 pl-4 pr-12 bg-white border-silver/30 focus:border-black focus:ring-navy transition-all" {...props} />
         <button
-          type="button" // Prevent form submission
-          onClick={onToggle} // Toggle visibility on click
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" // Vertically centered toggle button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-darksilver hover:text-darksilver transition-colors"
         >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {/* Show EyeOff when visible, Eye when hidden */}
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
-      {error && <p className="text-xs text-rose-500">{error}</p>} {/* Show validation error if present */}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }
 
-// The profile settings page component
-export function ProfilePage() {
-  const storedUser = getStoredUser() // Read the current user from localStorage for initial state
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(storedUser?.avatarUrl ?? null) // State for the avatar preview URL (null = no custom avatar)
-  const [selectedFrame, setSelectedFrame] = useState<AvatarFrameType>((storedUser?.avatarFrame as AvatarFrameType) || "gradient") // State for the selected avatar frame style
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false) // State to track avatar upload progress
-  const [showCurrent, setShowCurrent] = useState(false) // State to toggle current password visibility
-  const [showNew, setShowNew] = useState(false) // State to toggle new password visibility
-  const [isChangingPassword, setIsChangingPassword] = useState(false) // State to show/hide the change password form
-  const [isEditingProfile, setIsEditingProfile] = useState(false) // State to show/hide the edit profile form
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false) // State to show/hide the profile update confirmation dialog
-  const [pendingProfileData, setPendingProfileData] = useState<ProfileFormValues | null>(null) // State to hold the profile data pending confirmation
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null) // State for the image to crop (null = no cropper open)
-  const fileInputRef = useRef<HTMLInputElement | null>(null) // Ref to the hidden file input for avatar upload
+function FieldCard({ icon: Icon, label, value, note }: { icon: any; label: string; value: string; note?: string | null }) {
+  return (
+    <div className="group flex items-start gap-3 rounded-xl border border-silver/20 bg-white p-4 transition-all duration-200 hover:border-silver/30 hover:shadow-soft">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-darksilver transition-colors group-hover:bg-silver/20">
+        <Icon className="h-4 w-4" strokeWidth={1.75} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">{label}</p>
+        <p className="mt-0.5 text-sm font-medium text-black/80 break-all">{value || "—"}</p>
+        {note && <p className="mt-0.5 text-[10px] text-darksilver">{note}</p>}
+      </div>
+    </div>
+  )
+}
 
-  const { data: profileData, isLoading, isError, error, refetch } = useQuery({ // Fetch the user's profile data
-    queryKey: ["profile"], // Cache key for the profile
-    queryFn: () => apiRequest<ApiResponse<any>>("/api/auth/profile"), // Fetch the authenticated user's profile
-    refetchInterval: 10000, // Auto-refetch every 10 seconds
-    retry: false // Don't retry on failure
+type TabId = "account" | "security"
+
+export function ProfilePage() {
+  const storedUser = getStoredUser()
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(storedUser?.avatarUrl ?? null)
+  const [selectedFrame, setSelectedFrame] = useState<AvatarFrameType>((storedUser?.avatarFrame as AvatarFrameType) || "gradient")
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [pendingProfileData, setPendingProfileData] = useState<ProfileFormValues | null>(null)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<TabId>("account")
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const { data: profileData, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => apiRequest<ApiResponse<any>>("/api/auth/profile"),
+    refetchInterval: 10000,
+    retry: false
   })
 
-  // Update avatar when profile data changes
-  React.useEffect(() => { // Effect to sync avatar and frame state with the fetched profile data
-    if (profileData?.data?.avatarUrl) { // If the profile has an avatar URL
-      setAvatarPreview(profileData.data.avatarUrl) // Update the avatar preview
-      updateStoredUser({ avatarUrl: profileData.data.avatarUrl }) // Sync to localStorage
+  React.useEffect(() => {
+    if (profileData?.data?.avatarUrl) {
+      setAvatarPreview(profileData.data.avatarUrl)
+      updateStoredUser({ avatarUrl: profileData.data.avatarUrl })
     }
-    if (profileData?.data?.avatarFrame) { // If the profile has a frame preference
-      setSelectedFrame(profileData.data.avatarFrame as AvatarFrameType) // Update the selected frame
-      updateStoredUser({ avatarFrame: profileData.data.avatarFrame }) // Sync to localStorage
+    if (profileData?.data?.avatarFrame) {
+      setSelectedFrame(profileData.data.avatarFrame as AvatarFrameType)
+      updateStoredUser({ avatarFrame: profileData.data.avatarFrame })
     }
-  }, [profileData]) // Re-run when profile data changes
+  }, [profileData])
 
-  const passwordForm = useForm<PasswordFormValues>({ resolver: zodResolver(passwordSchema) }) // Initialize the password form with zod validation
-  const profileForm = useForm<ProfileFormValues>({ // Initialize the profile form with zod validation and empty defaults
+  const passwordForm = useForm<PasswordFormValues>({ resolver: zodResolver(passwordSchema) })
+  const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: { firstName: "", lastName: "", middleName: "", contactNo: "", address: "", birthDate: "", gender: "" }
   })
 
-  // Update form when profile data loads
-  React.useEffect(() => { // Effect to populate the profile form when data is fetched
-    if (profileData?.data?.profile) { // Only populate if profile data is available
-      const profile = profileData.data.profile
-      profileForm.reset({ // Reset the form with the fetched profile values
-        firstName: profile.firstName || "",
-        lastName: profile.lastName || "",
-        middleName: profile.middleName || "",
-        contactNo: profile.contactNo || "",
-        address: profile.address || "",
-        birthDate: profile.birthDate ? new Date(profile.birthDate).toISOString().split('T')[0] : "", // Format date as YYYY-MM-DD for the date input
-        gender: profile.gender || "",
+  React.useEffect(() => {
+    if (profileData?.data?.profile) {
+      const p = profileData.data.profile
+      profileForm.reset({
+        firstName: p.firstName || "",
+        lastName: p.lastName || "",
+        middleName: p.middleName || "",
+        contactNo: p.contactNo || "",
+        address: p.address || "",
+        birthDate: p.birthDate ? new Date(p.birthDate).toISOString().split('T')[0] : "",
+        gender: p.gender || "",
       })
     }
-  }, [profileData, profileForm]) // Re-run when profile data or form instance changes
+  }, [profileData, profileForm])
 
-  const passwordMutation = useMutation({ // Mutation for changing the password
+  const passwordMutation = useMutation({
     mutationFn: (values: PasswordFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/auth/change-password", { method: "POST", body: JSON.stringify(values) }), // POST the password change request
-    onSuccess: () => { toast.success("Password updated"); passwordForm.reset(); setIsChangingPassword(false) }, // Reset form and close on success
+      apiRequest<ApiResponse<any>>("/api/auth/change-password", { method: "POST", body: JSON.stringify(values) }),
+    onSuccess: () => { toast.success("Password updated"); passwordForm.reset(); setIsChangingPassword(false) },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to update password") }
   })
 
-  const profileMutation = useMutation({ // Mutation for updating the profile
+  const profileMutation = useMutation({
     mutationFn: (values: ProfileFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/auth/profile", { method: "PATCH", body: JSON.stringify(values) }), // PATCH the profile with updated values
-    onSuccess: () => { toast.success("Profile updated successfully"); setIsEditingProfile(false); refetch() }, // Close form and refresh on success
+      apiRequest<ApiResponse<any>>("/api/auth/profile", { method: "PATCH", body: JSON.stringify(values) }),
+    onSuccess: () => { toast.success("Profile updated successfully"); setIsEditingProfile(false); refetch() },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to update profile") }
   })
 
-  const handleProfileSubmit = profileForm.handleSubmit((values) => { // Profile form submit handler
-    setPendingProfileData(values) // Store the form values pending confirmation
-    setShowConfirmDialog(true) // Open the confirmation dialog
+  const handleProfileSubmit = profileForm.handleSubmit((values) => {
+    setPendingProfileData(values)
+    setShowConfirmDialog(true)
   })
 
-  const confirmProfileUpdate = () => { // Handler called when the user confirms the profile update
-    if (pendingProfileData) { // Only proceed if there's pending data
-      profileMutation.mutate(pendingProfileData) // Trigger the profile update mutation
-      setShowConfirmDialog(false) // Close the confirmation dialog
-      setPendingProfileData(null) // Clear the pending data
+  const confirmProfileUpdate = () => {
+    if (pendingProfileData) {
+      profileMutation.mutate(pendingProfileData)
+      setShowConfirmDialog(false)
+      setPendingProfileData(null)
     }
   }
 
-  const profile = profileData?.data // Extract the profile object from the API response
-  const roleProfile = profile?.profile // Extract the role-specific profile (student/implementor/cadet officer)
+  const profile = profileData?.data
+  const roleProfile = profile?.profile
+  const email = profile?.email ?? storedUser?.email ?? "—"
+  const role = profile?.role ?? storedUser?.role ?? "STUDENT"
+  const isActive = profile?.isActive ?? true
+  const createdAt = profile?.createdAt ? new Date(profile.createdAt) : null
+  const formattedCreatedAt = createdAt ? createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : null
 
-  const email = profile?.email ?? storedUser?.email ?? "—" // Get the email from profile or localStorage fallback
-  const role = profile?.role ?? storedUser?.role ?? "STUDENT" // Get the role from profile or localStorage fallback
-  const isActive = profile?.isActive ?? true // Get the active status, defaulting to true
-  const createdAt = profile?.createdAt // Get the account creation date
-    ? new Date(profile.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
-    : null
+  const displayName = roleProfile?.firstName && roleProfile?.lastName
+    ? `${roleProfile.firstName} ${roleProfile.lastName}`
+    : storedUser ? getUserDisplayName(storedUser) : "Guest"
 
-  const displayName = // Derive the display name from the profile or localStorage
-    roleProfile?.firstName && roleProfile?.lastName
-      ? `${roleProfile.firstName} ${roleProfile.lastName}` // Use full name if available
-      : storedUser ? getUserDisplayName(storedUser) : "Guest" // Fall back to localStorage name or "Guest"
+  const accent = roleAccents[role] ?? roleAccents.STUDENT
+  const RoleIcon = roleIcons[role] ?? Shield
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
 
-  const accent = roleAccents[role] ?? roleAccents.STUDENT // Get the role accent colors, defaulting to student
+  const watchedPassword = passwordForm.watch("newPassword")
+  const strength = watchedPassword ? getPasswordStrength(watchedPassword) : -1
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => { // Handler for file input change
-    const file = e.target.files?.[0] // Get the first selected file
-    e.target.value = "" // Reset the input value to allow re-selecting the same file
-    if (!file) return // Exit if no file was selected
-    if (!file.type.startsWith("image/")) { // Validate that the file is an image
-      toast.error("Please select an image file") // Show error for non-image files
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file")
       return
     }
-    const reader = new FileReader() // Create a FileReader to read the file as a data URL
-    reader.onload = () => { setImageToCrop(reader.result as string) } // Set the image to crop when reading is complete
-    reader.readAsDataURL(file) // Start reading the file as a base64 data URL
+    const reader = new FileReader()
+    reader.onload = () => { setImageToCrop(reader.result as string) }
+    reader.readAsDataURL(file)
   }
 
-  const handleCropComplete = async (croppedImage: string) => { // Async handler called when the user applies the crop
-    setImageToCrop(null) // Close the image cropper
-    setIsUploadingAvatar(true) // Set uploading state
+  const handleCropComplete = async (croppedImage: string) => {
+    setImageToCrop(null)
+    setIsUploadingAvatar(true)
     try {
-      await apiRequest<ApiResponse<any>>("/api/auth/avatar", { // Upload the cropped image to the avatar endpoint
+      await apiRequest<ApiResponse<any>>("/api/auth/avatar", {
         method: "PATCH",
-        body: JSON.stringify({ avatarUrl: croppedImage }), // Send the base64 image as the avatar URL
+        body: JSON.stringify({ avatarUrl: croppedImage }),
       })
-      setAvatarPreview(croppedImage) // Update the avatar preview with the cropped image
-      updateStoredUser({ avatarUrl: croppedImage }) // Sync the new avatar URL to localStorage
-      toast.success("Profile photo updated") // Show success notification
+      setAvatarPreview(croppedImage)
+      updateStoredUser({ avatarUrl: croppedImage })
+      toast.success("Profile photo updated")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save photo") // Show error notification
+      toast.error(err instanceof Error ? err.message : "Failed to save photo")
     } finally {
-      setIsUploadingAvatar(false) // Always reset the uploading state
+      setIsUploadingAvatar(false)
     }
   }
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => { // Handler for the file input change event
-    handleFileSelect(e) // Delegate to the file select handler
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelect(e)
   }
 
-  const handleAvatarReset = async () => { // Async handler to remove the custom avatar
-    setIsUploadingAvatar(true) // Set uploading state
+  const handleAvatarReset = async () => {
+    setIsUploadingAvatar(true)
     try {
-      await apiRequest<ApiResponse<any>>("/api/auth/avatar", { method: "DELETE" }) // DELETE the avatar from the backend
-      setAvatarPreview(null) // Clear the avatar preview
-      updateStoredUser({ avatarUrl: undefined }) // Remove the avatar URL from localStorage
-      toast.success("Profile photo removed") // Show success notification
+      await apiRequest<ApiResponse<any>>("/api/auth/avatar", { method: "DELETE" })
+      setAvatarPreview(null)
+      updateStoredUser({ avatarUrl: undefined })
+      toast.success("Profile photo removed")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to remove photo") // Show error notification
+      toast.error(err instanceof Error ? err.message : "Failed to remove photo")
     } finally {
-      setIsUploadingAvatar(false) // Always reset the uploading state
+      setIsUploadingAvatar(false)
     }
   }
 
-  const handleFrameChange = async (frame: AvatarFrameType) => { // Async handler to change the avatar frame style
-    const previousFrame = selectedFrame // Store the current frame for rollback on error
-    setSelectedFrame(frame) // Optimistically update the frame state
+  const handleFrameChange = async (frame: AvatarFrameType) => {
+    const previousFrame = selectedFrame
+    setSelectedFrame(frame)
     try {
-      await apiRequest<ApiResponse<any>>("/api/auth/avatar-frame", { // Update the frame preference in the backend
+      await apiRequest<ApiResponse<any>>("/api/auth/avatar-frame", {
         method: "PATCH",
-        body: JSON.stringify({ avatarFrame: frame }), // Send the new frame type
+        body: JSON.stringify({ avatarFrame: frame }),
       })
-      updateStoredUser({ avatarFrame: frame }) // Sync the new frame to localStorage
-      toast.success("Avatar frame updated") // Show success notification
-      refetch() // Refresh the profile to ensure sync
+      updateStoredUser({ avatarFrame: frame })
+      toast.success("Avatar frame updated")
+      refetch()
     } catch (err) {
-      setSelectedFrame(previousFrame) // Revert to the previous frame on error
-      toast.error(err instanceof Error ? err.message : "Failed to update frame") // Show error notification
-      console.error("Frame update error:", err) // Log the error for debugging
+      setSelectedFrame(previousFrame)
+      toast.error(err instanceof Error ? err.message : "Failed to update frame")
     }
   }
+
+  const tabs: { id: TabId; label: string; icon: any }[] = [
+    { id: "account", label: "Account", icon: User },
+    { id: "security", label: "Security", icon: Lock },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100"> {/* Full-height page with subtle gradient background */}
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8"> {/* Centered content container with max width and responsive padding */}
-        {/* Page Header */}
-        <div className="mb-8"> {/* Header section with bottom margin */}
-          <h1 className="text-3xl font-bold text-slate-900">Profile Settings</h1> {/* Page title */}
-          <p className="mt-2 text-sm text-slate-600">Manage your account information and customize your profile appearance</p> {/* Page description */}
+    <div className="min-h-screen bg-gradient-to-b from-white to-white/50">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10 animate-fade-in">
+
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 mb-8 shadow-elevated">
+          <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+          <div className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
+          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20">
+              <User className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>{greeting}, {displayName?.split(" ")[0] || "there"}</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Profile Settings</h1>
+              <p className="mt-1 text-sm text-silver max-w-2xl">Manage your account information, security, and customize your profile appearance.</p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-12"> {/* 12-column grid for the two-column layout */}
-          {/* Left Column - Profile Card */}
-          <div className="lg:col-span-4"> {/* Left column takes 4 of 12 columns on large screens */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm sticky top-6"> {/* Sticky profile card */}
-              {/* Header Background */}
-              <div className={cn("h-20 relative", accent.bg)}> {/* Colored header strip using role accent color */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-black/5" /> {/* Subtle gradient overlay on the header strip */}
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-4 lg:sticky lg:top-6 self-start">
+            <div className="bg-white rounded-2xl border border-silver/30 overflow-hidden shadow-elevated transition-all duration-200 hover:shadow-elevated">
+              <div className={cn("h-28 relative overflow-hidden bg-gradient-to-br", accent.gradient)}>
+                <div className="absolute inset-0 bg-grid opacity-[0.08]" />
+                <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+                <div className="absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
               </div>
 
-              <div className="px-6 pb-6"> {/* Card content with padding */}
-                {isError ? ( // Show error state if profile fetch failed
-                  <div className="text-center text-sm text-red-600 mt-4">
-                    {(error as Error).message === "Unauthorized"
-                      ? "Please log out and log back in." // Auth error message
-                      : "Unable to load profile."} {/* Generic error message */}
+              <div className="px-6 pb-6">
+                {isError ? (
+                  <div className="flex flex-col items-center justify-center gap-4 py-8">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
+                      <Shield className="h-6 w-6 text-red-400" />
+                    </span>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-black">Failed to load profile</p>
+                      <p className="mt-1 text-xs text-darksilver">{(error as Error).message === "Unauthorized" ? "Session expired. Please log in again." : "Unable to load profile."}</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => refetch()} className="mt-1">
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      Retry
+                    </Button>
                   </div>
-                ) : isLoading ? ( // Show loading skeleton while fetching
-                  <div className="flex flex-col items-center gap-4 -mt-10">
-                    <div className="h-20 w-20 animate-pulse rounded-full bg-slate-100 ring-4 ring-white" /> {/* Pulsing avatar skeleton */}
-                    <div className="h-5 w-32 animate-pulse rounded bg-slate-100" /> {/* Pulsing name skeleton */}
+                ) : isLoading ? (
+                  <div className="flex flex-col items-center gap-4 -mt-14">
+                    <div className="h-28 w-28 animate-pulse rounded-full bg-silver/20 ring-4 ring-white" />
+                    <div className="h-6 w-40 animate-pulse rounded-lg bg-silver/20" />
+                    <div className="h-5 w-24 animate-pulse rounded-full bg-silver/20" />
+                    <div className="mt-4 w-full space-y-3">
+                      {[1,2,3].map((i) => (
+                        <div key={i} className="h-10 w-full animate-pulse rounded-xl bg-white" />
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center text-center"> {/* Centered profile content */}
-                    {/* Avatar */}
-                    <div className="-mt-10 mb-4 ring-4 ring-white rounded-full"> {/* Avatar pulled up to overlap the header strip */}
-                      <AvatarWithRing user={storedUser} size="xl" frameType={selectedFrame} showStatusDot={true} /> {/* Extra-large avatar with selected frame and status dot */}
+                  <div className="flex flex-col items-center text-center">
+                    <div className="-mt-14 mb-5 ring-4 ring-white rounded-full transition-transform duration-300 hover:scale-105">
+                      <AvatarWithRing user={storedUser} size="xl" frameType={selectedFrame} showStatusDot={true} />
                     </div>
 
-                    <h2 className="text-xl font-bold text-slate-900">{displayName}</h2> {/* User's display name */}
-                    <span className={cn("mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold", accent.bg, accent.text)}> {/* Role badge with role-specific colors */}
-                      {roleLabels[role] ?? role} {/* Human-readable role label */}
+                    <h2 className="text-xl font-bold text-black">{displayName}</h2>
+                    <span className={cn("mt-2 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-soft", accent.bg, accent.text)}>
+                      <RoleIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      {roleLabels[role] ?? role}
                     </span>
 
-                    {/* Status */}
-                    <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500"> {/* Active status row */}
-                      <CheckCircle2 className={cn("h-3.5 w-3.5", isActive ? "text-emerald-500" : "text-slate-300")} /> {/* Green check if active, gray if inactive */}
-                      {isActive ? "Active Account" : "Inactive"} {/* Status text */}
+                    <div className="mt-3 flex items-center gap-2 text-xs text-darksilver">
+                      <span className={cn("flex h-2 w-2 rounded-full", isActive ? "bg-emerald-500 animate-pulse" : "bg-silver/40")} />
+                      {isActive ? "Active Account" : "Inactive"}
                     </div>
 
-                    {/* Quick Info */}
-                    <div className="mt-6 w-full space-y-3 text-left bg-slate-50 rounded-xl p-4"> {/* Quick info box with light background */}
-                      <div className="flex items-center gap-2 text-xs"> {/* Email row */}
-                        <Mail className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" /> {/* Mail icon */}
-                        <span className="text-slate-600 truncate">{email}</span> {/* Email, truncated if too long */}
+                    <div className="mt-6 w-full space-y-2.5">
+                      {[
+                        { icon: Mail, label: email, sub: "Email address" },
+                        ...(roleProfile?.studentNo ? [{ icon: Hash, label: roleProfile.studentNo, sub: "Student ID" }] : []),
+                        ...(formattedCreatedAt ? [{ icon: Calendar, label: formattedCreatedAt, sub: "Joined" }] : []),
+                      ].map(({ icon: Icon, label, sub }, i) => (
+                        <div key={i} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 transition-all duration-200 hover:bg-silver/20/70">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-soft">
+                            <Icon className="h-3.5 w-3.5 text-darksilver" />
+                          </span>
+                          <div className="min-w-0 text-left flex-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">{sub}</p>
+                            <p className="text-xs font-medium text-black/80 truncate">{label}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {createdAt && (
+                      <div className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border border-silver/20 bg-gradient-to-r from-transparent via-white/50 to-transparent px-4 py-2.5">
+                        <Clock className="h-3.5 w-3.5 text-darksilver" />
+                        <span className="text-[10px] font-medium text-darksilver tracking-wide uppercase">Member for {relativeTime(createdAt.toISOString())}</span>
                       </div>
-                      {roleProfile?.studentNo && ( // Only show student number if available
-                        <div className="flex items-center gap-2 text-xs">
-                          <Hash className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" /> {/* Hash icon */}
-                          <span className="text-slate-600">{roleProfile.studentNo}</span> {/* Student number */}
-                        </div>
-                      )}
-                      {createdAt && ( // Only show join date if available
-                        <div className="flex items-center gap-2 text-xs">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" /> {/* Calendar icon */}
-                          <span className="text-slate-600">Joined {createdAt}</span> {/* Formatted join date */}
-                        </div>
-                      )}
-                    </div>
+                    )}
 
-                    {/* Avatar Actions */}
-                    <div className="mt-6 flex gap-2 w-full"> {/* Row of avatar action buttons */}
+                    <div className="mt-6 flex gap-2 w-full">
                       <button
-                        onClick={() => fileInputRef.current?.click()} // Trigger the hidden file input
-                        disabled={isUploadingAvatar} // Disable while uploading
-                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all disabled:opacity-50" // Full-width button with hover effects
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                        className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-silver/30 bg-white px-4 py-3 text-xs font-semibold text-black/80 hover:bg-silver/10 hover:border-silver/40 transition-all disabled:opacity-50 shadow-soft hover:shadow-card-hover"
                       >
-                        <Camera className="h-4 w-4" /> {/* Camera icon */}
-                        {isUploadingAvatar ? "Uploading..." : "Change Photo"} {/* Loading text while uploading */}
+                        {isUploadingAvatar ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Camera className="h-4 w-4" />
+                        )}
+                        {isUploadingAvatar ? "Uploading..." : "Photo"}
                       </button>
-                      {avatarPreview && ( // Only show the remove button if a custom avatar exists
+                      {avatarPreview && (
                         <button
-                          onClick={handleAvatarReset} // Remove the avatar on click
-                          disabled={isUploadingAvatar} // Disable while uploading
-                          className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-all disabled:opacity-50" // Red button for destructive action
+                          onClick={handleAvatarReset}
+                          disabled={isUploadingAvatar}
+                          className="flex items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-200 transition-all disabled:opacity-50"
                         >
-                          <Trash2 className="h-4 w-4" /> {/* Trash icon */}
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </div>
 
-                    {/* Frame Selector */}
-                    <div className="mt-6 w-full pt-6 border-t border-slate-200"> {/* Frame selector section with top border */}
+                    <div className="mt-6 w-full pt-6 border-t border-silver/20">
+                      <div className="text-left mb-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Avatar Frame</p>
+                      </div>
                       <AvatarFrameSelector
-                        user={storedUser} // Pass the current user for avatar previews
-                        selectedFrame={selectedFrame} // Pass the currently selected frame
-                        onSelectFrame={handleFrameChange} // Handle frame selection changes
+                        user={storedUser}
+                        selectedFrame={selectedFrame}
+                        onSelectFrame={handleFrameChange}
                       />
                     </div>
                   </div>
@@ -365,206 +442,352 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {/* Right Column - Forms */}
-          <div className="lg:col-span-8 space-y-6"> {/* Right column takes 8 of 12 columns, with spacing between cards */}
-            {/* Account Information */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"> {/* Account info card */}
-              <div className="flex items-center justify-between mb-6"> {/* Card header row */}
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Account Information</h3> {/* Card title */}
-                  <p className="text-xs text-slate-500 mt-1">Update your personal details</p> {/* Card subtitle */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="bg-white rounded-2xl border border-silver/30 overflow-hidden shadow-elevated">
+              <div className="border-b border-silver/20">
+                <div className="flex">
+                  {tabs.map(({ id, label, icon: TabIcon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setActiveTab(id)}
+                      className={cn(
+                        "relative flex items-center gap-2 px-5 sm:px-6 py-4 text-sm font-medium transition-all duration-200",
+                        activeTab === id
+                          ? "text-black"
+                          : "text-darksilver hover:text-darksilver"
+                      )}
+                    >
+                      {activeTab === id && (
+                        <div className={cn("absolute inset-x-0 bottom-0 h-0.5", accent.dot.replace("bg-", "bg-"))} />
+                      )}
+                      <TabIcon className="h-4 w-4" strokeWidth={activeTab === id ? 2.5 : 1.75} />
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                {!isEditingProfile && ( // Only show the Edit button when not in edit mode
-                  <button
-                    onClick={() => setIsEditingProfile(true)} // Enter edit mode
-                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all"
-                  >
-                    <Edit className="h-4 w-4" /> {/* Edit icon */}
-                    Edit
-                  </button>
-                )}
               </div>
 
-              {isEditingProfile ? ( // Show the edit form when in edit mode
-                <form onSubmit={handleProfileSubmit} className="space-y-4"> {/* Profile edit form */}
-                  <div className="grid gap-4 sm:grid-cols-2"> {/* Two-column grid for form fields */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">First name *</label>
-                      <Input {...profileForm.register("firstName")} placeholder="First name" />
-                      {profileForm.formState.errors.firstName && <p className="text-xs text-rose-500">{profileForm.formState.errors.firstName.message}</p>}
+              <div className="p-5 sm:p-7">
+                {activeTab === "account" && (
+                  <div className="animate-fade-in">
+                    <div className="flex items-center justify-between mb-7">
+                      <div>
+                        <h3 className="text-lg font-bold text-black">Account Information</h3>
+                        <p className="text-sm text-darksilver mt-0.5">Update your personal details</p>
+                      </div>
+                      {!isEditingProfile && (
+                        <button
+                          onClick={() => setIsEditingProfile(true)}
+                          className="flex items-center gap-2 rounded-xl border border-silver/30 bg-white px-4 py-2.5 text-sm font-semibold text-black/80 hover:bg-silver/10 hover:border-silver/40 transition-all shadow-soft hover:shadow-card-hover"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </button>
+                      )}
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Last name *</label>
-                      <Input {...profileForm.register("lastName")} placeholder="Last name" />
-                      {profileForm.formState.errors.lastName && <p className="text-xs text-rose-500">{profileForm.formState.errors.lastName.message}</p>}
-                    </div>
-                    {role === "STUDENT" && ( // Only show student-specific fields for students
-                      <>
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Middle name</label>
-                          <Input {...profileForm.register("middleName")} placeholder="Middle name" />
+
+                    {isEditingProfile ? (
+                      <form onSubmit={handleProfileSubmit}>
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">First name *</label>
+                            <Input {...profileForm.register("firstName")} placeholder="First name" className="h-12 bg-white border-silver/30 focus:border-black focus:ring-navy" />
+                            {profileForm.formState.errors.firstName && <p className="text-xs text-red-500">{profileForm.formState.errors.firstName.message}</p>}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Last name *</label>
+                            <Input {...profileForm.register("lastName")} placeholder="Last name" className="h-12 bg-white border-silver/30 focus:border-black focus:ring-navy" />
+                            {profileForm.formState.errors.lastName && <p className="text-xs text-red-500">{profileForm.formState.errors.lastName.message}</p>}
+                          </div>
+                          {role === "STUDENT" && (
+                            <>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Middle name</label>
+                                <Input {...profileForm.register("middleName")} placeholder="Middle name" className="h-12 bg-white border-silver/30 focus:border-black focus:ring-navy" />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Gender</label>
+                                <Select {...profileForm.register("gender")} className="h-12 bg-white border-silver/30">
+                                  <option value="">Select gender</option>
+                                  <option value="MALE">Male</option>
+                                  <option value="FEMALE">Female</option>
+                                </Select>
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Birth date</label>
+                                <Input type="date" {...profileForm.register("birthDate")} className="h-12 bg-white border-silver/30 focus:border-black focus:ring-navy" />
+                              </div>
+                            </>
+                          )}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Contact number</label>
+                            <Input {...profileForm.register("contactNo")} placeholder="+63 912 345 6789" className="h-12 bg-white border-silver/30 focus:border-black focus:ring-navy" />
+                          </div>
+                          {role === "STUDENT" && (
+                            <div className="flex flex-col gap-1.5 sm:col-span-2">
+                              <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Address</label>
+                              <Input {...profileForm.register("address")} placeholder="House No., Street, Barangay, City" className="h-12 bg-white border-silver/30 focus:border-black focus:ring-navy" />
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Gender</label>
-                          <Select {...profileForm.register("gender")}>
-                            <option value="">Select gender</option>
-                            <option value="MALE">Male</option>
-                            <option value="FEMALE">Female</option>
-                          </Select>
+
+                        <div className="flex justify-end gap-3 mt-7 pt-5 border-t border-silver/20">
+                          <button
+                            type="button"
+                            onClick={() => { setIsEditingProfile(false); profileForm.reset() }}
+                            className="flex items-center gap-2 rounded-xl border border-silver/30 bg-white px-5 py-2.5 text-sm font-medium text-black/80 hover:bg-silver/10 transition-all"
+                          >
+                            <X className="h-4 w-4" />
+                            Cancel
+                          </button>
+                          <Button type="submit" disabled={profileMutation.isPending} className="h-auto bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft px-5 py-2.5">
+                            {profileMutation.isPending ? (
+                              <span className="flex items-center gap-2">
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                Saving…
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <Save className="h-4 w-4" />
+                                Save Changes
+                              </span>
+                            )}
+                          </Button>
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Birth date</label>
-                          <Input type="date" {...profileForm.register("birthDate")} />
+                      </form>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <FieldCard icon={Mail} label="Email address" value={email} note="Cannot be changed" />
+                          <FieldCard icon={Shield} label="Account role" value={roleLabels[role] ?? role} note="Assigned by administrator" />
+                          {roleProfile?.studentNo && (
+                            <FieldCard icon={Hash} label="Student ID No." value={roleProfile.studentNo} note="Cannot be changed" />
+                          )}
+                          {roleProfile?.firstName && (
+                            <FieldCard icon={User} label="First name" value={roleProfile.firstName} />
+                          )}
+                          {roleProfile?.lastName && (
+                            <FieldCard icon={User} label="Last name" value={roleProfile.lastName} />
+                          )}
+                          {roleProfile?.middleName && (
+                            <FieldCard icon={User} label="Middle name" value={roleProfile.middleName} />
+                          )}
+                          {roleProfile?.contactNo && (
+                            <FieldCard icon={Smartphone} label="Contact number" value={roleProfile.contactNo} />
+                          )}
+                          {roleProfile?.gender && (
+                            <FieldCard icon={User} label="Gender" value={roleProfile.gender === "MALE" ? "Male" : roleProfile.gender === "FEMALE" ? "Female" : roleProfile.gender} />
+                          )}
+                          {roleProfile?.birthDate && (
+                            <FieldCard icon={Cake} label="Birth date" value={new Date(roleProfile.birthDate).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })} />
+                          )}
+                          {roleProfile?.address && (
+                            <FieldCard icon={MapPin} label="Address" value={roleProfile.address} />
+                          )}
                         </div>
-                      </>
-                    )}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Contact number</label>
-                      <Input {...profileForm.register("contactNo")} placeholder="Contact number" />
-                    </div>
-                    {role === "STUDENT" && ( // Only show address for students
-                      <div className="flex flex-col gap-1.5 sm:col-span-2">
-                        <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Address</label>
-                        <Input {...profileForm.register("address")} placeholder="Address" />
+                        <p className="text-xs text-darksilver flex items-center gap-1.5 pt-2">
+                          <Edit className="h-3 w-3" />
+                          Click "Edit" above to update your personal information
+                        </p>
                       </div>
                     )}
                   </div>
-
-                  <div className="flex justify-end gap-2 pt-1"> {/* Form action buttons */}
-                    <button
-                      type="button"
-                      onClick={() => { setIsEditingProfile(false); profileForm.reset() }} // Cancel and reset the form
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      <X className="h-3.5 w-3.5" /> {/* X icon */}
-                      Cancel
-                    </button>
-                    <Button type="submit" size="sm" disabled={profileMutation.isPending}>
-                      <Save className="h-3.5 w-3.5 mr-1" /> {/* Save icon */}
-                      {profileMutation.isPending ? "Saving…" : "Save Changes"}
-                    </Button>
-                  </div>
-                </form>
-              ) : ( // Show the read-only profile view when not in edit mode
-                <>
-                  <div className="grid gap-4 sm:grid-cols-2"> {/* Two-column grid for profile fields */}
-                    {[
-                      { label: "Email address", value: email, note: "Cannot be changed" }, // Email is read-only
-                      { label: "Account role", value: roleLabels[role] ?? role, note: "Assigned by administrator" }, // Role is read-only
-                      ...(roleProfile?.studentNo  ? [{ label: "Student ID No.", value: roleProfile.studentNo, note: "Cannot be changed" }] : []), // Student number if available
-                      ...(roleProfile?.firstName ? [{ label: "First name", value: roleProfile.firstName, note: null }] : []), // First name if available
-                      ...(roleProfile?.lastName  ? [{ label: "Last name",  value: roleProfile.lastName,  note: null }] : []), // Last name if available
-                      ...(roleProfile?.middleName ? [{ label: "Middle name", value: roleProfile.middleName, note: null }] : []), // Middle name if available
-                    ].map(({ label, value, note }) => ( // Render each profile field
-                      <div key={label} className="flex flex-col gap-1"> {/* Field container */}
-                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</p> {/* Field label */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5"> {/* Read-only field box */}
-                          <p className="text-sm font-medium text-slate-800">{value ?? "—"}</p> {/* Field value or em dash */}
-                        </div>
-                        {note && <p className="text-[10px] text-slate-500">{note}</p>} {/* Optional note below the field */}
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-5 text-xs text-slate-500">Click "Edit" to update your personal information.</p> {/* Instruction text */}
-                </>
-              )}
-            </div>
-
-            {/* Security / password */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"> {/* Security card */}
-              <div className="flex items-center justify-between mb-6"> {/* Card header row */}
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Security</h3> {/* Card title */}
-                  <p className="text-xs text-slate-500 mt-1">Change your login password</p> {/* Card subtitle */}
-                </div>
-                {!isChangingPassword && ( // Only show the Change button when not in change mode
-                  <button
-                    onClick={() => setIsChangingPassword(true)} // Enter change password mode
-                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all"
-                  >
-                    <Lock className="h-4 w-4" /> {/* Lock icon */}
-                    Change
-                  </button>
                 )}
-              </div>
 
-              {isChangingPassword ? ( // Show the change password form when in change mode
-                <form
-                  onSubmit={passwordForm.handleSubmit((v) => passwordMutation.mutateAsync(v))} // Submit handler triggers the password mutation
-                  className="flex flex-col gap-4"
-                >
-                  <div className="grid gap-4 sm:grid-cols-2"> {/* Two-column grid for password fields */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Current password</label>
-                      <PasswordInput
-                        placeholder="Current password"
-                        show={showCurrent} // Controlled visibility state
-                        onToggle={() => setShowCurrent((p) => !p)} // Toggle visibility
-                        error={passwordForm.formState.errors.currentPassword?.message} // Validation error
-                        {...passwordForm.register("currentPassword")} // Register with react-hook-form
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">New password</label>
-                      <PasswordInput
-                        placeholder="New password"
-                        show={showNew} // Controlled visibility state
-                        onToggle={() => setShowNew((p) => !p)} // Toggle visibility
-                        error={passwordForm.formState.errors.newPassword?.message} // Validation error
-                        {...passwordForm.register("newPassword")} // Register with react-hook-form
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1"> {/* Form action buttons */}
-                    <button
-                      type="button"
-                      onClick={() => { setIsChangingPassword(false); passwordForm.reset() }} // Cancel and reset the form
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      <X className="h-3.5 w-3.5" /> {/* X icon */}
-                      Cancel
-                    </button>
-                    <Button type="submit" size="sm" disabled={passwordMutation.isPending}>
-                      <Save className="h-3.5 w-3.5 mr-1" /> {/* Save icon */}
-                      {passwordMutation.isPending ? "Updating…" : "Update Password"}
-                    </Button>
-                  </div>
-                </form>
-              ) : ( // Show the read-only password display when not in change mode
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3.5"> {/* Password display box */}
-                  <div className="flex items-center justify-between"> {/* Row with label and masked password */}
+                {activeTab === "security" && (
+                  <div className="animate-fade-in space-y-8">
                     <div>
-                      <p className="text-xs font-semibold text-slate-700">Password</p> {/* Field label */}
-                      <p className="mt-0.5 text-xs text-slate-500">Last changed: unknown</p> {/* Last changed info */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className="text-lg font-bold text-black">Password</h3>
+                          <p className="text-sm text-darksilver mt-0.5">Change your login password</p>
+                        </div>
+                        {!isChangingPassword && (
+                          <button
+                            onClick={() => setIsChangingPassword(true)}
+                            className="flex items-center gap-2 rounded-xl border border-silver/30 bg-white px-4 py-2.5 text-sm font-semibold text-black/80 hover:bg-silver/10 hover:border-silver/40 transition-all shadow-soft hover:shadow-card-hover"
+                          >
+                            <Key className="h-4 w-4" />
+                            Change
+                          </button>
+                        )}
+                      </div>
+
+                      {isChangingPassword ? (
+                        <form
+                          onSubmit={passwordForm.handleSubmit((v) => passwordMutation.mutateAsync(v))}
+                          className="space-y-5"
+                        >
+                          <div className="grid gap-5 sm:grid-cols-2">
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Current password</label>
+                              <PasswordInput
+                                placeholder="Enter current password"
+                                show={showCurrent}
+                                onToggle={() => setShowCurrent((p) => !p)}
+                                error={passwordForm.formState.errors.currentPassword?.message}
+                                {...passwordForm.register("currentPassword")}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">New password</label>
+                              <PasswordInput
+                                placeholder="Enter new password"
+                                show={showNew}
+                                onToggle={() => setShowNew((p) => !p)}
+                                error={passwordForm.formState.errors.newPassword?.message}
+                                {...passwordForm.register("newPassword")}
+                              />
+                            </div>
+                          </div>
+
+                          {strength >= 0 && (
+                            <div className="rounded-xl border border-silver/20 bg-white/50 p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-darksilver">Password strength</span>
+                                <span className={cn("text-xs font-bold", strength >= 3 ? "text-emerald-600" : strength >= 2 ? "text-amber-600" : "text-red-600")}>
+                                  {strengthLabels[strength]}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                {strengthLabels.map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      "h-1.5 flex-1 rounded-full transition-all duration-300",
+                                      i <= strength ? strengthColors[strength] : "bg-silver/30"
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                              <ul className="mt-3 space-y-1">
+                                {[
+                                  { check: watchedPassword.length >= 8, label: "At least 8 characters" },
+                                  { check: /[A-Z]/.test(watchedPassword), label: "One uppercase letter" },
+                                  { check: /[a-z]/.test(watchedPassword), label: "One lowercase letter" },
+                                  { check: /\d/.test(watchedPassword), label: "One number" },
+                                  { check: /[^A-Za-z0-9]/.test(watchedPassword), label: "One special character" },
+                                ].map(({ check, label }) => (
+                                  <li key={label} className="flex items-center gap-2 text-xs">
+                                    <span className={cn("flex h-3.5 w-3.5 items-center justify-center", check ? "text-emerald-500" : "text-silver")}>
+                                      <Circle className={cn("h-3 w-3", check && "fill-emerald-500")} strokeWidth={check ? 0 : 1.5} />
+                                    </span>
+                                    <span className={check ? "text-black/80" : "text-darksilver"}>{label}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          <div className="flex justify-end gap-3 pt-2 border-t border-silver/20">
+                            <button
+                              type="button"
+                              onClick={() => { setIsChangingPassword(false); passwordForm.reset() }}
+                              className="flex items-center gap-2 rounded-xl border border-silver/30 bg-white px-5 py-2.5 text-sm font-medium text-black/80 hover:bg-silver/10 transition-all"
+                            >
+                              <X className="h-4 w-4" />
+                              Cancel
+                            </button>
+                            <Button type="submit" disabled={passwordMutation.isPending} className="h-auto bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft px-5 py-2.5">
+                              {passwordMutation.isPending ? (
+                                <span className="flex items-center gap-2">
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                  Updating…
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-2">
+                                  <Save className="h-4 w-4" />
+                                  Update Password
+                                </span>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="rounded-xl border border-silver/20 bg-white/70 p-5 transition-all duration-200 hover:border-silver/30 hover:shadow-soft">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-soft">
+                                <Lock className="h-4.5 w-4.5 text-darksilver" />
+                              </span>
+                              <div>
+                                <p className="text-sm font-semibold text-black/80">Password</p>
+                                <p className="text-xs text-darksilver mt-0.5">Last changed: {profile?.passwordUpdatedAt ? relativeTime(profile.passwordUpdatedAt) : "Not changed yet"}</p>
+                              </div>
+                            </div>
+                            <span className="font-mono text-xl tracking-widest text-silver select-none">••••••••</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span className="font-mono text-sm tracking-widest text-slate-300">••••••••</span> {/* Masked password dots */}
+
+                    <div className="border-t border-silver/20 pt-8">
+                      <div>
+                        <h3 className="text-lg font-bold text-black">Sessions</h3>
+                        <p className="text-sm text-darksilver mt-0.5">Manage your active sessions</p>
+                      </div>
+                      <div className="mt-5 rounded-xl border border-silver/20 bg-white/70 p-5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-soft">
+                              <Globe className="h-4.5 w-4.5 text-darksilver" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-black/80">Current session</p>
+                              <p className="text-xs text-darksilver mt-0.5">Signed in as {email}</p>
+                            </div>
+                          </div>
+                          <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-600">
+                            <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Active now
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-silver/20 pt-8">
+                      <div>
+                        <h3 className="text-lg font-bold text-black">Two-Factor Authentication</h3>
+                        <p className="text-sm text-darksilver mt-0.5">Add an extra layer of security</p>
+                      </div>
+                      <div className="mt-5 rounded-xl border border-dashed border-silver/40 bg-white/50 p-6 text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-silver/20 mx-auto">
+                          <Fingerprint className="h-6 w-6 text-darksilver" />
+                        </span>
+                        <p className="mt-3 text-sm font-semibold text-black/80">Two-factor authentication is not enabled</p>
+                        <p className="mt-1 text-xs text-darksilver">Protect your account with an additional verification step.</p>
+                        <Button variant="outline" size="sm" className="mt-4" disabled>
+                          <Shield className="h-3.5 w-3.5 mr-1.5" />
+                          Coming Soon
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} /> {/* Hidden file input for avatar upload, triggered programmatically */}
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
 
-      {imageToCrop && ( // Only render the image cropper when an image is selected
+      {imageToCrop && (
         <ImageCropper
-          image={imageToCrop} // The base64 image to crop
-          onCropComplete={handleCropComplete} // Handle the cropped result
-          onCancel={() => setImageToCrop(null)} // Close the cropper without saving
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
         />
       )}
 
-      <ConfirmDialog // Profile update confirmation dialog
-        open={showConfirmDialog} // Controlled by state
-        onOpenChange={setShowConfirmDialog} // Update state when dialog open/close changes
-        title="Confirm Profile Update" // Dialog title
-        description="Are you sure you want to update your profile information? This will change your personal details." // Dialog description
-        confirmLabel="Update Profile" // Confirm button label
-        cancelLabel="Cancel" // Cancel button label
-        onConfirm={confirmProfileUpdate} // Call the confirm handler when confirmed
+      <ConfirmDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        title="Confirm Profile Update"
+        description="Are you sure you want to update your profile information? This will change your personal details."
+        confirmLabel="Update Profile"
+        cancelLabel="Cancel"
+        onConfirm={confirmProfileUpdate}
       />
     </div>
   )

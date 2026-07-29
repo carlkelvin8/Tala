@@ -18,14 +18,14 @@ export function FormField({ label, htmlFor, required, hint, error, children, cla
       <div className="flex items-center justify-between">
         <Label htmlFor={htmlFor}>{label}</Label>
         {required && (
-          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Required</span>
+          <span className="text-[10px] font-medium text-darksilver uppercase tracking-wide">Required</span>
         )}
       </div>
       {children}
       {error ? (
         <p className="text-xs text-rose-500">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-slate-400">{hint}</p>
+        <p className="text-xs text-darksilver">{hint}</p>
       ) : null}
     </div>
   )

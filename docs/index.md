@@ -1,4 +1,4 @@
-# Kalasag-Tala NSTP Command Center — Documentation
+# Kalasag-Tala National Service Training Program Management System — Documentation
 
 Welcome to the official documentation for **Kalasag-Tala**, a comprehensive management system for the National Service Training Program (NSTP). This documentation covers everything from local setup to full API reference.
 

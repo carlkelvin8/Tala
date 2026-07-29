@@ -8,11 +8,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ classN
     <select
       ref={ref}
       className={cn(
-        "flex h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900",
+        "flex h-10 w-full appearance-none rounded-xl border border-silver/30 bg-white px-3.5 py-2 text-sm text-black",
         "bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")] bg-no-repeat bg-[right_0.75rem_center]",
         "transition-colors duration-150",
-        "focus-visible:outline-none focus-visible:border-slate-400 focus-visible:ring-4 focus-visible:ring-slate-900/[0.06]",
-        "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200",
+        "focus-visible:outline-none focus-visible:border-silver/50 focus-visible:ring-4 focus-visible:ring-navy/[0.06]",
+        "disabled:cursor-not-allowed disabled:bg-white disabled:text-darksilver disabled:border-silver/30",
         className
       )}
       {...props}

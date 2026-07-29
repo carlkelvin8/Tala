@@ -1,132 +1,391 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for creating merit entries and useQuery for fetching the list
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { Input } from "../components/ui/input" // Import the reusable Input component
-import { Select } from "../components/ui/select" // Import the reusable Select component for the type dropdown
-import { useForm } from "react-hook-form" // Import useForm for form state management and validation
-import { z } from "zod" // Import zod for schema-based validation
-import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Select } from "../components/ui/select"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { usePermissions } from "../hooks/usePermissions"
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
-import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { StatusBadge } from "../components/ui/status-badge" // Import the StatusBadge for merit/demerit type display
-import { toast } from "sonner" // Import toast for notifications
-import { FormSection } from "../components/ui/form-section" // Import the FormSection wrapper for the create form
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for the list section
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { useState } from "react" // Import useState for the student search state
+import { PageHeader } from "../components/ui/page-header"
+import { FormField } from "../components/ui/form-field"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { StatusBadge } from "../components/ui/status-badge"
+import { toast } from "sonner"
+import { FormSection } from "../components/ui/form-section"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { useState } from "react"
+import { Search, Medal, Hash, FileText, Clock, Sparkles, Award, ChevronRight, Plus, Minus, Pencil, Trash2 } from "lucide-react"
+import { cn } from "../lib/utils"
+import { motion } from "framer-motion"
+import { cardContainerVariants, cardItemVariants } from "../components/ui/page-transition"
 
-// Zod validation schema for the merit/demerit creation form
 const schema = z.object({
-  studentId: z.string().uuid(), // Student ID must be a valid UUID
-  type: z.enum(["MERIT", "DEMERIT"]), // Type must be either MERIT or DEMERIT
-  points: z.coerce.number().int(), // Points must be an integer (coerce converts string input to number)
-  reason: z.string().min(1) // Reason must not be empty
+  studentId: z.string().uuid(),
+  type: z.enum(["MERIT", "DEMERIT"]),
+  points: z.coerce.number().int().positive(),
+  reason: z.string().min(1)
 })
 
-type FormValues = z.infer<typeof schema> // Derive the TypeScript type from the zod schema
+type FormValues = z.infer<typeof schema>
 
-// The merits and demerits management page component
+function relativeTime(dateStr: string): string {
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(months / 12)}y ago`
+}
+
+function getInitials(email: string): string {
+  return email.charAt(0).toUpperCase()
+}
+
 export function MeritsPage() {
   const perms = usePermissions()
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { type: "MERIT" } }) // Initialize the form with zod validation and MERIT as the default type
-  const [studentSearch, setStudentSearch] = useState("") // State for the student search input value
-  const meritsQuery = useQuery({ // Fetch the list of merit/demerit records
-    queryKey: ["merits"], // Cache key for the merits list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/merits"), // Fetch all merit records from the API
-    refetchInterval: 5000 // Auto-refetch every 5 seconds to keep the list current
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { type: "MERIT" } })
+  const [studentSearch, setStudentSearch] = useState("")
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<{ type: string; points: number; reason: string }>({ type: "MERIT", points: 0, reason: "" })
+
+  const meritsQuery = useQuery({
+    queryKey: ["merits"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/merits"),
+    refetchInterval: 5000
   })
 
-  const studentsQuery = useQuery({ // Fetch matching students based on the search query
-    queryKey: ["merit-students", studentSearch], // Cache key includes the search string
+  const studentsQuery = useQuery({
+    queryKey: ["merit-students", studentSearch],
     queryFn: () =>
       apiRequest<ApiResponse<any[]>>(
-        `/api/enrollments?search=${encodeURIComponent(studentSearch.trim())}` // Search enrollments by the trimmed search string
+        `/api/enrollments?search=${encodeURIComponent(studentSearch.trim())}`
       ),
-    enabled: studentSearch.trim().length >= 2 // Only run the query when at least 2 characters are typed
+    enabled: studentSearch.trim().length >= 2
   })
 
-  const mutation = useMutation({ // Set up the mutation for creating a new merit/demerit entry
+  const mutation = useMutation({
     mutationFn: (values: FormValues) =>
-      apiRequest<ApiResponse<any>>("/api/merits", { method: "POST", body: JSON.stringify(values) }), // POST the form values to the merits endpoint
+      apiRequest<ApiResponse<any>>("/api/merits", { method: "POST", body: JSON.stringify(values) }),
     onSuccess: () => {
-      meritsQuery.refetch() // Refresh the merits list after a successful creation
-      toast.success("Merit entry saved") // Show success notification
+      meritsQuery.refetch()
+      toast.success("Merit entry saved")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to save merit entry") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Unable to save merit entry")
     }
   })
 
-  const onSubmit = form.handleSubmit(async (values) => { // Form submit handler (runs validation first)
-    await mutation.mutateAsync(values) // Trigger the creation mutation
-    form.reset({ studentId: "", reason: "", points: 0, type: "MERIT" }) // Reset the form to default values after successful submission
-  })
-  const rows = meritsQuery.data?.data ?? [] // Extract the merit records array, defaulting to empty array
-  const columns = [ // Column definitions for the responsive table
-    {
-      header: "Student", // Column header
-      cell: (item: any) => <span className="font-medium text-slate-900">{item.student?.email ?? item.studentId}</span> // Show student email or ID as fallback
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: typeof editForm }) =>
+      apiRequest<ApiResponse<any>>(`/api/merits/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      meritsQuery.refetch()
+      setEditingId(null)
+      toast.success("Merit entry updated")
     },
-    {
-      header: "Type", // Column header
-      cell: (item: any) => <StatusBadge status={item.type} /> // Render MERIT or DEMERIT as a colored status badge
-    },
-    {
-      header: "Points", // Column header
-      cell: (item: any) => item.points // Render the point value
-    },
-    {
-      header: "Reason", // Column header
-      cell: (item: any) => item.reason // Render the reason text
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unable to update")
     }
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<ApiResponse<any>>(`/api/merits/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      meritsQuery.refetch()
+      toast.success("Merit entry deleted")
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unable to delete")
+    }
+  })
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    await mutation.mutateAsync(values)
+    form.reset({ studentId: "", reason: "", points: 0, type: "MERIT" })
+  })
+
+  const rows = meritsQuery.data?.data ?? []
+
+  const summary = {
+    merits: rows.filter((r: any) => r.type === "MERIT").reduce((s: number, r: any) => s + r.points, 0),
+    demerits: rows.filter((r: any) => r.type === "DEMERIT").reduce((s: number, r: any) => s + r.points, 0),
+    count: rows.length,
+  }
+
+  const columns = [
+    {
+      header: "Student",
+      cell: (item: any) => (
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-royal text-xs font-bold text-white shadow-soft shrink-0">
+            {item.student?.email ? getInitials(item.student.email) : "?"}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-black truncate">{item.student?.email ?? item.studentId}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Type",
+      cell: (item: any) => (
+        <div className="flex items-center gap-2">
+          {item.type === "MERIT" ? (
+            <Award className="h-4 w-4 text-emerald-500" strokeWidth={2.5} />
+          ) : (
+            <Minus className="h-4 w-4 text-red-500" strokeWidth={3} />
+          )}
+          <StatusBadge status={item.type} />
+        </div>
+      ),
+    },
+    {
+      header: "Points",
+      cell: (item: any) => {
+        const isMerit = item.type === "MERIT"
+        return (
+          <span className={cn(
+            "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-bold",
+            isMerit ? "text-emerald-600 bg-emerald-50" : "text-red-600 bg-red-50"
+          )}>
+            {isMerit ? "+" : "-"}{item.points}
+          </span>
+        )
+      },
+    },
+    {
+      header: "Reason",
+      cell: (item: any) => (
+        <span className="text-sm text-darksilver truncate max-w-[200px] block">{item.reason}</span>
+      ),
+    },
+    {
+      header: "Date",
+      cell: (item: any) => (
+        <div className="flex items-center gap-1.5 text-sm text-darksilver whitespace-nowrap">
+          <Clock className="h-3.5 w-3.5 text-darksilver shrink-0" />
+          <span title={new Date(item.createdAt).toLocaleString()}>
+            {item.createdAt ? relativeTime(item.createdAt) : "—"}
+          </span>
+        </div>
+      ),
+    },
   ]
 
+  const actionsColumn = perms.canCreate ? {
+    header: "Actions",
+    cell: (item: any) => (
+      <div className="flex items-center gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setEditingId(item.id)
+            setEditForm({ type: item.type, points: item.points, reason: item.reason })
+          }}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            if (confirm("Delete this merit record?")) {
+              deleteMutation.mutate(item.id)
+            }
+          }}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    ),
+  } : null
+
+  const allColumns = actionsColumn ? [...columns, actionsColumn] : columns
+
   return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
-      <PageHeader title="Merits & Demerits" description="Record performance points and discipline notes" /> {/* Page title and description */}
+    <div className="space-y-6">
+      <motion.div
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated"
+        initial={{ opacity: 0, y: 32, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <motion.div
+          className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.18, 0.1] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl"
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <motion.div
+            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20"
+            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <Medal className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <motion.div
+              className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              <motion.span animate={{ rotate: [0, 20, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}>
+                <Sparkles className="h-3.5 w-3.5" />
+              </motion.span>
+              <span>Performance & Discipline Tracking</span>
+            </motion.div>
+            <motion.h1
+              className="text-xl sm:text-2xl font-bold text-white tracking-tight"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Merits & Demerits
+            </motion.h1>
+            <motion.p
+              className="mt-1 text-sm text-silver max-w-2xl"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Record performance points and discipline notes for students.
+            </motion.p>
+          </div>
+        </div>
+      </motion.div>
+
+      {rows.length > 0 && (
+        <motion.div
+          className="grid gap-4 sm:grid-cols-3"
+          variants={cardContainerVariants}
+          initial="initial"
+          animate="animate"
+        >
+          {[
+            { label: "Total Merits", value: summary.merits, icon: Plus, color: "text-emerald-600", bg: "bg-emerald-50" },
+            { label: "Total Demerits", value: summary.demerits, icon: Minus, color: "text-red-600", bg: "bg-red-50" },
+            { label: "Net Score", value: summary.merits - summary.demerits, icon: Award, color: (summary.merits - summary.demerits) >= 0 ? "text-emerald-600" : "text-red-600", bg: (summary.merits - summary.demerits) >= 0 ? "bg-emerald-50" : "bg-red-50" },
+          ].map(({ label, value, icon: SummaryIcon, color, bg }) => (
+            <motion.div
+              key={label}
+              variants={cardItemVariants}
+              whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2, ease: "easeOut" } }}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-4 rounded-xl border border-silver/20 bg-white p-5 shadow-card cursor-default"
+            >
+              <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl shrink-0", bg)}>
+                <SummaryIcon className={cn("h-6 w-6", color)} strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">{label}</p>
+                <motion.p
+                  className={cn("text-2xl font-bold mt-0.5", color)}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+                >
+                  {value}
+                </motion.p>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+
+      {editingId && (
+        <FormSection title="Edit Merit/Demerit" description="Update the record details">
+          <div className="grid gap-4 md:grid-cols-3">
+            <FormField label="Type">
+              <Select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}>
+                <option value="MERIT">Merit</option>
+                <option value="DEMERIT">Demerit</option>
+              </Select>
+            </FormField>
+            <FormField label="Points">
+              <Input type="number" value={editForm.points} onChange={(e) => setEditForm({ ...editForm, points: Number(e.target.value) })} />
+            </FormField>
+            <FormField label="Reason">
+              <Input value={editForm.reason} onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })} />
+            </FormField>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button onClick={() => updateMutation.mutate({ id: editingId, data: editForm })} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+          </div>
+        </FormSection>
+      )}
+
       {perms.canCreate && (
-        <FormSection title="Assign Merit/Demerit" description="Track point-based performance changes"> {/* Form section wrapper */}
-          <form className="grid gap-4 md:grid-cols-4" onSubmit={onSubmit}> {/* 4-column grid form */}
-            <FormField label="Student" required error={form.formState.errors.studentId?.message}> {/* Student field with validation error display */}
-              <div className="relative"> {/* Relative container for the dropdown positioning */}
+        <FormSection title="Assign Merit/Demerit" description="Track point-based performance changes" className="shadow-card">
+          <form className="grid gap-4 md:grid-cols-4" onSubmit={onSubmit}>
+            <FormField label="Student" required error={form.formState.errors.studentId?.message}>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
                 <Input
-                  placeholder="Search by email or ID" // Placeholder text
-                  value={studentSearch} // Controlled input value
-                  onChange={(event) => setStudentSearch(event.target.value)} // Update search state on input change
-                  autoComplete="off" // Disable browser autocomplete to avoid conflicts with the custom dropdown
+                  placeholder="Search by email or ID"
+                  value={studentSearch}
+                  onChange={(event) => setStudentSearch(event.target.value)}
+                  autoComplete="off"
+                  className="h-11 pl-10"
                 />
-                <input type="hidden" {...form.register("studentId")} /> {/* Hidden input to store the selected student's UUID in the form */}
-                {studentSearch.trim().length >= 2 && ( // Only show the dropdown when at least 2 characters are typed
-                  <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg"> {/* Dropdown container positioned below the input */}
-                    {studentsQuery.isLoading ? ( // Show loading state while searching
-                      <div className="px-3 py-2 text-xs text-slate-500">Searching students...</div>
-                    ) : studentsQuery.isError ? ( // Show error state if the search failed
-                      <div className="px-3 py-2 text-xs text-red-500">Unable to search students.</div>
-                    ) : (studentsQuery.data?.data ?? []).length === 0 ? ( // Show empty state if no matches found
-                      <div className="px-3 py-2 text-xs text-slate-500">No matching students found.</div>
+                <input type="hidden" {...form.register("studentId")} />
+                {studentSearch.trim().length >= 2 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-xl border border-silver/30 bg-white shadow-elevated overflow-hidden">
+                    {studentsQuery.isLoading ? (
+                      <div className="px-4 py-3 text-xs text-darksilver">Searching students...</div>
+                    ) : studentsQuery.isError ? (
+                      <div className="px-4 py-3 text-xs text-red-500">Unable to search students.</div>
+                    ) : (studentsQuery.data?.data ?? []).length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-darksilver">No matching students found.</div>
                     ) : (
-                      <ul className="max-h-64 overflow-y-auto py-1 text-sm"> {/* Scrollable list of matching students */}
-                        {(studentsQuery.data?.data ?? []).map((enrollment: any) => ( // Iterate over matching enrollments
+                      <ul className="max-h-64 overflow-y-auto py-1 text-sm">
+                        {(studentsQuery.data?.data ?? []).map((enrollment: any) => (
                           <li
-                            key={enrollment.id} // Use enrollment ID as React key
-                            className="cursor-pointer px-3 py-2 hover:bg-slate-50" // Clickable list item with hover background
-                            onMouseDown={(event) => { // Use onMouseDown instead of onClick to fire before the input's onBlur
-                              event.preventDefault() // Prevent the input from losing focus before the value is set
-                              form.setValue("studentId", enrollment.userId) // Set the hidden studentId field to the selected user's UUID
-                              setStudentSearch(enrollment.user?.email ?? enrollment.userId) // Update the visible search input with the selected student's email
+                            key={enrollment.id}
+                            className="flex items-center gap-3 cursor-pointer px-4 py-2.5 hover:bg-silver/10 transition-colors"
+                            onMouseDown={(event) => {
+                              event.preventDefault()
+                              form.setValue("studentId", enrollment.userId)
+                              setStudentSearch(enrollment.user?.email ?? enrollment.userId)
                             }}
                           >
-                            <div className="font-medium text-slate-900">
-                              {enrollment.user?.email ?? enrollment.userId} {/* Show student email or UUID */}
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-navy to-royal text-[10px] font-bold text-white shrink-0">
+                              {enrollment.user?.email ? getInitials(enrollment.user.email) : "?"}
+                            </span>
+                            <div>
+                              <div className="font-medium text-black">
+                                {enrollment.user?.email ?? enrollment.userId}
+                              </div>
+                              <div className="text-xs text-darksilver">
+                                {enrollment.section?.code ?? "-"} · {enrollment.flight?.code ?? "-"}
+                              </div>
                             </div>
-                            <div className="text-xs text-slate-500">
-                              {enrollment.section?.code ?? "-"} · {enrollment.flight?.code ?? "-"} {/* Show section and flight codes */}
-                            </div>
+                            <ChevronRight className="h-4 w-4 ml-auto text-silver" />
                           </li>
                         ))}
                       </ul>
@@ -135,39 +394,59 @@ export function MeritsPage() {
                 )}
               </div>
             </FormField>
-            <FormField label="Type" required> {/* Type field */}
-              <Select {...form.register("type")}> {/* Dropdown registered with react-hook-form */}
-                <option value="MERIT">Merit</option> {/* Merit option */}
-                <option value="DEMERIT">Demerit</option> {/* Demerit option */}
-              </Select>
+            <FormField label="Type" required>
+              <div className="relative">
+                <Medal className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Select {...form.register("type")} className="h-11 pl-10">
+                  <option value="MERIT">Merit</option>
+                  <option value="DEMERIT">Demerit</option>
+                </Select>
+              </div>
             </FormField>
-            <FormField label="Points" required error={form.formState.errors.points?.message}> {/* Points field with validation error */}
-              <Input type="number" placeholder="0" {...form.register("points")} /> {/* Number input for points */}
+            <FormField label="Points" required error={form.formState.errors.points?.message}>
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input type="number" placeholder="0" {...form.register("points")} className="h-11 pl-10" min="1" />
+              </div>
             </FormField>
-            <FormField label="Reason" required error={form.formState.errors.reason?.message}> {/* Reason field with validation error */}
-              <Input placeholder="Add reason" {...form.register("reason")} /> {/* Text input for the reason */}
+            <FormField label="Reason" required error={form.formState.errors.reason?.message}>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                <Input placeholder="Add reason" {...form.register("reason")} className="h-11 pl-10" />
+              </div>
             </FormField>
-            {mutation.isError && <Alert variant="danger" className="md:col-span-4">{(mutation.error as Error).message}</Alert>} {/* Error alert spanning all 4 columns */}
-            <div className="md:col-span-4"> {/* Submit button spanning all 4 columns */}
-              <Button type="submit" disabled={mutation.isPending}> {/* Submit button, disabled while saving */}
-                {mutation.isPending ? "Saving..." : "Save"} {/* Show loading text while saving */}
+            {mutation.isError && <Alert variant="danger" className="md:col-span-4">{(mutation.error as Error).message}</Alert>}
+            <div className="md:col-span-4">
+              <Button type="submit" disabled={mutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+                {mutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Award className="h-4 w-4" />
+                    Save
+                  </span>
+                )}
               </Button>
             </div>
           </form>
         </FormSection>
       )}
-      <SectionCard title="Merits/Demerits" description="Recent merit and demerit records"> {/* Card wrapper for the records list */}
-        {meritsQuery.isError && <Alert variant="danger">Unable to load merit records.</Alert>} {/* Error alert if fetch failed */}
-        {meritsQuery.isLoading ? ( // Show loading skeleton while fetching
-          <LoadingSkeleton rows={3} columns={4} /> // Skeleton matching the table structure
-        ) : rows.length === 0 ? ( // Show empty state if no records exist
+
+      <SectionCard title="Merits/Demerits" description="Recent merit and demerit records" className="shadow-card">
+        {meritsQuery.isError && <Alert variant="danger">Unable to load merit records.</Alert>}
+        {meritsQuery.isLoading ? (
+          <LoadingSkeleton rows={3} columns={4} />
+        ) : rows.length === 0 ? (
           <EmptyState title="No merits logged" description="Assign a merit or demerit to see it here." />
         ) : (
           <ResponsiveTableCards
-            data={rows} // Pass the merit records as data
-            columns={columns} // Pass the column definitions
-            rowKey={(item) => item.id} // Use the record ID as the React key
-            renderTitle={(item) => item.student?.email ?? item.studentId} // Use student email as the card title on mobile
+            data={rows}
+            columns={allColumns}
+            rowKey={(item) => item.id}
+            renderTitle={(item) => item.student?.email ?? item.studentId}
           />
         )}
       </SectionCard>

@@ -13,8 +13,7 @@ import { AuthLayout } from "../components/layout/AuthLayout"
 import { Link, useNavigate } from "react-router-dom"
 import { ApiResponse } from "../types"
 import { toast } from "sonner"
-import { Mail, Lock, Chrome } from "lucide-react"
-import { Separator } from "../components/ui/separator"
+import { Mail, Lock } from "lucide-react"
 
 const schema = z.object({
   email: z.string().email(),
@@ -62,22 +61,13 @@ export function LoginPage() {
       footer={
         <span>
           New here?{" "}
-          <Link className="font-medium text-slate-900 hover:underline" to="/register">
+          <Link className="font-medium text-black hover:underline" to="/register">
             Create an account
           </Link>
         </span>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit}>
-        <Button type="button" variant="outline" className="h-9 w-full">
-          <Chrome className="h-4 w-4" />
-          Continue with Google
-        </Button>
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          <Separator className="flex-1 bg-slate-200" />
-          <span>or continue with email</span>
-          <Separator className="flex-1 bg-slate-200" />
-        </div>
         <FormField
           label="Email"
           htmlFor="email"
@@ -85,12 +75,12 @@ export function LoginPage() {
           error={form.formState.errors.email?.message}
         >
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
             <Input
               id="email"
               type="email"
               placeholder="you@school.edu"
-              className="h-9 bg-slate-50/70 pl-9"
+              className="h-9 bg-white/70 pl-9"
               {...form.register("email")}
             />
           </div>
@@ -102,19 +92,19 @@ export function LoginPage() {
           error={form.formState.errors.password?.message}
         >
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
-              className="h-9 bg-slate-50/70 pl-9 pr-14"
+              className="h-9 bg-white/70 pl-9 pr-14"
               {...form.register("password")}
             />
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="absolute right-2 top-1/2 h-6 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-700"
+              className="absolute right-2 top-1/2 h-6 -translate-y-1/2 text-xs text-darksilver hover:text-black/80"
               onClick={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? "Hide" : "Show"}
@@ -122,17 +112,17 @@ export function LoginPage() {
           </div>
         </FormField>
         <div className="flex items-center justify-between">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-black/80">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border border-slate-300 text-slate-900 accent-slate-900"
+              className="h-4 w-4 rounded border border-silver/40 text-black accent-black"
             />
             Remember me
           </label>
           <button
             type="button"
-            className="text-sm text-slate-700 underline-offset-4 hover:underline"
-            title="Reset via administrator"
+            className="text-sm text-black/80 underline-offset-4 hover:underline"
+            onClick={() => toast.info("Please contact your administrator to reset your password")}
           >
             Forgot password?
           </button>

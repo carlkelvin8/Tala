@@ -17,6 +17,7 @@ export const navItems: NavItem[] = [
   { label: "Flights", path: "/flights", roles: ["ADMIN", "CADET_OFFICER"] }, // Flight management is only for admins and cadet officers
   { label: "Learning Materials", path: "/materials", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Materials are accessible to all roles
   { label: "Attendance", path: "/attendance", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Attendance is accessible to all roles
+  { label: "QR Scanner", path: "/scanner", roles: ["ADMIN", "IMPLEMENTOR"] }, // QR scanner for admin/implementor
   { label: "Training Monitoring", path: "/training", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] }, // Training day tracking for instructors
   { label: "Terms", path: "/terms", roles: ["ADMIN", "IMPLEMENTOR"] }, // Academic term management
   { label: "Grades", path: "/grades", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Grades are accessible to all roles

@@ -1,27 +1,71 @@
-import { getAccessToken } from "./auth" // Import the function that retrieves the JWT access token from localStorage
+import { getAccessToken, getRefreshToken, setAuthSession, clearAuthSession } from "./auth"
 
-const baseUrl = import.meta.env.VITE_API_URL ?? "" // Read the API base URL from the Vite environment variable; fall back to empty string (uses relative URLs / dev proxy)
+const baseUrl = import.meta.env.VITE_API_URL ?? ""
 
-// Generic async function for making authenticated API requests
-export async function apiRequest<T>(path: string, options: RequestInit = {}) {
-  const headers = new Headers(options.headers) // Create a mutable Headers object from any headers already in options
-  headers.set("Content-Type", "application/json") // Always set Content-Type to JSON for all requests
-  const token = getAccessToken() // Retrieve the current JWT access token from localStorage
-  if (token) { // Only add the Authorization header if a token exists (user is logged in)
-    headers.set("Authorization", `Bearer ${token}`) // Set the Bearer token in the Authorization header for protected endpoints
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return false
+
+  try {
+    const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!response.ok) return false
+
+    const data = await response.json()
+    if (data.success && data.data) {
+      const storedUser = JSON.parse(localStorage.getItem("nstp_user") || "null")
+      if (storedUser) {
+        setAuthSession(storedUser, data.data.accessToken, data.data.refreshToken)
+      }
+      return true
+    }
+    return false
+  } catch {
+    return false
   }
-  const response = await fetch(`${baseUrl}${path}`, { ...options, headers }) // Make the HTTP request by combining the base URL with the path, spreading existing options, and using the updated headers
-  const contentType = response.headers.get("content-type") ?? "" // Read the Content-Type header from the response to determine how to parse the body
-  const text = await response.text() // Read the entire response body as a raw text string
-  const data = text && contentType.includes("application/json") ? JSON.parse(text) : text // If the response has content and is JSON, parse it; otherwise keep it as a plain string
-  if (!response.ok) { // If the HTTP status code indicates an error (4xx or 5xx)
+}
+
+export async function apiRequest<T>(path: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers)
+  const token = getAccessToken()
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`)
+  }
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json")
+  }
+  let response = await fetch(`${baseUrl}${path}`, { ...options, headers })
+
+  // If 401, try to refresh the token once
+  if (response.status === 401) {
+    const refreshed = await tryRefreshToken()
+    if (refreshed) {
+      const newToken = getAccessToken()
+      if (newToken) {
+        headers.set("Authorization", `Bearer ${newToken}`)
+      }
+      response = await fetch(`${baseUrl}${path}`, { ...options, headers })
+    } else {
+      clearAuthSession()
+      window.location.href = "/login"
+      throw new Error("Session expired. Please log in again.")
+    }
+  }
+
+  const contentType = response.headers.get("content-type") ?? ""
+  const text = await response.text()
+  const data = text && contentType.includes("application/json") ? JSON.parse(text) : text
+  if (!response.ok) {
     const message =
       typeof data === "object" && data !== null && "message" in data && data.message
-        ? String(data.message) // If the parsed response is an object with a "message" field, use that as the error message
+        ? String(data.message)
         : text
-        ? text // If there's raw text but no message field, use the raw text
-        : response.statusText || `Request failed (${response.status})` // Fall back to the HTTP status text or a generic message
-    throw new Error(message) // Throw an Error with the extracted message so callers can catch it
+        ? text
+        : response.statusText || `Request failed (${response.status})`
+    throw new Error(message)
   }
-  return (data ?? {}) as T // Return the parsed data cast to the expected type T; fall back to empty object if data is null/undefined
+  return (data ?? {}) as T
 }

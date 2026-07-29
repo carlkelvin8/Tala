@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { checkIn, checkOut, listAttendance } from "../services/attendanceService.js"
+import { generateQRToken, scanQR, listAttendance } from "../services/attendanceService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { getPagination } from "../lib/pagination.js"
 import { RoleType } from "@prisma/client"
@@ -12,37 +12,24 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
   return querySectionId
 }
 
-/* POST /api/attendance/check-in — record a check-in for the authenticated user */
-export async function checkInHandler(c: Context) {
+export async function getQRTokenHandler(c: Context) {
   try {
-    // Retrieve the authenticated user from the Hono context
     const authUser = getAuthUser(c)
-    // Parse the JSON body containing the user's GPS coordinates
-    const body = await c.req.json()
-    // Delegate to the attendance service to upsert today's attendance record with PRESENT status
-    const record = await checkIn(authUser.id, body.latitude, body.longitude)
-    // Return the created/updated attendance record in the response
-    return c.json(ok("Checked in", record))
+    const result = await generateQRToken(authUser.id)
+    return c.json(ok("QR token generated", result))
   } catch (error) {
-    // Return 400 with the error message if check-in fails
-    return c.json(fail(error instanceof Error ? error.message : "Check-in failed"), 400)
+    return c.json(fail(error instanceof Error ? error.message : "Failed to generate QR token"), 400)
   }
 }
 
-/* POST /api/attendance/check-out — record a check-out for the authenticated user */
-export async function checkOutHandler(c: Context) {
+export async function scanQRHandler(c: Context) {
   try {
-    // Retrieve the authenticated user from the Hono context
     const authUser = getAuthUser(c)
-    // Parse the JSON body containing the user's GPS coordinates at check-out
     const body = await c.req.json()
-    // Delegate to the attendance service to upsert today's record with the check-out time
-    const record = await checkOut(authUser.id, body.latitude, body.longitude)
-    // Return the updated attendance record in the response
-    return c.json(ok("Checked out", record))
+    const result = await scanQR(body.token, authUser.id)
+    return c.json(ok("Attendance recorded", result))
   } catch (error) {
-    // Return 400 with the error message if check-out fails
-    return c.json(fail(error instanceof Error ? error.message : "Check-out failed"), 400)
+    return c.json(fail(error instanceof Error ? error.message : "Scan failed"), 400)
   }
 }
 

@@ -56,10 +56,10 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
               </Avatar>
             )}
             <div className="flex-1"> {/* Text block next to the avatar */}
-              <h3 className="text-lg font-semibold text-slate-900"> {/* User's full name or email */}
+              <h3 className="text-lg font-semibold text-black"> {/* User's full name or email */}
                 {profile ? `${profile.firstName} ${profile.lastName}` : user.email}
               </h3>
-              <p className="text-sm text-slate-500">{user.email}</p> {/* User's email address */}
+              <p className="text-sm text-darksilver">{user.email}</p> {/* User's email address */}
               <div className="mt-2"> {/* Badge row */}
                 <Badge variant={user.isActive ? "success" : "default"}> {/* Green badge for active, gray for inactive */}
                   {user.isActive ? "Active" : "Inactive"} {/* Active/inactive status text */}
@@ -74,39 +74,39 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
           {/* Profile Details */}
           <div className="space-y-4"> {/* Vertical stack of profile detail rows */}
             <div className="flex items-start gap-3"> {/* Email row */}
-              <Mail className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Mail icon, aligned to top */}
+              <Mail className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Mail icon, aligned to top */}
               <div>
-                <p className="text-xs text-slate-500">Email</p> {/* Field label */}
-                <p className="text-sm text-slate-900 break-all">{user.email}</p> {/* Email value, break-all to handle long emails */}
+                <p className="text-xs text-darksilver">Email</p> {/* Field label */}
+                <p className="text-sm text-black break-all">{user.email}</p> {/* Email value, break-all to handle long emails */}
               </div>
             </div>
 
             {profile?.studentNo && ( // Only show student number if available
               <div className="flex items-start gap-3"> {/* Student number row */}
-                <Hash className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Hash icon */}
+                <Hash className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Hash icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Student Number</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">{profile.studentNo}</p> {/* Student number value */}
+                  <p className="text-xs text-darksilver">Student Number</p> {/* Field label */}
+                  <p className="text-sm text-black">{profile.studentNo}</p> {/* Student number value */}
                 </div>
               </div>
             )}
 
             {profile?.contactNo && ( // Only show contact number if available
               <div className="flex items-start gap-3"> {/* Contact number row */}
-                <Phone className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Phone icon */}
+                <Phone className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Phone icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Contact Number</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">{profile.contactNo}</p> {/* Contact number value */}
+                  <p className="text-xs text-darksilver">Contact Number</p> {/* Field label */}
+                  <p className="text-sm text-black">{profile.contactNo}</p> {/* Contact number value */}
                 </div>
               </div>
             )}
 
             {profile?.birthDate && ( // Only show birth date if available
               <div className="flex items-start gap-3"> {/* Birth date row */}
-                <Calendar className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Calendar icon */}
+                <Calendar className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Calendar icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Birth Date</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">
+                  <p className="text-xs text-darksilver">Birth Date</p> {/* Field label */}
+                  <p className="text-sm text-black">
                     {new Date(profile.birthDate).toLocaleDateString(undefined, { // Format the birth date
                       year: "numeric",
                       month: "long",
@@ -119,30 +119,30 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
 
             {profile?.gender && ( // Only show gender if available
               <div className="flex items-start gap-3"> {/* Gender row */}
-                <User className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* User icon */}
+                <User className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* User icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Gender</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">{profile.gender}</p> {/* Gender value */}
+                  <p className="text-xs text-darksilver">Gender</p> {/* Field label */}
+                  <p className="text-sm text-black">{profile.gender}</p> {/* Gender value */}
                 </div>
               </div>
             )}
 
             {profile?.address && ( // Only show address if available
               <div className="flex items-start gap-3"> {/* Address row */}
-                <MapPin className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Map pin icon */}
+                <MapPin className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Map pin icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Address</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">{profile.address}</p> {/* Address value */}
+                  <p className="text-xs text-darksilver">Address</p> {/* Field label */}
+                  <p className="text-sm text-black">{profile.address}</p> {/* Address value */}
                 </div>
               </div>
             )}
 
             {profile?.section && ( // Only show section if the student is assigned to one
               <div className="flex items-start gap-3"> {/* Section row */}
-                <Users className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Users icon */}
+                <Users className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Users icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Section</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">
+                  <p className="text-xs text-darksilver">Section</p> {/* Field label */}
+                  <p className="text-sm text-black">
                     {profile.section.code} - {profile.section.name} {/* Section code and name */}
                   </p>
                 </div>
@@ -151,10 +151,10 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
 
             {profile?.flight && ( // Only show flight if the student is assigned to one
               <div className="flex items-start gap-3"> {/* Flight row */}
-                <Plane className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" /> {/* Plane icon */}
+                <Plane className="h-5 w-5 text-darksilver mt-0.5 flex-shrink-0" /> {/* Plane icon */}
                 <div>
-                  <p className="text-xs text-slate-500">Flight</p> {/* Field label */}
-                  <p className="text-sm text-slate-900">
+                  <p className="text-xs text-darksilver">Flight</p> {/* Field label */}
+                  <p className="text-sm text-black">
                     {profile.flight.code} - {profile.flight.name} {/* Flight code and name */}
                   </p>
                 </div>
@@ -164,8 +164,8 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
 
           {/* Account Info */}
           <div className="pt-6 border-t border-gray-200"> {/* Account info section with top border */}
-            <h4 className="text-sm font-medium text-slate-700 mb-3">Account Information</h4> {/* Section title */}
-            <div className="space-y-2 text-xs text-slate-500"> {/* Vertical stack of account timestamps */}
+            <h4 className="text-sm font-medium text-black/80 mb-3">Account Information</h4> {/* Section title */}
+            <div className="space-y-2 text-xs text-darksilver"> {/* Vertical stack of account timestamps */}
               <p>
                 Created: {new Date(user.createdAt).toLocaleDateString(undefined, { // Format the account creation date
                   year: "numeric",

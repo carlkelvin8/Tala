@@ -68,31 +68,34 @@ export function SectionCards() {
 
   return (
     <div className="grid grid-cols-1 gap-4 px-6 sm:grid-cols-2 xl:grid-cols-4">
-      {cardConfig.map(({ key, label, description, icon: Icon, iconBg, iconColor, accent }) => (
+      {cardConfig.map(({ key, label, description, icon: Icon, iconBg, iconColor, accent }, idx) => (
         <div
           key={key}
           className={cn(
-            "relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-sm",
-            "before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:rounded-l-2xl",
+            "relative overflow-hidden rounded-2xl border border-silver/20 bg-white p-5 shadow-card transition-all duration-200",
+            "hover:shadow-card-hover hover:-translate-y-0.5",
+            "before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:rounded-l-2xl before:transition-all before:duration-200",
+            "hover:before:w-[4px]",
             accent
           )}
+          style={{ animationDelay: `${idx * 80}ms` }}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 truncate">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-darksilver truncate">
                 {label}
               </p>
               {isLoading ? (
-                <div className="mt-3 h-8 w-20 animate-pulse rounded-lg bg-slate-100" />
+                <div className="mt-3 h-8 w-20 animate-pulse rounded-lg bg-silver/20" />
               ) : (
-                <p className="mt-2 text-[2rem] font-bold leading-none tracking-tight text-slate-900">
+                <p className="mt-2 text-[2rem] font-bold leading-none tracking-tight text-black">
                   {values[key]}
                 </p>
               )}
-              <p className="mt-2 text-xs text-slate-400 leading-relaxed">{description}</p>
+              <p className="mt-2 text-xs text-darksilver leading-relaxed">{description}</p>
             </div>
-            <span className={cn("flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl", iconBg)}>
-              <Icon className={cn("h-4.5 w-4.5", iconColor)} strokeWidth={1.75} />
+            <span className={cn("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors", iconBg)}>
+              <Icon className={cn("h-5 w-5", iconColor)} strokeWidth={1.75} />
             </span>
           </div>
         </div>

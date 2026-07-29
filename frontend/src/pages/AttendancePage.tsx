@@ -1,351 +1,585 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for check-in/check-out and useQuery for fetching attendance records
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { useState } from "react" // Import useState for managing status messages and filter state
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { Alert } from "../components/ui/alert" // Import the Alert component for status messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { StatusBadge } from "../components/ui/status-badge" // Import the StatusBadge for attendance status display
-import { toast } from "sonner" // Import toast for notifications
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for sections
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { Badge } from "../components/ui/badge" // Import the Badge component for status indicators
-import { Card, CardContent } from "../components/ui/card" // Import Card and CardContent for the today's status card
-import { Select } from "../components/ui/select" // Import the Select component for the status filter dropdown
-import { MapPin, Clock, CheckCircle2, AlertTriangle, Camera } from "lucide-react" // Import icons for the UI
-import { getFullName } from "../lib/display" // Import the getFullName utility for displaying student names
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Button } from "../components/ui/button"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { StatusBadge } from "../components/ui/status-badge"
+import { toast } from "sonner"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { Badge } from "../components/ui/badge"
+import { QrCode, Timer, ScanLine, CheckCircle2, XCircle, Camera, Sparkles, Clock, UserCheck, UserX, Eye } from "lucide-react"
+import { getFullName } from "../lib/display"
+import { getStoredUser } from "../lib/auth"
+import { QRCodeSVG } from "qrcode.react"
+import { cn } from "../lib/utils"
+import { motion } from "framer-motion"
+import {
+  MotionHero,
+  MotionCardGrid,
+  MotionCard,
+  MotionSection,
+  MotionScalePop,
+  cardContainerVariants,
+  cardItemVariants,
+} from "../components/ui/page-transition"
 
-// Type definition for geolocation coordinates
-type Geo = { latitude: number; longitude: number }
-
-// Async function that requests the user's current geolocation from the browser
-async function getLocation(): Promise<Geo> {
-  return new Promise((resolve, reject) => { // Return a promise that resolves with coordinates or rejects with an error
-    navigator.geolocation.getCurrentPosition( // Request the current position from the browser's Geolocation API
-      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }), // Resolve with the latitude and longitude from the position
-      (err) => reject(err) // Reject with the GeolocationPositionError if access is denied or unavailable
-    )
-  })
+declare class BarcodeDetector {
+  constructor(options?: { formats?: string[] })
+  detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
 }
 
-// The attendance tracking page component
+const ATTENDANCE_STATUSES = ["ALL", "PRESENT", "LATE", "ABSENT"] as const
+
+const statusMeta: Record<string, { label: string; color: string; bg: string; dot: string; icon: typeof CheckCircle2 }> = {
+  PRESENT: { label: "Present", color: "text-emerald-600", bg: "bg-emerald-50", dot: "bg-emerald-500", icon: CheckCircle2 },
+  LATE:    { label: "Late",    color: "text-amber-600",  bg: "bg-amber-50",   dot: "bg-amber-500", icon: Clock },
+  ABSENT:  { label: "Absent",  color: "text-red-600",    bg: "bg-red-50",     dot: "bg-red-500",   icon: UserX },
+}
+
 export function AttendancePage() {
-  const [status, setStatus] = useState<{ message: string; variant: "success" | "danger" } | null>(null) // State for the inline status alert message (null = no message)
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PRESENT" | "LATE" | "ABSENT">("ALL") // State for the attendance history filter, defaults to showing all statuses
-  const attendanceQuery = useQuery({ // Fetch the attendance records list
-    queryKey: ["attendance"], // Cache key for the attendance list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/attendance"), // Fetch all attendance records from the API
-    refetchInterval: 5000 // Auto-refetch every 5 seconds to keep the list current
-  })
+  const user = getStoredUser()
+  const isScanner = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
 
-  const checkInMutation = useMutation({ // Mutation for the check-in action
-    mutationFn: (payload: Geo) => // Function that sends the geolocation payload to the check-in endpoint
-      apiRequest<ApiResponse<any>>("/api/attendance/check-in", { method: "POST", body: JSON.stringify(payload) }), // POST the coordinates to the check-in endpoint
-    onSuccess: () => {
-      attendanceQuery.refetch() // Refresh the attendance list after check-in
-      toast.success("Checked in") // Show success notification
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Check in failed") // Show error notification
-    }
-  })
-
-  const checkOutMutation = useMutation({ // Mutation for the check-out action
-    mutationFn: (payload: Geo) => // Function that sends the geolocation payload to the check-out endpoint
-      apiRequest<ApiResponse<any>>("/api/attendance/check-out", { method: "POST", body: JSON.stringify(payload) }), // POST the coordinates to the check-out endpoint
-    onSuccess: () => {
-      attendanceQuery.refetch() // Refresh the attendance list after check-out
-      toast.success("Checked out") // Show success notification
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Check out failed") // Show error notification
-    }
-  })
-
-  const handleCheckIn = async () => { // Async handler for the check-in button
-    try {
-      const geo = await getLocation() // Request the user's current location
-      await checkInMutation.mutateAsync(geo) // Send the location to the check-in endpoint
-      setStatus({ message: "Checked in successfully", variant: "success" }) // Show inline success message
-    } catch {
-      setStatus({ message: "Unable to access location", variant: "danger" }) // Show inline error if location access failed
-    }
-  }
-
-  const handleCheckOut = async () => { // Async handler for the check-out button
-    try {
-      const geo = await getLocation() // Request the user's current location
-      await checkOutMutation.mutateAsync(geo) // Send the location to the check-out endpoint
-      setStatus({ message: "Checked out successfully", variant: "success" }) // Show inline success message
-    } catch {
-      setStatus({ message: "Unable to access location", variant: "danger" }) // Show inline error if location access failed
-    }
-  }
-  const rows = attendanceQuery.data?.data ?? [] // Extract the attendance records array, defaulting to empty array
-
-  const today = new Date() // Get the current date
-  today.setHours(0, 0, 0, 0) // Normalize to midnight to compare dates without time
-
-  const todayRecord = rows.find((record: any) => { // Find the attendance record for today
-    if (!record.date) return false // Skip records without a date
-    const recordDate = new Date(record.date) // Parse the record's date
-    recordDate.setHours(0, 0, 0, 0) // Normalize to midnight for comparison
-    return recordDate.getTime() === today.getTime() // Compare timestamps to find today's record
-  }) as any | undefined
-
-  const latestRecord = (rows[0] as any | undefined) ?? todayRecord // Use the most recent record (first in array) or today's record as fallback
-
-  const lastCheckIn =
-    latestRecord && latestRecord.checkInAt ? new Date(latestRecord.checkInAt).toLocaleTimeString() : null // Format the last check-in time or null if not available
-  const lastCheckOut =
-    latestRecord && latestRecord.checkOutAt ? new Date(latestRecord.checkOutAt).toLocaleTimeString() : null // Format the last check-out time or null if not available
-
-  const verificationMethod = latestRecord ? "Geolocation" : "Not recorded" // Show the verification method or "Not recorded" if no record exists
-
-  const filteredRows =
-    statusFilter === "ALL" ? rows : rows.filter((record: any) => record.status === statusFilter) // Filter rows by the selected status, or show all if "ALL" is selected
-
-  const columns = [ // Column definitions for the responsive table
-    {
-      header: "Student", // Column header
-      cell: (record: any) => ( // Render the student's name and email
-        <div className="leading-tight">
-          <p className="text-sm font-medium text-slate-800">{getFullName(record.user)}</p> {/* Student's full name using the display utility */}
-          {record.user?.email && ( // Only show email if available
-            <p className="text-xs text-slate-400">{record.user.email}</p> // Student's email in muted text
-          )}
+  return (
+    <div className="space-y-6">
+      {/* Hero */}
+      <motion.div
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated"
+        initial={{ opacity: 0, y: 32, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <motion.div
+          className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.18, 0.1] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl"
+          animate={{ scale: [1, 1.15, 1], opacity: [0.05, 0.12, 0.05] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <motion.div
+            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20"
+            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <QrCode className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <motion.div
+              className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              <motion.span animate={{ rotate: [0, 20, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}>
+                <Sparkles className="h-3.5 w-3.5" />
+              </motion.span>
+              <span>QR Attendance System</span>
+            </motion.div>
+            <motion.h1
+              className="text-xl sm:text-2xl font-bold text-white tracking-tight"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              QR Attendance
+            </motion.h1>
+            <motion.p
+              className="mt-1 text-sm text-silver max-w-2xl"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              {isScanner
+                ? "Scan student QR codes to record attendance in real time."
+                : "Show your QR code to your instructor for attendance."}
+            </motion.p>
+          </div>
+          <motion.div
+            className="flex flex-wrap items-center gap-2 shrink-0"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 text-white border-white/20">
+              <QrCode className="h-3.5 w-3.5 text-emerald-400" />
+              <span>QR-based</span>
+            </Badge>
+            <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 text-white border-white/20">
+              <Timer className="h-3.5 w-3.5 text-sky-400" />
+              <span>30s refresh</span>
+            </Badge>
+          </motion.div>
         </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.18, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        {isScanner ? <ScannerView /> : <StudentQRView />}
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <AttendanceHistory />
+      </motion.div>
+    </div>
+  )
+}
+
+function StudentQRView() {
+  const [qrToken, setQrToken] = useState<string | null>(null)
+  const [expiresIn, setExpiresIn] = useState(30)
+
+  const qrQuery = useQuery({
+    queryKey: ["qr-token"],
+    queryFn: () => apiRequest<ApiResponse<{ token: string; expiresIn: number }>>("/api/attendance/qr-token"),
+    refetchInterval: 28_000,
+  })
+
+  useEffect(() => {
+    if (qrQuery.data?.data) {
+      setQrToken(qrQuery.data.data.token)
+      setExpiresIn(qrQuery.data.data.expiresIn || 30)
+    }
+  }, [qrQuery.data])
+
+  useEffect(() => {
+    if (expiresIn <= 0) return
+    const timer = setInterval(() => {
+      setExpiresIn((prev) => (prev <= 1 ? 0 : prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [expiresIn])
+
+  // Auto-refetch when countdown reaches zero
+  useEffect(() => {
+    if (expiresIn <= 0) {
+      qrQuery.refetch()
+    }
+  }, [expiresIn, qrQuery])
+
+  const progress = (expiresIn / 30) * 100
+
+  return (
+    <SectionCard title="Your QR Code" description="Show this to your instructor. It refreshes automatically." className="shadow-card">
+      <div className="flex flex-col items-center gap-6 py-4">
+        {qrQuery.isLoading ? (
+          <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl bg-white border border-silver/20">
+            <LoadingSkeleton rows={1} columns={1} />
+          </div>
+        ) : qrQuery.isError ? (
+          <Alert variant="danger">Unable to load QR code. Please try again.</Alert>
+        ) : qrToken ? (
+          <>
+            <MotionScalePop className="relative rounded-2xl bg-gradient-to-br from-white to-silver/20 p-5 shadow-card ring-1 ring-silver/20">
+              <QRCodeSVG value={qrToken} size={220} level="M" />
+            </MotionScalePop>
+            <div className="w-full max-w-[300px] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs text-darksilver">
+                  <Timer className="h-3.5 w-3.5" />
+                  Refreshes in
+                </span>
+                <span className="font-mono text-sm font-semibold text-black tabular-nums">{expiresIn}s</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-silver/20">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-1000 ease-linear"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ScannerView() {
+  const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  const scanMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest<ApiResponse<any>>("/api/attendance/scan", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
+    onSuccess: (data) => {
+      const name = data.data?.student ? getFullName(data.data.student) : "Student"
+      setScanResult({ success: true, message: `${name} — marked PRESENT` })
+      toast.success("Attendance recorded")
+      setTimeout(() => setScanResult(null), 4000)
+    },
+    onError: (error) => {
+      setScanResult({ success: false, message: error instanceof Error ? error.message : "Scan failed" })
+      toast.error("Scan failed")
+      setTimeout(() => setScanResult(null), 4000)
+    },
+  })
+
+  const stopScanning = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setIsScanning(false)
+  }, [])
+
+  const startScanning = useCallback(async () => {
+    setIsScanning(true)
+    setScanResult(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+    } catch {
+      setScanResult({ success: false, message: "Camera access denied" })
+      setIsScanning(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isScanning || !videoRef.current) return
+
+    let animFrame: number | null = null
+    let stopped = false
+
+    async function init() {
+      if (typeof BarcodeDetector !== "undefined") {
+        const detector = new BarcodeDetector({ formats: ["qr_code"] })
+        async function scanFrame() {
+          if (stopped || !videoRef.current) return
+          try {
+            const barcodes = await detector.detect(videoRef.current)
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              scanMutation.mutate(barcodes[0].rawValue)
+              stopScanning()
+              return
+            }
+          } catch { /* ignore */ }
+          animFrame = requestAnimationFrame(scanFrame)
+        }
+        scanFrame()
+      } else {
+        try {
+          if (!videoRef.current) return
+          const video = videoRef.current
+          const QrScanner = (await import("qr-scanner")).default
+          const scanner = new QrScanner(
+            video,
+            (result: { data: string }) => {
+              if (result?.data) {
+                scanMutation.mutate(result.data)
+                stopScanning()
+              }
+            },
+            { returnDetailedScanResult: true }
+          )
+          await scanner.start()
+          if (!stopped) {
+            return () => { scanner.stop(); scanner.destroy() }
+          }
+        } catch {
+          setScanResult({ success: false, message: "QR scanner not supported in this browser" })
+          stopScanning()
+        }
+      }
+    }
+
+    init()
+
+    return () => {
+      stopped = true
+      if (animFrame) cancelAnimationFrame(animFrame)
+    }
+  }, [isScanning])
+
+  useEffect(() => {
+    return () => stopScanning()
+  }, [])
+
+  return (
+    <SectionCard
+      title="QR Scanner"
+      description="Point camera at student QR code."
+      className="shadow-card"
+      actions={
+        <button
+          onClick={isScanning ? stopScanning : startScanning}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 shadow-soft",
+            isScanning
+              ? "bg-red-50 text-red-600 hover:bg-red-100"
+              : "bg-gradient-to-r from-navy to-royal text-white hover:from-navy hover:to-black"
+          )}
+        >
+          {isScanning ? (
+            <>
+              <Camera className="h-4 w-4" />
+              Stop Scanner
+            </>
+          ) : (
+            <>
+              <ScanLine className="h-4 w-4" />
+              Open Scanner
+            </>
+          )}
+        </button>
+      }
+    >
+      <div className="flex flex-col items-center gap-4">
+        {isScanning && (
+          <div className="relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-silver/30 bg-black shadow-card">
+            <video
+              ref={videoRef}
+              className="w-full"
+              playsInline
+              muted
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="relative h-48 w-48">
+                <div className="absolute inset-0 rounded-2xl border-2 border-white/40" />
+                <div className="absolute left-0 top-0 h-8 w-8 border-l-2 border-t-2 border-white rounded-tl-2xl" />
+                <div className="absolute right-0 top-0 h-8 w-8 border-r-2 border-t-2 border-white rounded-tr-2xl" />
+                <div className="absolute bottom-0 left-0 h-8 w-8 border-l-2 border-b-2 border-white rounded-bl-2xl" />
+                <div className="absolute bottom-0 right-0 h-8 w-8 border-r-2 border-b-2 border-white rounded-br-2xl" />
+              </div>
+            </div>
+            <div className="absolute bottom-4 left-0 right-0 text-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-4 py-1.5 text-xs text-white/90 backdrop-blur-sm">
+                <ScanLine className="h-3 w-3" />
+                Point camera at QR code
+              </span>
+            </div>
+          </div>
+        )}
+        {scanResult && (
+          <div className={cn(
+            "flex items-center gap-3 rounded-xl border px-5 py-3.5 text-sm shadow-soft animate-scale-in w-full max-w-[400px]",
+            scanResult.success
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-red-200 bg-red-50 text-red-800"
+          )}>
+            {scanResult.success ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-600 shrink-0" />
+            )}
+            <span className="font-medium">{scanResult.message}</span>
+          </div>
+        )}
+        {!isScanning && !scanResult && (
+          <div className="flex flex-col items-center gap-3 py-8 text-darksilver">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white">
+              <Camera className="h-7 w-7" strokeWidth={1.25} />
+            </span>
+            <div className="text-center">
+              <p className="text-sm font-medium text-darksilver">Camera is idle</p>
+              <p className="text-xs text-darksilver mt-1">Click "Open Scanner" to start scanning student QR codes.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  )
+}
+
+function AttendanceHistory() {
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PRESENT" | "LATE" | "ABSENT">("ALL")
+
+  const attendanceQuery = useQuery({
+    queryKey: ["attendance"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/attendance"),
+    refetchInterval: 10_000,
+  })
+
+  const rows = attendanceQuery.data?.data ?? []
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: rows.length, PRESENT: 0, LATE: 0, ABSENT: 0 }
+    for (const r of rows) {
+      if (counts[r.status] !== undefined) counts[r.status]++
+    }
+    return counts
+  }, [rows])
+
+  const filteredRows = useMemo(() => {
+    return statusFilter === "ALL" ? rows : rows.filter((record: any) => record.status === statusFilter)
+  }, [rows, statusFilter])
+
+  const columns = [
+    {
+      header: "Student",
+      cell: (record: any) => {
+        const profile = record.user?.studentProfile
+        const name = getFullName(record.user)
+        const initial = profile?.firstName?.[0] ?? record.user?.email?.[0] ?? "?"
+        return (
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-royal text-xs font-bold text-white shadow-soft shrink-0">
+              {initial.toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-black truncate">{name}</p>
+              {record.user?.email && (
+                <p className="text-xs text-darksilver truncate">{record.user.email}</p>
+              )}
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      header: "Date",
+      cell: (record: any) => (
+        <span className="text-sm text-darksilver whitespace-nowrap">
+          {new Date(record.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+        </span>
       ),
     },
     {
-      header: "Date", // Column header
-      cell: (record: any) => new Date(record.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }), // Format the attendance date
+      header: "Status",
+      cell: (record: any) => <StatusBadge status={record.status} />,
     },
     {
-      header: "Status", // Column header
-      cell: (record: any) => <StatusBadge status={record.status} />, // Render PRESENT/LATE/ABSENT as a colored status badge
-    },
-    {
-      header: "Check In", // Column header
-      cell: (record: any) => (record.checkInAt ? new Date(record.checkInAt).toLocaleTimeString() : "—"), // Format check-in time or show em dash
-    },
-    {
-      header: "Check Out", // Column header
-      cell: (record: any) => (record.checkOutAt ? new Date(record.checkOutAt).toLocaleTimeString() : "—"), // Format check-out time or show em dash
-    },
-    {
-      header: "Location", // Column header
-      cell: (record: any) => { // Render a Google Maps link if coordinates are available
-        if (record.latitude && record.longitude) { // Only render if both coordinates exist
-          const mapsUrl = `https://www.google.com/maps?q=${record.latitude},${record.longitude}` // Build the Google Maps URL with the coordinates
-          return (
-            <div className="flex flex-col gap-1"> {/* Vertical stack for the link and coordinates */}
-              <a
-                href={mapsUrl} // Link to Google Maps
-                target="_blank" // Open in a new tab
-                rel="noopener noreferrer" // Security: prevent the new tab from accessing the opener
-                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:underline" // Blue link with hover underline
-              >
-                <MapPin className="h-3 w-3" /> {/* Small map pin icon */}
-                View on Map
-              </a>
-              <span className="text-[10px] text-slate-400 font-mono"> {/* Monospace coordinates in small muted text */}
-                {record.latitude.toFixed(6)}, {record.longitude.toFixed(6)} {/* Display coordinates to 6 decimal places */}
-              </span>
-            </div>
-          )
-        }
-        return <span className="text-xs text-slate-400">—</span> // Show em dash if no coordinates
-      },
+      header: "Scanned At",
+      cell: (record: any) => (
+        <span className="text-sm text-darksilver whitespace-nowrap">
+          {record.checkInAt ? new Date(record.checkInAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "—"}
+        </span>
+      ),
     },
   ]
 
   return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
-      <PageHeader
-        title="Attendance"
-        description="Log participation using device geolocation today and prepare for biometric verification."
-        actions={ // Status badges in the page header
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1 text-xs"> {/* Logging enabled badge */}
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" /> {/* Green check icon */}
-              <span>Logging enabled</span>
-            </Badge>
-            <Badge variant="outline" className="flex items-center gap-1 text-xs"> {/* Location required badge */}
-              <MapPin className="h-3 w-3 text-slate-500" /> {/* Map pin icon */}
-              <span>Location required</span>
-            </Badge>
-          </div>
-        }
-      />
-      <Card className="border-slate-200/80 bg-white/80 shadow-sm"> {/* Today's status card with semi-transparent background */}
-        <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between"> {/* Card content: stacked on mobile, row on desktop */}
-          <div> {/* Left section: today's status */}
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Today</div> {/* "Today" label */}
-            <div className="mt-2"> {/* Status badge container */}
-              {todayRecord ? ( // Show today's status badge if a record exists
-                <StatusBadge status={todayRecord.status} />
-              ) : (
-                <Badge variant="outline">Not checked in</Badge> // Show "Not checked in" if no record for today
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-4 text-xs text-slate-500"> {/* Right section: check-in/out times and verification method */}
-            <div className="flex items-center gap-2"> {/* Check-in time row */}
-              <Clock className="h-3 w-3" /> {/* Clock icon */}
-              <span>Last check-in: {lastCheckIn ?? "—"}</span> {/* Last check-in time or em dash */}
-            </div>
-            <div className="flex items-center gap-2"> {/* Check-out time row */}
-              <Clock className="h-3 w-3" /> {/* Clock icon */}
-              <span>Last check-out: {lastCheckOut ?? "—"}</span> {/* Last check-out time or em dash */}
-            </div>
-            <div className="flex items-center gap-2"> {/* Verification method row */}
-              <MapPin className="h-3 w-3" /> {/* Map pin icon */}
-              <span>Verification: {verificationMethod}</span> {/* Verification method text */}
-            </div>
-            {latestRecord?.latitude && latestRecord?.longitude && ( // Only show the location link if coordinates exist
-              <div className="flex items-center gap-2"> {/* Location link row */}
-                <MapPin className="h-3 w-3 text-blue-600" /> {/* Blue map pin icon */}
-                <a
-                  href={`https://www.google.com/maps?q=${latestRecord.latitude},${latestRecord.longitude}`} // Google Maps link
-                  target="_blank" // Open in new tab
-                  rel="noopener noreferrer" // Security attribute
-                  className="text-blue-600 hover:text-blue-700 hover:underline" // Blue link with hover underline
+    <SectionCard title="Attendance History" description="Recent attendance records." className="shadow-card">
+      {rows.length > 0 && (
+        <div className="space-y-4">
+          <motion.div
+            className="grid gap-4 sm:grid-cols-3 px-6 pt-2"
+            variants={cardContainerVariants}
+            initial="initial"
+            animate="animate"
+          >
+            {(["PRESENT", "LATE", "ABSENT"] as const).map((status) => {
+              const meta = statusMeta[status]
+              const count = statusCounts[status]
+              return (
+                <motion.div
+                  key={status}
+                  variants={cardItemVariants}
+                  whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2, ease: "easeOut" } }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex items-center gap-4 rounded-xl border border-silver/20 bg-white p-4 shadow-card cursor-default"
                 >
-                  View Location
-                </a>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]"> {/* Two-column grid for the check-in and facial recognition cards */}
-        <SectionCard
-          title="Geolocation Attendance"
-          description="Use your device location to log attendance."
-          actions={ // Badge indicating this is the core method
-            <Badge variant="info" className="text-xs">
-              Core method
-            </Badge>
-          }
-        >
-          <div className="space-y-4"> {/* Vertical stack inside the card */}
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500"> {/* Info row */}
-              <div className="flex items-center gap-2"> {/* Location access instruction */}
-                <MapPin className="h-3 w-3" /> {/* Map pin icon */}
-                <span>Allow location access in your browser to enable check-in.</span>
-              </div>
-              {latestRecord && ( // Only show the latest status if a record exists
-                <div className="flex items-center gap-2"> {/* Latest status row */}
-                  <AlertTriangle className="h-3 w-3 text-amber-500" /> {/* Warning icon */}
-                  <span>
-                    Latest status:{" "}
-                    <span className="font-medium text-slate-700">{latestRecord.status}</span> {/* Bold status text */}
+                  <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", meta.bg)}>
+                    <meta.icon className={cn("h-5 w-5", meta.color)} strokeWidth={1.75} />
                   </span>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2"> {/* Row of check-in/out buttons */}
-              <Button onClick={handleCheckIn} disabled={checkInMutation.isPending} className="flex items-center gap-2"> {/* Check-in button */}
-                <CheckCircle2 className="h-4 w-4" /> {/* Check circle icon */}
-                <span>{checkInMutation.isPending ? "Checking in..." : "Check In"}</span> {/* Loading text while checking in */}
-              </Button>
-              <Button
-                onClick={handleCheckOut}
-                variant="outline" // Outline style for the secondary action
-                disabled={checkOutMutation.isPending} // Disable while checking out
-                className="flex items-center gap-2"
-              >
-                <Clock className="h-4 w-4" /> {/* Clock icon */}
-                <span>{checkOutMutation.isPending ? "Checking out..." : "Check Out"}</span> {/* Loading text while checking out */}
-              </Button>
-            </div>
-            {status && <Alert variant={status.variant}>{status.message}</Alert>} {/* Show inline status alert if set */}
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">{meta.label}</p>
+                    <motion.p
+                      className={cn("text-xl font-bold mt-0.5", meta.color)}
+                      initial={{ opacity: 0, scale: 0.7 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+                    >
+                      {count}
+                    </motion.p>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </motion.div>
+
+          <div className="flex flex-wrap items-center gap-2 px-6">
+            {ATTENDANCE_STATUSES.map((s) => {
+              const meta = statusMeta[s]
+              const count = statusCounts[s] || 0
+              const isActive = statusFilter === s
+              return (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(isActive ? "ALL" : s)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                    isActive
+                      ? s === "ALL"
+                        ? "bg-navy text-white ring-1 ring-inset ring-navy"
+                        : `${meta.bg} ${meta.color} ring-1 ring-inset ring-silver/30`
+                      : "bg-white text-darksilver hover:bg-silver/20 hover:text-black/80"
+                  )}
+                >
+                  {s !== "ALL" && <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />}
+                  {s === "ALL" ? "All" : meta?.label ?? s}
+                  <span className={cn(
+                    "ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                    isActive ? (s === "ALL" ? "bg-white/20" : "bg-white/60") : "bg-white"
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
           </div>
-        </SectionCard>
-        <SectionCard
-          title="Facial Recognition Attendance"
-          description="Future-ready verification workflow placeholder."
-          actions={ // Badge indicating this is a placeholder
-            <Badge variant="outline" className="text-xs">
-              Placeholder
-            </Badge>
-          }
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center"> {/* Stacked on mobile, row on desktop */}
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/5 text-slate-700"> {/* Camera icon container */}
-              <Camera className="h-6 w-6" /> {/* Camera icon */}
-            </div>
-            <div className="flex-1 space-y-2"> {/* Description text block */}
-              <p className="text-sm text-slate-600">
-                This section is reserved for future facial recognition integration, aligned with your institution&apos;s
-                verification provider.
-              </p>
-              <p className="text-xs text-slate-500">
-                Use the simulation flow during development to validate audit logs and attendance state changes before
-                connecting a live biometric service.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:items-end"> {/* Simulate button and disclaimer */}
-              <Button variant="secondary" className="flex items-center gap-2"> {/* Simulate verification button */}
-                <CheckCircle2 className="h-4 w-4" /> {/* Check circle icon */}
-                <span>Simulate Verification</span>
-              </Button>
-              <p className="max-w-[220px] text-xs text-slate-500"> {/* Disclaimer text */}
-                No biometric data is processed yet. This is a safe placeholder for integration.
-              </p>
-            </div>
+        </div>
+      )}
+
+      {attendanceQuery.isError && (
+        <div className="px-6 pt-4">
+          <Alert variant="danger">Unable to load attendance history.</Alert>
+        </div>
+      )}
+
+      <div className="px-6 pt-3 pb-2">
+        {attendanceQuery.isLoading ? (
+          <LoadingSkeleton rows={3} columns={4} />
+        ) : rows.length === 0 ? (
+          <div className="py-4">
+            <EmptyState title="No attendance records" description="Scan a QR code to start building history." />
           </div>
-        </SectionCard>
-      </div>
-      <SectionCard
-        title="Attendance History"
-        description="Review recent attendance activity."
-        actions={ // Filter dropdown and refresh button in the card header
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={statusFilter} // Controlled select value
-              onChange={(event) => setStatusFilter(event.target.value as "ALL" | "PRESENT" | "LATE" | "ABSENT")} // Update filter state on change
-              className="h-9 w-[160px]" // Fixed width select
-            >
-              <option value="ALL">All statuses</option> {/* Show all records */}
-              <option value="PRESENT">Present</option> {/* Filter to present only */}
-              <option value="LATE">Late</option> {/* Filter to late only */}
-              <option value="ABSENT">Absent</option> {/* Filter to absent only */}
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => attendanceQuery.refetch()} // Manually refresh the attendance list
-            >
-              Refresh
-            </Button>
+        ) : filteredRows.length === 0 ? (
+          <div className="py-4">
+            <EmptyState
+              title="No records for this status"
+              description="Try selecting a different attendance status filter."
+            />
           </div>
-        }
-      >
-        {attendanceQuery.isError && <Alert variant="danger">Unable to load attendance history.</Alert>} {/* Error alert if fetch failed */}
-        {attendanceQuery.isLoading ? ( // Show loading skeleton while fetching
-          <LoadingSkeleton rows={3} columns={4} /> // Skeleton matching the table structure
-        ) : rows.length === 0 ? ( // Show empty state if no records exist
-          <EmptyState title="No attendance records" description="Check in to start building your history." />
-        ) : filteredRows.length === 0 ? ( // Show empty state if the filter returns no results
-          <EmptyState
-            title="No records for this status"
-            description="Try selecting a different attendance status filter."
-          />
         ) : (
           <ResponsiveTableCards
-            data={filteredRows} // Pass the filtered records as data
-            columns={columns} // Pass the column definitions
-            rowKey={(record) => record.id} // Use the record ID as the React key
-            renderTitle={(record) => new Date(record.date).toLocaleDateString()} // Use the formatted date as the card title on mobile
+            data={filteredRows}
+            columns={columns}
+            rowKey={(record) => record.id}
+            renderTitle={(record) => new Date(record.date).toLocaleDateString()}
           />
         )}
-      </SectionCard>
-    </div>
+      </div>
+    </SectionCard>
   )
 }

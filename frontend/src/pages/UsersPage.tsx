@@ -1,147 +1,255 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for creating users and useQuery for fetching the user list
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { Input } from "../components/ui/input" // Import the reusable Input component
-import { Select } from "../components/ui/select" // Import the reusable Select component for the role dropdown
-import { useForm } from "react-hook-form" // Import useForm for form state management and validation
-import { z } from "zod" // Import zod for schema-based validation
-import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { useState } from "react" // Import useState for managing search and profile drawer state
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
-import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { StatusBadge } from "../components/ui/status-badge" // Import the StatusBadge for active/inactive status display
-import { toast } from "sonner" // Import toast for notifications
-import { FormSection } from "../components/ui/form-section" // Import the FormSection wrapper for the create form
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for the list section
-import { DataToolbar } from "../components/ui/data-toolbar" // Import the DataToolbar wrapper for the search input
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { Eye } from "lucide-react" // Import the Eye icon for the view profile button
-import { StudentProfileDrawer } from "../components/StudentProfileDrawer" // Import the profile drawer component
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Select } from "../components/ui/select"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useState, useMemo } from "react"
+import { FormField } from "../components/ui/form-field"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { StatusBadge } from "../components/ui/status-badge"
+import { toast } from "sonner"
+import { FormSection } from "../components/ui/form-section"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { Search, Sparkles, Users, UserPlus, Shield, Mail, Lock, User, Eye, RefreshCw } from "lucide-react"
+import { cn } from "../lib/utils"
+import { StudentProfileDrawer } from "../components/StudentProfileDrawer"
 
-// Zod validation schema for the user creation form
 const schema = z.object({
-  email: z.string().email(), // Email must be a valid email format
-  password: z.string().min(8), // Password must be at least 8 characters
-  role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]), // Role must be one of the valid role values
-  firstName: z.string().min(1), // First name must not be empty
-  lastName: z.string().min(1) // Last name must not be empty
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1)
 })
 
-type FormValues = z.infer<typeof schema> // Derive the TypeScript type from the zod schema
+type FormValues = z.infer<typeof schema>
 
-// The user management page component (admin only)
+const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  ADMIN: { label: "Admin", color: "text-violet-600", bg: "bg-violet-50" },
+  IMPLEMENTOR: { label: "Implementor", color: "text-royal", bg: "bg-sky-50" },
+  CADET_OFFICER: { label: "Cadet Officer", color: "text-amber-600", bg: "bg-amber-50" },
+  STUDENT: { label: "Student", color: "text-emerald-600", bg: "bg-emerald-50" },
+}
+
 export function UsersPage() {
-  const [search, setSearch] = useState("") // State for the search query string
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null) // State for the user ID whose profile drawer is open (null = closed)
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { role: "STUDENT" } }) // Initialize the form with zod validation and STUDENT as the default role
-  const usersQuery = useQuery({ // Fetch the list of users, re-fetching when the search query changes
-    queryKey: ["users", search], // Cache key includes the search string
-    queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/users?search=${encodeURIComponent(search)}`), // Fetch users with the search query URL-encoded
-    refetchInterval: 5000 // Auto-refetch every 5 seconds
+  const [search, setSearch] = useState("")
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { role: "STUDENT" } })
+  const usersQuery = useQuery({
+    queryKey: ["users", search],
+    queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/users?search=${encodeURIComponent(search)}`),
+    refetchInterval: 5000
   })
 
-  const mutation = useMutation({ // Mutation for creating a new user
+  const mutation = useMutation({
     mutationFn: (values: FormValues) =>
-      apiRequest<ApiResponse<any>>("/api/users", { method: "POST", body: JSON.stringify(values) }), // POST the form values to the users endpoint
+      apiRequest<ApiResponse<any>>("/api/users", { method: "POST", body: JSON.stringify(values) }),
     onSuccess: () => {
-      usersQuery.refetch() // Refresh the users list after creation
-      toast.success("User created") // Show success notification
+      usersQuery.refetch()
+      toast.success("User created")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to create user") // Show error notification
+      toast.error(error instanceof Error ? error.message : "Unable to create user")
     }
   })
 
-  const onSubmit = form.handleSubmit(async (values) => { // Form submit handler (runs validation first)
-    await mutation.mutateAsync(values) // Trigger the create mutation
-    form.reset({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT" }) // Reset the form to default values after successful creation
+  const onSubmit = form.handleSubmit(async (values) => {
+    await mutation.mutateAsync(values)
+    form.reset({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT" })
   })
 
-  const rows = usersQuery.data?.data ?? [] // Extract the users array, defaulting to empty array
-  const columns = [ // Column definitions for the responsive table
+  const rows = usersQuery.data?.data ?? []
+
+  const roleCounts = useMemo(() => {
+    const counts: Record<string, number> = { total: rows.length, ADMIN: 0, IMPLEMENTOR: 0, CADET_OFFICER: 0, STUDENT: 0 }
+    for (const u of rows) {
+      if (counts[u.role] !== undefined) counts[u.role]++
+    }
+    return counts
+  }, [rows])
+
+  const columns = [
     {
-      header: "Email", // Column header
-      cell: (user: any) => ( // Render the user's email with a view profile button
+      header: "Email",
+      cell: (user: any) => (
         <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-900">{user.email}</span> {/* User email in bold dark text */}
-          <button
-            onClick={() => setSelectedUserId(user.id)} // Open the profile drawer for this user
-            className="text-primary-600 hover:text-primary-700" // Primary color button that darkens on hover
-            title="View Profile" // Tooltip text
-          >
-            <Eye className="h-4 w-4" /> {/* Eye icon for viewing the profile */}
-          </button>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-navy to-royal text-xs font-bold text-white shadow-soft shrink-0">
+            {(user.email?.[0] ?? "?").toUpperCase()}
+          </span>
+          <span className="font-medium text-black">{user.email}</span>
         </div>
       )
     },
     {
-      header: "Role", // Column header
-      cell: (user: any) => user.role // Render the user's role string
+      header: "Role",
+      cell: (user: any) => {
+        const badge = ROLE_BADGE[user.role] ?? { label: user.role, color: "text-darksilver", bg: "bg-white" }
+        return (
+          <span className={cn("inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold", badge.bg, badge.color)}>
+            <Shield className="h-3 w-3" />
+            {badge.label}
+          </span>
+        )
+      }
     },
     {
-      header: "Status", // Column header
-      cell: (user: any) => <StatusBadge status={user.isActive ? "ACTIVE" : "INACTIVE"} /> // Render active/inactive as a colored status badge
+      header: "Status",
+      cell: (user: any) => {
+        const isActive = user.isActive
+        return (
+          <span className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold",
+            isActive ? "bg-emerald-50 text-emerald-600" : "bg-silver/20 text-darksilver"
+          )}>
+            <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-500" : "bg-darksilver")} />
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        )
+      }
+    },
+    {
+      header: "",
+      cell: (user: any) => (
+        <button
+          onClick={() => setSelectedUserId(user.id)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-darksilver hover:bg-white transition-all shrink-0"
+          title="View Profile"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+      )
     }
   ]
 
+  const summaryCards = [
+    { label: "Total Users", value: roleCounts.total, icon: Users, color: "text-black/80", bg: "bg-silver/20" },
+    { label: "Admins", value: roleCounts.ADMIN, icon: Shield, color: "text-violet-600", bg: "bg-violet-50" },
+    { label: "Implementors", value: roleCounts.IMPLEMENTOR, icon: UserPlus, color: "text-royal", bg: "bg-sky-50" },
+    { label: "Students", value: roleCounts.STUDENT, icon: User, color: "text-emerald-600", bg: "bg-emerald-50" },
+  ]
+
   return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
-      <PageHeader title="User Management" description="Create and manage staff and student accounts" /> {/* Page title and description */}
-      <FormSection title="Create User" description="Assign the correct role and details"> {/* Form section wrapper */}
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}> {/* Two-column grid form */}
-          <FormField label="Email" required error={form.formState.errors.email?.message}> {/* Email field with validation error */}
-            <Input placeholder="user@school.edu" {...form.register("email")} /> {/* Email input registered with react-hook-form */}
+    <div className="space-y-6 animate-fade-in">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated">
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <div className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20">
+            <Users className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>User Administration</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Users</h1>
+            <p className="mt-1 text-sm text-silver max-w-2xl">Create and manage staff and student accounts.</p>
+          </div>
+        </div>
+      </div>
+
+      {rows.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {summaryCards.map(({ label, value, icon: SummaryIcon, color, bg }, idx) => (
+            <div
+              key={label}
+              className="flex items-center gap-4 rounded-xl border border-silver/20 bg-white p-5 shadow-card transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5"
+              style={{ animationDelay: `${idx * 80}ms` }}
+            >
+              <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl shrink-0", bg)}>
+                <SummaryIcon className={cn("h-6 w-6", color)} strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">{label}</p>
+                <p className={cn("text-2xl font-bold mt-0.5", color)}>{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <FormSection title="Create User" description="Assign the correct role and details" className="shadow-card">
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+          <FormField label="Email" required error={form.formState.errors.email?.message}>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input placeholder="user@school.edu" className="pl-10" {...form.register("email")} />
+            </div>
           </FormField>
-          <FormField label="Password" required error={form.formState.errors.password?.message}> {/* Password field with validation error */}
-            <Input type="password" placeholder="••••••••" {...form.register("password")} /> {/* Password input registered with react-hook-form */}
+          <FormField label="Password" required error={form.formState.errors.password?.message}>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input type="password" placeholder="••••••••" className="pl-10" {...form.register("password")} />
+            </div>
           </FormField>
-          <FormField label="First name" required error={form.formState.errors.firstName?.message}> {/* First name field with validation error */}
-            <Input placeholder="Juan" {...form.register("firstName")} /> {/* First name input registered with react-hook-form */}
+          <FormField label="First name" required error={form.formState.errors.firstName?.message}>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input placeholder="Juan" className="pl-10" {...form.register("firstName")} />
+            </div>
           </FormField>
-          <FormField label="Last name" required error={form.formState.errors.lastName?.message}> {/* Last name field with validation error */}
-            <Input placeholder="Dela Cruz" {...form.register("lastName")} /> {/* Last name input registered with react-hook-form */}
+          <FormField label="Last name" required error={form.formState.errors.lastName?.message}>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input placeholder="Dela Cruz" className="pl-10" {...form.register("lastName")} />
+            </div>
           </FormField>
-          <FormField label="Role" required> {/* Role field */}
-            <Select {...form.register("role")}> {/* Role dropdown registered with react-hook-form */}
-              <option value="STUDENT">Student</option> {/* Student role option */}
-              <option value="IMPLEMENTOR">Implementor</option> {/* Implementor role option */}
-              <option value="CADET_OFFICER">Cadet Officer</option> {/* Cadet Officer role option */}
-              <option value="ADMIN">Admin</option> {/* Admin role option */}
+          <FormField label="Role" required>
+            <Select {...form.register("role")}>
+              <option value="STUDENT">Student</option>
+              <option value="IMPLEMENTOR">Implementor</option>
+              <option value="CADET_OFFICER">Cadet Officer</option>
+              <option value="ADMIN">Admin</option>
             </Select>
           </FormField>
-          {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>} {/* Error alert spanning both columns */}
-          <div className="md:col-span-2"> {/* Submit button spanning both columns */}
-            <Button type="submit" disabled={mutation.isPending}> {/* Submit button, disabled while creating */}
-              {mutation.isPending ? "Saving..." : "Create"} {/* Loading text while creating */}
+          {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>}
+          <div className="md:col-span-2">
+            <Button type="submit" disabled={mutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+              {mutation.isPending ? "Saving..." : "Create"}
             </Button>
           </div>
         </form>
       </FormSection>
-      <SectionCard title="Users" description="Active accounts across the system"> {/* Card wrapper for the users list */}
-        <div className="space-y-4"> {/* Vertical stack with spacing between toolbar and table */}
-          <DataToolbar> {/* Toolbar wrapper for the search input */}
-            <Input placeholder="Search by email" value={search} onChange={(event) => setSearch(event.target.value)} /> {/* Search input that updates the search state */}
-          </DataToolbar>
-          {usersQuery.isError && <Alert variant="danger">Unable to load users.</Alert>} {/* Error alert if fetch failed */}
-          {usersQuery.isLoading ? ( // Show loading skeleton while fetching
-            <LoadingSkeleton rows={3} columns={3} /> // Skeleton matching the table structure
-          ) : rows.length === 0 ? ( // Show empty state if no users found
+
+      <SectionCard title="Users" description="Active accounts across the system" className="shadow-card">
+        <div className="space-y-4">
+          <div className="px-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input
+                placeholder="Search by email"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="h-10 pl-10"
+              />
+            </div>
+          </div>
+          {usersQuery.isError && <Alert variant="danger">Unable to load users.</Alert>}
+          {usersQuery.isLoading ? (
+            <LoadingSkeleton rows={3} columns={3} />
+          ) : rows.length === 0 ? (
             <EmptyState title="No users found" description="Try adjusting your search query." />
           ) : (
-            <ResponsiveTableCards
-              data={rows} // Pass the users array as data
-              columns={columns} // Pass the column definitions
-              rowKey={(user) => user.id} // Use the user ID as the React key
-              renderTitle={(user) => user.email} // Use the user's email as the card title on mobile
-            />
+            <div className="px-6 pb-6">
+              <ResponsiveTableCards
+                data={rows}
+                columns={columns}
+                rowKey={(user) => user.id}
+                renderTitle={(user) => user.email}
+              />
+            </div>
           )}
         </div>
       </SectionCard>
-      <StudentProfileDrawer userId={selectedUserId} onClose={() => setSelectedUserId(null)} /> {/* Profile drawer: open when selectedUserId is set, close by clearing it */}
+      <StudentProfileDrawer userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
     </div>
   )
 }

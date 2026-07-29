@@ -33,7 +33,7 @@ export function SectionCard({
       <CardHeader 
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between",
-          collapsible && "cursor-pointer hover:bg-slate-50"
+          collapsible && "cursor-pointer hover:bg-white"
         )}
         onClick={collapsible ? () => setIsCollapsed(!isCollapsed) : undefined}
       >
@@ -43,9 +43,9 @@ export function SectionCard({
               {title}
               {collapsible && (
                 isCollapsed ? (
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                  <ChevronDown className="h-4 w-4 text-darksilver" />
                 ) : (
-                  <ChevronUp className="h-4 w-4 text-slate-500" />
+                  <ChevronUp className="h-4 w-4 text-darksilver" />
                 )
               )}
             </CardTitle>

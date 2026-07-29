@@ -1,21 +1,14 @@
-// Import the Hono router class to create a modular sub-router for auth endpoints
 import { Hono } from "hono"
-// Import all authentication controller functions
 import { login, logout, profile, refresh, register, updateAvatar, removeAvatar, updateAvatarFrame, updatePassword, updateProfile } from "../controllers/authController.js"
-// Import the body validation middleware factory
 import { validateBody } from "../middlewares/zod.js"
-// Import the authentication middleware to protect private routes
 import { authMiddleware } from "../middlewares/auth.js"
-// Import the Zod schemas used to validate auth request bodies
 import { changePasswordSchema, loginSchema, refreshSchema, registerSchema } from "../validators/auth.js"
+import { rateLimitLogin } from "../middlewares/rateLimit.js"
 
-// Create a new Hono sub-router for all /api/auth/* routes
 export const authRoutes = new Hono()
 
-// POST /api/auth/register — validate body then call the register controller
 authRoutes.post("/register", validateBody(registerSchema), register)
-// POST /api/auth/login — validate body then call the login controller
-authRoutes.post("/login", validateBody(loginSchema), login)
+authRoutes.post("/login", validateBody(loginSchema), rateLimitLogin, login)
 // POST /api/auth/refresh — validate body then issue new token pair
 authRoutes.post("/refresh", validateBody(refreshSchema), refresh)
 // POST /api/auth/logout — stateless logout (client discards tokens); no auth required

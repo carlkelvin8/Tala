@@ -31,7 +31,6 @@ export function SiteHeader() {
   const displayName = currentUser ? getUserDisplayName(currentUser) : null
   const userInitials = currentUser ? getUserInitials(currentUser) : "G"
 
-  // Update user data when localStorage changes
   React.useEffect(() => {
     const handleStorageChange = () => {
       setCurrentUser(getStoredUser())
@@ -39,14 +38,8 @@ export function SiteHeader() {
     
     window.addEventListener('storage', handleStorageChange)
     
-    // Also check periodically for updates
-    const interval = setInterval(() => {
-      setCurrentUser(getStoredUser())
-    }, 1000)
-    
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      clearInterval(interval)
     }
   }, [])
 
@@ -56,36 +49,33 @@ export function SiteHeader() {
   const pageTitle = pageTitles[location.pathname] || "Command Overview"
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm px-6 shadow-sm">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-silver/30 bg-white/95 backdrop-blur-sm px-6 shadow-sm">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="-ml-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg p-2 transition-colors" />
-        <div className="h-6 w-px bg-slate-200" />
+        <SidebarTrigger className="-ml-1 text-darksilver hover:text-black hover:bg-silver/20 rounded-lg p-2 transition-colors" />
+        <div className="h-6 w-px bg-silver/30" />
         <div>
-          <h1 className="text-base font-bold text-slate-900">{pageTitle}</h1>
+          <h1 className="text-base font-bold text-black">{pageTitle}</h1>
           {displayName && (
-            <p className="text-xs text-slate-500 mt-0.5">
-              {greeting}, <span className="font-semibold text-slate-700">{displayName}</span>
+            <p className="text-xs text-darksilver mt-0.5">
+              {greeting}, <span className="font-semibold text-black/80">{displayName}</span>
             </p>
           )}
         </div>
       </div>
       
       <div className="flex items-center gap-3">
-        {/* Search Button */}
-        <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+        <button aria-label="Search" className="flex h-9 w-9 items-center justify-center rounded-lg text-darksilver hover:text-black hover:bg-silver/20 transition-colors">
           <Search className="h-4 w-4" />
         </button>
         
-        {/* Notifications Button */}
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+        <button aria-label="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-darksilver hover:text-black hover:bg-silver/20 transition-colors">
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white" />
         </button>
 
-        {/* Profile Picture */}
         <button 
           onClick={() => navigate("/profile")}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white hover:shadow-md transition-all overflow-hidden border-2 border-slate-200 hover:border-slate-300"
+          aria-label="Profile"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-navy via-royal to-royal text-white hover:shadow-md transition-all overflow-hidden border-2 border-silver/30 hover:border-silver/40"
         >
           {currentUser?.avatarUrl ? (
             <img 

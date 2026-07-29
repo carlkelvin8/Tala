@@ -38,16 +38,25 @@ export async function startExamAttempt(examSessionId: string, studentId: string)
   return attempt
 }
 
-/* End an existing exam attempt by setting its end time */
+/* End an existing exam attempt by setting its end time, with ownership verification */
 export async function endExamAttempt(id: string, studentId: string) {
-  // Update the exam attempt record with the current time as the end time
+  // Verify the attempt belongs to the requesting student
+  const existing = await prisma.examAttempt.findUnique({ where: { id } })
+  if (!existing) {
+    throw new Error("Exam attempt not found")
+  }
+  if (existing.studentId !== studentId) {
+    throw new Error("Unauthorized: this attempt belongs to another student")
+  }
+  if (existing.endedAt) {
+    throw new Error("Exam attempt already submitted")
+  }
+
   const attempt = await prisma.examAttempt.update({
-    where: { id }, // Target the specific attempt by ID
-    data: { endedAt: new Date() } // Record when the attempt ended
+    where: { id },
+    data: { endedAt: new Date() }
   })
-  // Log the attempt end event to the audit trail
   await logAudit("UPDATE", "ExamAttempt", id, studentId)
-  // Return the updated exam attempt object
   return attempt
 }
 

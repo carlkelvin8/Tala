@@ -25,6 +25,21 @@ export async function createGradeItem(title: string, maxScore: number, categoryI
 
 /* Record a student's score for a specific grade item */
 export async function encodeStudentGrade(studentId: string, gradeItemId: string, score: number, encodedById: string) {
+  // Check for existing grade for this student and grade item
+  const existing = await prisma.studentGrade.findFirst({
+    where: { studentId, gradeItemId }
+  })
+  if (existing) {
+    throw new Error("A grade already exists for this student on this item")
+  }
+  // Validate score does not exceed max score
+  const gradeItem = await prisma.gradeItem.findUnique({ where: { id: gradeItemId } })
+  if (!gradeItem) {
+    throw new Error("Grade item not found")
+  }
+  if (score > gradeItem.maxScore) {
+    throw new Error(`Score cannot exceed maximum score of ${gradeItem.maxScore}`)
+  }
   // Insert a new student grade record with the score and the encoder's ID
   const grade = await prisma.studentGrade.create({
     data: { studentId, gradeItemId, score, encodedById } // Link to student, item, and encoder
@@ -73,6 +88,12 @@ export async function listGrades(filters: { studentId?: string; sectionId?: stri
 
 /* Update a student's score for a grade record */
 export async function updateGrade(id: string, score: number, userId: string) {
+  // Fetch the grade record to validate score against max
+  const existing = await prisma.studentGrade.findUnique({ where: { id }, include: { gradeItem: true } })
+  if (!existing) throw new Error("Grade not found")
+  if (score > existing.gradeItem.maxScore) {
+    throw new Error(`Score cannot exceed maximum score of ${existing.gradeItem.maxScore}`)
+  }
   // Update the student grade record with the new score
   const grade = await prisma.studentGrade.update({
     where: { id }, // Target the specific grade record by ID

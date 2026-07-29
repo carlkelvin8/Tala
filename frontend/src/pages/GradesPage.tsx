@@ -1,326 +1,443 @@
-import { useMutation, useQuery } from "@tanstack/react-query" // Import useMutation for CRUD operations and useQuery for fetching grades data
-import { apiRequest } from "../lib/api" // Import the generic API request helper
-import { ApiResponse } from "../types" // Import the generic API response wrapper type
-import { Button } from "../components/ui/button" // Import the reusable Button component
-import { Input } from "../components/ui/input" // Import the reusable Input component
-import { Select } from "../components/ui/select" // Import the Select component for dropdowns
-import { useForm } from "react-hook-form" // Import useForm for form state management and validation
-import { z } from "zod" // Import zod for schema-based validation
-import { zodResolver } from "@hookform/resolvers/zod" // Import the zod adapter for react-hook-form
-import { usePermissions } from "../hooks/usePermissions" // Import the permissions hook for role-based UI
-import { PageHeader } from "../components/ui/page-header" // Import the PageHeader component
-import { FormField } from "../components/ui/form-field" // Import the FormField wrapper for labeled inputs
-import { Alert } from "../components/ui/alert" // Import the Alert component for error messages
-import { EmptyState } from "../components/ui/empty-state" // Import the EmptyState component for empty list state
-import { toast } from "sonner" // Import toast for notifications
-import { FormSection } from "../components/ui/form-section" // Import the FormSection wrapper for create forms
-import { SectionCard } from "../components/ui/section-card" // Import the SectionCard wrapper for list sections
-import { ResponsiveTableCards } from "../components/ui/responsive-table-cards" // Import the responsive table/card component
-import { LoadingSkeleton } from "../components/ui/loading-skeleton" // Import the loading skeleton
-import { Badge } from "../components/ui/badge" // Import the Badge component for the performance tracking badge
-import { Drawer } from "../components/ui/drawer" // Import the Drawer component for edit panels
-import { ConfirmDialog } from "../components/ui/confirm-dialog" // Import the ConfirmDialog for delete confirmations
-import { GraduationCap, RefreshCw, Table as TableIcon, Plus, Edit, Trash2 } from "lucide-react" // Import icons for the UI
-import { useState } from "react" // Import useState for managing all local state
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { apiRequest } from "../lib/api"
+import { ApiResponse } from "../types"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Select } from "../components/ui/select"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { usePermissions } from "../hooks/usePermissions"
+import { FormField } from "../components/ui/form-field"
+import { Alert } from "../components/ui/alert"
+import { EmptyState } from "../components/ui/empty-state"
+import { toast } from "sonner"
+import { FormSection } from "../components/ui/form-section"
+import { SectionCard } from "../components/ui/section-card"
+import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
+import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { Drawer } from "../components/ui/drawer"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { GraduationCap, Search, Plus, Edit, Trash2, Save, Sparkles, Hash, Award, BookOpen, ChevronRight, X, RefreshCw, User } from "lucide-react"
+import { useState } from "react"
+import { cn } from "../lib/utils"
+import { motion } from "framer-motion"
 
-// Zod schema for encoding a grade entry
 const gradeSchema = z.object({
-  studentId: z.string().uuid(), // Student ID must be a valid UUID
-  gradeItemId: z.string().uuid(), // Grade item ID must be a valid UUID
-  score: z.coerce.number().nonnegative() // Score must be a non-negative number (coerce converts string input)
+  studentId: z.string().uuid(),
+  gradeItemId: z.string().uuid(),
+  score: z.coerce.number().nonnegative()
 })
 
-// Zod schema for creating a grade category
 const categorySchema = z.object({
-  name: z.string().min(1, "Name is required"), // Category name must not be empty
-  weight: z.coerce.number().optional() // Optional weight percentage (coerce converts string input)
+  name: z.string().min(1, "Name is required"),
+  weight: z.coerce.number().optional()
 })
 
-// Zod schema for creating a grade item
 const itemSchema = z.object({
-  title: z.string().min(1, "Title is required"), // Item title must not be empty
-  maxScore: z.coerce.number().positive("Max score must be positive"), // Max score must be a positive number
-  categoryId: z.string().uuid("Category is required") // Category ID must be a valid UUID
+  title: z.string().min(1, "Title is required"),
+  maxScore: z.coerce.number().positive("Max score must be positive"),
+  categoryId: z.string().uuid("Category is required")
 })
 
-type GradeFormValues = z.infer<typeof gradeSchema> // Derive TypeScript type from the grade schema
-type CategoryFormValues = z.infer<typeof categorySchema> // Derive TypeScript type from the category schema
-type ItemFormValues = z.infer<typeof itemSchema> // Derive TypeScript type from the item schema
+type GradeFormValues = z.infer<typeof gradeSchema>
+type CategoryFormValues = z.infer<typeof categorySchema>
+type ItemFormValues = z.infer<typeof itemSchema>
 
-// The grades management page component with tabs for grades, items, and categories
+type TabId = "grades" | "items" | "categories"
+
+const tabs: { id: TabId; label: string; icon: typeof GraduationCap }[] = [
+  { id: "grades",     label: "Grades",      icon: Award },
+  { id: "items",      label: "Grade Items", icon: BookOpen },
+  { id: "categories", label: "Categories",  icon: Hash },
+]
+
+function getInitials(email: string): string {
+  return email.charAt(0).toUpperCase()
+}
+
 export function GradesPage() {
-  const perms = usePermissions() // Get permissions for role-based UI
-  const [activeTab, setActiveTab] = useState<"grades" | "items" | "categories">("grades") // State for the active tab, defaults to grades
-  const gradeForm = useForm<GradeFormValues>({ resolver: zodResolver(gradeSchema) }) // Form for encoding grades
-  const categoryForm = useForm<CategoryFormValues>({ resolver: zodResolver(categorySchema) }) // Form for creating categories
-  const itemForm = useForm<ItemFormValues>({ resolver: zodResolver(itemSchema) }) // Form for creating grade items
-  const [studentSearch, setStudentSearch] = useState("") // State for the student search input
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false) // State to control the student search dropdown visibility
+  const perms = usePermissions()
+  const [activeTab, setActiveTab] = useState<TabId>("grades")
+  const gradeForm = useForm<GradeFormValues>({ resolver: zodResolver(gradeSchema) })
+  const categoryForm = useForm<CategoryFormValues>({ resolver: zodResolver(categorySchema) })
+  const itemForm = useForm<ItemFormValues>({ resolver: zodResolver(itemSchema) })
+  const [studentSearch, setStudentSearch] = useState("")
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false)
 
-  // Edit/Delete states for grades
-  const [editingGrade, setEditingGrade] = useState<any | null>(null) // State for the grade currently being edited
-  const [deletingGrade, setDeletingGrade] = useState<any | null>(null) // State for the grade pending deletion
-  const [editGradeScore, setEditGradeScore] = useState<number>(0) // State for the edit grade score field
+  const [editingGrade, setEditingGrade] = useState<any | null>(null)
+  const [deletingGrade, setDeletingGrade] = useState<any | null>(null)
+  const [editGradeScore, setEditGradeScore] = useState<number>(0)
 
-  // Edit/Delete states for items
-  const [editingItem, setEditingItem] = useState<any | null>(null) // State for the grade item currently being edited
-  const [deletingItem, setDeletingItem] = useState<any | null>(null) // State for the grade item pending deletion
-  const [editItemTitle, setEditItemTitle] = useState("") // State for the edit item title field
-  const [editItemMaxScore, setEditItemMaxScore] = useState<number>(0) // State for the edit item max score field
-  const [editItemCategoryId, setEditItemCategoryId] = useState("") // State for the edit item category field
+  const [editingItem, setEditingItem] = useState<any | null>(null)
+  const [deletingItem, setDeletingItem] = useState<any | null>(null)
+  const [editItemTitle, setEditItemTitle] = useState("")
+  const [editItemMaxScore, setEditItemMaxScore] = useState<number>(0)
+  const [editItemCategoryId, setEditItemCategoryId] = useState("")
 
-  // Edit/Delete states for categories
-  const [editingCategory, setEditingCategory] = useState<any | null>(null) // State for the category currently being edited
-  const [deletingCategory, setDeletingCategory] = useState<any | null>(null) // State for the category pending deletion
-  const [editCategoryName, setEditCategoryName] = useState("") // State for the edit category name field
-  const [editCategoryWeight, setEditCategoryWeight] = useState<number | undefined>(undefined) // State for the edit category weight field
+  const [editingCategory, setEditingCategory] = useState<any | null>(null)
+  const [deletingCategory, setDeletingCategory] = useState<any | null>(null)
+  const [editCategoryName, setEditCategoryName] = useState("")
+  const [editCategoryWeight, setEditCategoryWeight] = useState<number | undefined>(undefined)
 
-  const gradesQuery = useQuery({ // Fetch the list of grade entries
-    queryKey: ["grades"], // Cache key for the grades list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades"), // Fetch all grades from the API
-    refetchInterval: 5000, // Auto-refetch every 5 seconds
-    retry: false // Don't retry on failure
+  const gradesQuery = useQuery({
+    queryKey: ["grades"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades"),
+    refetchInterval: 5000,
+    retry: false
   })
 
-  const categoriesQuery = useQuery({ // Fetch the list of grade categories
-    queryKey: ["grade-categories"], // Cache key for the categories list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades/categories"), // Fetch all categories from the API
-    refetchInterval: 10000, // Auto-refetch every 10 seconds
-    retry: false // Don't retry on failure
+  const categoriesQuery = useQuery({
+    queryKey: ["grade-categories"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades/categories"),
+    refetchInterval: 10000,
+    retry: false
   })
 
-  const itemsQuery = useQuery({ // Fetch the list of grade items
-    queryKey: ["grade-items"], // Cache key for the items list
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades/items"), // Fetch all grade items from the API
-    refetchInterval: 10000, // Auto-refetch every 10 seconds
-    retry: false // Don't retry on failure
+  const itemsQuery = useQuery({
+    queryKey: ["grade-items"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades/items"),
+    refetchInterval: 10000,
+    retry: false
   })
 
-  const studentsQuery = useQuery({ // Fetch matching students based on the search query
-    queryKey: ["grade-students", studentSearch], // Cache key includes the search string
+  const studentsQuery = useQuery({
+    queryKey: ["grade-students", studentSearch],
     queryFn: () =>
       apiRequest<ApiResponse<any[]>>(
-        `/api/enrollments?search=${encodeURIComponent(studentSearch.trim())}` // Search enrollments by the trimmed search string
+        `/api/enrollments?search=${encodeURIComponent(studentSearch.trim())}`
       ),
-    enabled: studentSearch.trim().length >= 2 // Only run when at least 2 characters are typed
+    enabled: studentSearch.trim().length >= 2
   })
 
-  const gradeMutation = useMutation({ // Mutation for encoding a new grade
+  const gradeMutation = useMutation({
     mutationFn: (values: GradeFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/grades", { method: "POST", body: JSON.stringify(values) }), // POST the grade values
-    onSuccess: () => { gradesQuery.refetch(); toast.success("Grade saved") }, // Refresh list and show success
+      apiRequest<ApiResponse<any>>("/api/grades", { method: "POST", body: JSON.stringify(values) }),
+    onSuccess: () => { gradesQuery.refetch(); toast.success("Grade saved") },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to save grade") }
   })
 
-  const categoryMutation = useMutation({ // Mutation for creating a new grade category
+  const categoryMutation = useMutation({
     mutationFn: (values: CategoryFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/grades/categories", { method: "POST", body: JSON.stringify(values) }), // POST the category values
-    onSuccess: () => { categoriesQuery.refetch(); toast.success("Category created") }, // Refresh list and show success
+      apiRequest<ApiResponse<any>>("/api/grades/categories", { method: "POST", body: JSON.stringify(values) }),
+    onSuccess: () => { categoriesQuery.refetch(); toast.success("Category created") },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to create category") }
   })
 
-  const itemMutation = useMutation({ // Mutation for creating a new grade item
+  const itemMutation = useMutation({
     mutationFn: (values: ItemFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/grades/items", { method: "POST", body: JSON.stringify(values) }), // POST the item values
-    onSuccess: () => { itemsQuery.refetch(); toast.success("Grade item created") }, // Refresh list and show success
+      apiRequest<ApiResponse<any>>("/api/grades/items", { method: "POST", body: JSON.stringify(values) }),
+    onSuccess: () => { itemsQuery.refetch(); toast.success("Grade item created") },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to create item") }
   })
 
-  const updateGradeMutation = useMutation({ // Mutation for updating an existing grade
+  const updateGradeMutation = useMutation({
     mutationFn: ({ id, score }: { id: string; score: number }) =>
-      apiRequest<ApiResponse<any>>(`/api/grades/${id}`, { method: "PATCH", body: JSON.stringify({ score }) }), // PATCH with the new score
+      apiRequest<ApiResponse<any>>(`/api/grades/${id}`, { method: "PATCH", body: JSON.stringify({ score }) }),
     onSuccess: () => { gradesQuery.refetch(); toast.success("Grade updated"); setEditingGrade(null) },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Update failed") }
   })
 
-  const deleteGradeMutation = useMutation({ // Mutation for deleting a grade
-    mutationFn: (id: string) => apiRequest<ApiResponse<any>>(`/api/grades/${id}`, { method: "DELETE" }), // DELETE the grade
+  const deleteGradeMutation = useMutation({
+    mutationFn: (id: string) => apiRequest<ApiResponse<any>>(`/api/grades/${id}`, { method: "DELETE" }),
     onSuccess: () => { gradesQuery.refetch(); toast.success("Grade deleted") },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Delete failed") }
   })
 
-  const updateItemMutation = useMutation({ // Mutation for updating a grade item
+  const updateItemMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest<ApiResponse<any>>(`/api/grades/items/${id}`, { method: "PATCH", body: JSON.stringify(data) }), // PATCH with the updated item data
+      apiRequest<ApiResponse<any>>(`/api/grades/items/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => { itemsQuery.refetch(); toast.success("Item updated"); setEditingItem(null) },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Update failed") }
   })
 
-  const deleteItemMutation = useMutation({ // Mutation for deleting a grade item
-    mutationFn: (id: string) => apiRequest<ApiResponse<any>>(`/api/grades/items/${id}`, { method: "DELETE" }), // DELETE the item
+  const deleteItemMutation = useMutation({
+    mutationFn: (id: string) => apiRequest<ApiResponse<any>>(`/api/grades/items/${id}`, { method: "DELETE" }),
     onSuccess: () => { itemsQuery.refetch(); toast.success("Item deleted") },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Delete failed") }
   })
 
-  const updateCategoryMutation = useMutation({ // Mutation for updating a grade category
+  const updateCategoryMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest<ApiResponse<any>>(`/api/grades/categories/${id}`, { method: "PATCH", body: JSON.stringify(data) }), // PATCH with the updated category data
+      apiRequest<ApiResponse<any>>(`/api/grades/categories/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => { categoriesQuery.refetch(); toast.success("Category updated"); setEditingCategory(null) },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Update failed") }
   })
 
-  const deleteCategoryMutation = useMutation({ // Mutation for deleting a grade category
-    mutationFn: (id: string) => apiRequest<ApiResponse<any>>(`/api/grades/categories/${id}`, { method: "DELETE" }), // DELETE the category
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: string) => apiRequest<ApiResponse<any>>(`/api/grades/categories/${id}`, { method: "DELETE" }),
     onSuccess: () => { categoriesQuery.refetch(); toast.success("Category deleted") },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Delete failed") }
   })
 
-  const onGradeSubmit = gradeForm.handleSubmit(async (values) => { // Grade form submit handler
-    await gradeMutation.mutateAsync(values) // Trigger the grade creation mutation
-    gradeForm.reset() // Reset the form after successful submission
-    setStudentSearch("") // Clear the student search input
+  const onGradeSubmit = gradeForm.handleSubmit(async (values) => {
+    await gradeMutation.mutateAsync(values)
+    gradeForm.reset()
+    setStudentSearch("")
   })
 
-  const onCategorySubmit = categoryForm.handleSubmit(async (values) => { // Category form submit handler
-    await categoryMutation.mutateAsync(values) // Trigger the category creation mutation
-    categoryForm.reset() // Reset the form after successful submission
+  const onCategorySubmit = categoryForm.handleSubmit(async (values) => {
+    await categoryMutation.mutateAsync(values)
+    categoryForm.reset()
   })
 
-  const onItemSubmit = itemForm.handleSubmit(async (values) => { // Item form submit handler
-    await itemMutation.mutateAsync(values) // Trigger the item creation mutation
-    itemForm.reset() // Reset the form after successful submission
+  const onItemSubmit = itemForm.handleSubmit(async (values) => {
+    await itemMutation.mutateAsync(values)
+    itemForm.reset()
   })
 
-  // Grade edit/delete handlers
-  const handleEditGrade = (grade: any) => { setEditingGrade(grade); setEditGradeScore(grade.score) } // Open edit drawer and pre-populate score
-  const handleSaveGrade = () => { if (editingGrade) updateGradeMutation.mutate({ id: editingGrade.id, score: editGradeScore }) } // Save the edited grade
-  const handleDeleteGrade = (grade: any) => { setDeletingGrade(grade) } // Open delete confirmation
-  const confirmDeleteGrade = () => { if (deletingGrade) { deleteGradeMutation.mutate(deletingGrade.id); setDeletingGrade(null) } } // Confirm and execute deletion
+  const handleEditGrade = (grade: any) => { setEditingGrade(grade); setEditGradeScore(grade.score) }
+  const handleSaveGrade = () => { if (editingGrade) updateGradeMutation.mutate({ id: editingGrade.id, score: editGradeScore }) }
+  const handleDeleteGrade = (grade: any) => { setDeletingGrade(grade) }
+  const confirmDeleteGrade = () => { if (deletingGrade) { deleteGradeMutation.mutate(deletingGrade.id); setDeletingGrade(null) } }
 
-  // Item edit/delete handlers
-  const handleEditItem = (item: any) => { setEditingItem(item); setEditItemTitle(item.title); setEditItemMaxScore(item.maxScore); setEditItemCategoryId(item.categoryId) } // Open edit drawer and pre-populate fields
-  const handleSaveItem = () => { if (editingItem) updateItemMutation.mutate({ id: editingItem.id, data: { title: editItemTitle, maxScore: editItemMaxScore, categoryId: editItemCategoryId } }) } // Save the edited item
-  const handleDeleteItem = (item: any) => { setDeletingItem(item) } // Open delete confirmation
-  const confirmDeleteItem = () => { if (deletingItem) { deleteItemMutation.mutate(deletingItem.id); setDeletingItem(null) } } // Confirm and execute deletion
+  const handleEditItem = (item: any) => { setEditingItem(item); setEditItemTitle(item.title); setEditItemMaxScore(item.maxScore); setEditItemCategoryId(item.categoryId) }
+  const handleSaveItem = () => { if (editingItem) updateItemMutation.mutate({ id: editingItem.id, data: { title: editItemTitle, maxScore: editItemMaxScore, categoryId: editItemCategoryId } }) }
+  const handleDeleteItem = (item: any) => { setDeletingItem(item) }
+  const confirmDeleteItem = () => { if (deletingItem) { deleteItemMutation.mutate(deletingItem.id); setDeletingItem(null) } }
 
-  // Category edit/delete handlers
-  const handleEditCategory = (category: any) => { setEditingCategory(category); setEditCategoryName(category.name); setEditCategoryWeight(category.weight) } // Open edit drawer and pre-populate fields
-  const handleSaveCategory = () => { if (editingCategory) updateCategoryMutation.mutate({ id: editingCategory.id, data: { name: editCategoryName, weight: editCategoryWeight } }) } // Save the edited category
-  const handleDeleteCategory = (category: any) => { setDeletingCategory(category) } // Open delete confirmation
-  const confirmDeleteCategory = () => { if (deletingCategory) { deleteCategoryMutation.mutate(deletingCategory.id); setDeletingCategory(null) } } // Confirm and execute deletion
+  const handleEditCategory = (category: any) => { setEditingCategory(category); setEditCategoryName(category.name); setEditCategoryWeight(category.weight) }
+  const handleSaveCategory = () => { if (editingCategory) updateCategoryMutation.mutate({ id: editingCategory.id, data: { name: editCategoryName, weight: editCategoryWeight } }) }
+  const handleDeleteCategory = (category: any) => { setDeletingCategory(category) }
+  const confirmDeleteCategory = () => { if (deletingCategory) { deleteCategoryMutation.mutate(deletingCategory.id); setDeletingCategory(null) } }
 
-  const rows = gradesQuery.data?.data ?? [] // Extract the grades array, defaulting to empty array
-  const categories = categoriesQuery.data?.data ?? [] // Extract the categories array
-  const items = itemsQuery.data?.data ?? [] // Extract the items array
+  const rows = gradesQuery.data?.data ?? []
+  const categories = categoriesQuery.data?.data ?? []
+  const items = itemsQuery.data?.data ?? []
 
-  const gradeColumns = [ // Column definitions for the grades table
-    { header: "Student", cell: (grade: any) => <span className="font-medium text-slate-900">{grade.student?.email ?? grade.studentId}</span> }, // Student email or ID
-    { header: "Item", cell: (grade: any) => grade.gradeItem?.title ?? "-" }, // Grade item title
-    { header: "Score", cell: (grade: any) => `${grade.score} / ${grade.gradeItem?.maxScore ?? 0}` }, // Score out of max score
-    { header: "Category", cell: (grade: any) => grade.gradeItem?.category?.name ?? "-" }, // Category name
-    ...(perms.canEdit || perms.canDelete ? [{ header: "Actions", cell: (grade: any) => ( // Actions column only for permitted roles
-      <div className="flex gap-2">
-        {perms.canEdit && <Button size="sm" variant="outline" onClick={() => handleEditGrade(grade)}><Edit className="h-4 w-4 mr-1" />Edit</Button>}
-        {perms.canDelete && <Button size="sm" variant="outline" onClick={() => handleDeleteGrade(grade)} disabled={deleteGradeMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>}
-      </div>
-    )}] : []),
+  const gradeColumns = [
+    {
+      header: "Student",
+      cell: (grade: any) => {
+        const profile = grade.student?.studentProfile
+        const name = profile?.firstName && profile?.lastName ? `${profile.firstName} ${profile.lastName}` : null
+        const initial = name ? profile.firstName[0] : (grade.student?.email?.[0] ?? "?").toUpperCase()
+        return (
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-royal text-xs font-bold text-white shadow-soft shrink-0">
+              {initial}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-black truncate">{name || grade.student?.email || "-"}</p>
+              {name && grade.student?.email && <p className="text-xs text-darksilver truncate">{grade.student.email}</p>}
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      header: "Item",
+      cell: (grade: any) => (
+        <span className="text-sm font-medium text-black/80">{grade.gradeItem?.title ?? "-"}</span>
+      )
+    },
+    {
+      header: "Score",
+      cell: (grade: any) => {
+        const pct = grade.gradeItem?.maxScore ? Math.round((grade.score / grade.gradeItem.maxScore) * 100) : 0
+        const isGood = pct >= 75
+        return (
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold",
+              isGood ? "text-emerald-600 bg-emerald-50" : "text-red-600 bg-red-50"
+            )}>
+              {grade.score} / {grade.gradeItem?.maxScore ?? 0}
+            </span>
+            {grade.gradeItem?.maxScore && (
+              <span className={cn("text-xs font-semibold", isGood ? "text-emerald-500" : "text-red-400")}>
+                ({pct}%)
+              </span>
+            )}
+          </div>
+        )
+      }
+    },
+    {
+      header: "Category",
+      cell: (grade: any) => (
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600">
+          {grade.gradeItem?.category?.name ?? "-"}
+        </span>
+      )
+    },
+    ...(perms.canEdit || perms.canDelete ? [{
+      header: "",
+      cell: (grade: any) => (
+        <div className="flex gap-1">
+          {perms.canEdit && (
+            <button onClick={() => handleEditGrade(grade)} className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-darksilver hover:bg-white transition-all" title="Edit">
+              <Edit className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {perms.canDelete && (
+            <button onClick={() => handleDeleteGrade(grade)} disabled={deleteGradeMutation.isPending} className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50" title="Delete">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )
+    }] : []),
   ]
 
-  const categoryColumns = [ // Column definitions for the categories table
-    { header: "Name", cell: (category: any) => <span className="font-medium text-slate-900">{category.name}</span> }, // Category name
-    { header: "Weight", cell: (category: any) => category.weight ? `${category.weight}%` : "-" }, // Weight percentage or dash
-    ...(perms.canEdit || perms.canDelete ? [{ header: "Actions", cell: (category: any) => ( // Actions column only for permitted roles
-      <div className="flex gap-2">
-        {perms.canEdit && <Button size="sm" variant="outline" onClick={() => handleEditCategory(category)}><Edit className="h-4 w-4 mr-1" />Edit</Button>}
-        {perms.canDelete && <Button size="sm" variant="outline" onClick={() => handleDeleteCategory(category)} disabled={deleteCategoryMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>}
-      </div>
-    )}] : []),
+  const categoryColumns = [
+    { header: "Name", cell: (cat: any) => <span className="font-semibold text-black">{cat.name}</span> },
+    { header: "Weight", cell: (cat: any) => cat.weight ? <span className="inline-flex items-center rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-darksilver">{cat.weight}%</span> : <span className="text-xs text-darksilver">—</span> },
+    ...(perms.canEdit || perms.canDelete ? [{
+      header: "",
+      cell: (cat: any) => (
+        <div className="flex gap-1">
+          {perms.canEdit && <button onClick={() => handleEditCategory(cat)} className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-darksilver hover:bg-white transition-all" title="Edit"><Edit className="h-3.5 w-3.5" /></button>}
+          {perms.canDelete && <button onClick={() => handleDeleteCategory(cat)} disabled={deleteCategoryMutation.isPending} className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>}
+        </div>
+      )
+    }] : []),
   ]
 
-  const itemColumns = [ // Column definitions for the grade items table
-    { header: "Title", cell: (item: any) => <span className="font-medium text-slate-900">{item.title}</span> }, // Item title
-    { header: "Max Score", cell: (item: any) => item.maxScore }, // Maximum score value
-    { header: "Category", cell: (item: any) => item.category?.name ?? "-" }, // Category name
-    ...(perms.canEdit || perms.canDelete ? [{ header: "Actions", cell: (item: any) => ( // Actions column only for permitted roles
-      <div className="flex gap-2">
-        {perms.canEdit && <Button size="sm" variant="outline" onClick={() => handleEditItem(item)}><Edit className="h-4 w-4 mr-1" />Edit</Button>}
-        {perms.canDelete && <Button size="sm" variant="outline" onClick={() => handleDeleteItem(item)} disabled={deleteItemMutation.isPending} className="text-red-600 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4 mr-1" />Delete</Button>}
-      </div>
-    )}] : []),
+  const itemColumns = [
+    { header: "Title", cell: (item: any) => <span className="font-semibold text-black">{item.title}</span> },
+    { header: "Max Score", cell: (item: any) => <span className="inline-flex items-center rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-royal">{item.maxScore}</span> },
+    { header: "Category", cell: (item: any) => <span className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600">{item.category?.name ?? "-"}</span> },
+    ...(perms.canEdit || perms.canDelete ? [{
+      header: "",
+      cell: (item: any) => (
+        <div className="flex gap-1">
+          {perms.canEdit && <button onClick={() => handleEditItem(item)} className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-darksilver hover:bg-white transition-all" title="Edit"><Edit className="h-3.5 w-3.5" /></button>}
+          {perms.canDelete && <button onClick={() => handleDeleteItem(item)} disabled={deleteItemMutation.isPending} className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-50" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>}
+        </div>
+      )
+    }] : []),
   ]
 
   return (
-    <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
-      <PageHeader
-        title="Grades"
-        description="Manage grade categories, items, and encode student performance."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1 text-xs">
-              <GraduationCap className="h-3 w-3" /> {/* Graduation cap icon */}
-              <span>Performance tracking</span>
-            </Badge>
+    <div className="space-y-6">
+      <motion.div
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 pt-8 pb-0 shadow-elevated"
+        initial={{ opacity: 0, y: 32, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+      >
+        <div className="absolute inset-0 bg-grid opacity-[0.06]" />
+        <motion.div
+          className="absolute -top-32 -right-32 h-80 w-80 rounded-full bg-gold/10 blur-3xl"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.18, 0.1] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-royal/10 blur-3xl"
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 pb-6">
+          <motion.div
+            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20"
+            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+          >
+            <GraduationCap className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <motion.div
+              className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-1.5"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              <motion.span animate={{ rotate: [0, 20, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}>
+                <Sparkles className="h-3.5 w-3.5" />
+              </motion.span>
+              <span>Academic Performance</span>
+            </motion.div>
+            <motion.h1
+              className="text-xl sm:text-2xl font-bold text-white tracking-tight"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Grades
+            </motion.h1>
+            <motion.p
+              className="mt-1 text-sm text-silver max-w-2xl"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              Manage grade categories, items, and encode student performance.
+            </motion.p>
           </div>
-        }
-      />
+        </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200"> {/* Tab bar with bottom border */}
-        <button
-          onClick={() => setActiveTab("grades")} // Switch to the grades tab
-          className={`px-4 py-2 text-sm font-medium border-b-2 ${ // Tab button with active/inactive styles
-            activeTab === "grades" ? "border-black text-black" : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
+        <motion.div
+          className="relative flex gap-1"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.42, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          Grades
-        </button>
-        <button
-          onClick={() => setActiveTab("items")} // Switch to the grade items tab
-          className={`px-4 py-2 text-sm font-medium border-b-2 ${
-            activeTab === "items" ? "border-black text-black" : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Grade Items
-        </button>
-        <button
-          onClick={() => setActiveTab("categories")} // Switch to the categories tab
-          className={`px-4 py-2 text-sm font-medium border-b-2 ${
-            activeTab === "categories" ? "border-black text-black" : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Categories
-        </button>
-      </div>
+          {tabs.map(({ id, label, icon: TabIcon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                "relative flex items-center gap-2 px-4 sm:px-6 py-3 text-sm font-medium transition-all duration-200 rounded-t-xl",
+                activeTab === id
+                  ? "bg-white text-black shadow-soft"
+                  : "text-silver hover:text-white hover:bg-white/5"
+              )}
+            >
+              <TabIcon className="h-4 w-4" strokeWidth={activeTab === id ? 2.5 : 1.75} />
+              {label}
+            </button>
+          ))}
+        </motion.div>
+      </motion.div>
 
-      {/* Grades Tab */}
-      {activeTab === "grades" && ( // Only render when the grades tab is active
+      {activeTab === "grades" && (
         <>
-          {perms.canCreate && ( // Only show the encode form for permitted roles
-            <FormSection title="Encode Grade" description="Search for student and enter assessment score.">
-              <form className="space-y-4" onSubmit={onGradeSubmit}> {/* Grade encoding form */}
+          {perms.canCreate && (
+            <FormSection title="Encode Grade" description="Search for student and enter assessment score." className="shadow-card">
+              <form className="space-y-5" onSubmit={onGradeSubmit}>
                 <FormField label="Student" required error={gradeForm.formState.errors.studentId?.message}>
-                  <div className="relative"> {/* Relative container for the student search dropdown */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
                     <Input
                       placeholder="Search by email or ID"
-                      value={studentSearch} // Controlled input value
-                      onChange={(event) => { setStudentSearch(event.target.value); setShowStudentDropdown(true) }} // Update search and show dropdown
-                      onFocus={() => setShowStudentDropdown(true)} // Show dropdown on focus
-                      onBlur={() => setTimeout(() => setShowStudentDropdown(false), 200)} // Hide dropdown on blur with delay to allow click
-                      autoComplete="off" // Disable browser autocomplete
+                      value={studentSearch}
+                      onChange={(event) => { setStudentSearch(event.target.value); setShowStudentDropdown(true) }}
+                      onFocus={() => setShowStudentDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowStudentDropdown(false), 200)}
+                      autoComplete="off"
+                      className="h-11 pl-10"
                     />
-                    <input type="hidden" {...gradeForm.register("studentId")} /> {/* Hidden input for the selected student UUID */}
-                    {showStudentDropdown && studentSearch.trim().length >= 2 && ( // Show dropdown when typing
-                      <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-64 overflow-y-auto"> {/* Dropdown container */}
+                    <input type="hidden" {...gradeForm.register("studentId")} />
+                    {showStudentDropdown && studentSearch.trim().length >= 2 && (
+                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-silver/30 bg-white shadow-elevated max-h-64 overflow-y-auto">
                         {studentsQuery.isLoading ? (
-                          <div className="px-3 py-2 text-xs text-gray-500">Searching students...</div>
+                          <div className="px-4 py-3 text-xs text-darksilver">Searching students...</div>
                         ) : studentsQuery.isError ? (
-                          <div className="px-3 py-2 text-xs text-red-500">Unable to search students.</div>
+                          <div className="px-4 py-3 text-xs text-red-500">Unable to search students.</div>
                         ) : (studentsQuery.data?.data ?? []).length === 0 ? (
-                          <div className="px-3 py-2 text-xs text-gray-500">No matching students found.</div>
+                          <div className="px-4 py-3 text-xs text-darksilver">No matching students found.</div>
                         ) : (
-                          <ul className="py-1 text-sm"> {/* List of matching students */}
+                          <ul className="py-1 text-sm">
                             {(studentsQuery.data?.data ?? []).map((enrollment: any) => (
                               <li
                                 key={enrollment.id}
-                                className="cursor-pointer px-3 py-2 hover:bg-gray-50" // Clickable list item
-                                onClick={() => { // Select this student on click
-                                  gradeForm.setValue("studentId", enrollment.userId) // Set the hidden studentId field
-                                  setStudentSearch(enrollment.user?.email ?? enrollment.userId) // Update the visible search input
-                                  setShowStudentDropdown(false) // Close the dropdown
+                                className="flex items-center gap-3 cursor-pointer px-4 py-2.5 hover:bg-white transition-colors"
+                                onClick={() => {
+                                  gradeForm.setValue("studentId", enrollment.userId)
+                                  setStudentSearch(enrollment.user?.email ?? enrollment.userId)
+                                  setShowStudentDropdown(false)
                                 }}
                               >
-                                <div className="font-medium text-black">{enrollment.user?.email ?? enrollment.userId}</div>
-                                <div className="text-xs text-gray-500">{enrollment.section?.code ?? "-"} · {enrollment.flight?.code ?? "-"}</div>
+                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-navy to-royal text-[10px] font-bold text-white shrink-0">
+                                  {(enrollment.user?.email?.[0] ?? "?").toUpperCase()}
+                                </span>
+                                <div>
+                                  <div className="font-medium text-black">{enrollment.user?.email ?? enrollment.userId}</div>
+                                  <div className="text-xs text-darksilver">{enrollment.section?.code ?? "-"} · {enrollment.flight?.code ?? "-"}</div>
+                                </div>
+                                <ChevronRight className="h-4 w-4 ml-auto text-silver" />
                               </li>
                             ))}
                           </ul>
@@ -329,9 +446,9 @@ export function GradesPage() {
                     )}
                   </div>
                 </FormField>
-                <div className="grid gap-4 md:grid-cols-2"> {/* Two-column grid for item and score fields */}
+                <div className="grid gap-4 md:grid-cols-2">
                   <FormField label="Grade Item" required error={gradeForm.formState.errors.gradeItemId?.message}>
-                    <Select {...gradeForm.register("gradeItemId")}> {/* Grade item dropdown */}
+                    <Select {...gradeForm.register("gradeItemId")} className="h-11">
                       <option value="">Select item</option>
                       {items.map((item: any) => (
                         <option key={item.id} value={item.id}>{item.title} ({item.category?.name})</option>
@@ -339,19 +456,24 @@ export function GradesPage() {
                     </Select>
                   </FormField>
                   <FormField label="Score" required error={gradeForm.formState.errors.score?.message}>
-                    <Input type="number" placeholder="0" {...gradeForm.register("score")} /> {/* Score number input */}
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                      <Input type="number" placeholder="0" {...gradeForm.register("score")} className="h-11 pl-10" />
+                    </div>
                   </FormField>
                 </div>
                 {gradeMutation.isError && <Alert variant="danger">{(gradeMutation.error as Error).message}</Alert>}
-                <div>
-                  <Button type="submit" disabled={gradeMutation.isPending}>
-                    {gradeMutation.isPending ? "Saving..." : "Save Grade"}
-                  </Button>
-                </div>
+                <Button type="submit" disabled={gradeMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+                  {gradeMutation.isPending ? (
+                    <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Saving…</span>
+                  ) : (
+                    <span className="flex items-center gap-2"><Award className="h-4 w-4" />Save Grade</span>
+                  )}
+                </Button>
               </form>
             </FormSection>
           )}
-          <SectionCard title="Grades" description="Recent grading activity and encoded performance." contentClassName="space-y-4">
+          <SectionCard title="Grades" description="Recent grading activity and encoded performance." className="shadow-card">
             {gradesQuery.isError && <Alert variant="danger">{(gradesQuery.error as Error).message === "Unauthorized" ? "Please log out and log back in to refresh your session." : "Unable to load grades."}</Alert>}
             {gradesQuery.isLoading ? <LoadingSkeleton rows={3} columns={4} /> : rows.length === 0 ? (
               <EmptyState title="No grades recorded yet" description="Start tracking academic performance by encoding the first grade entry." />
@@ -362,34 +484,43 @@ export function GradesPage() {
         </>
       )}
 
-      {/* Grade Items Tab */}
-      {activeTab === "items" && ( // Only render when the items tab is active
+      {activeTab === "items" && (
         <>
-          {perms.canCreate && ( // Only show the create form for permitted roles
-            <FormSection title="Create Grade Item" description="Define a new assessment or activity.">
-              <form className="grid gap-4 md:grid-cols-3" onSubmit={onItemSubmit}> {/* Three-column grid form */}
+          {perms.canCreate && (
+            <FormSection title="Create Grade Item" description="Define a new assessment or activity." className="shadow-card">
+              <form className="grid gap-4 md:grid-cols-3" onSubmit={onItemSubmit}>
                 <FormField label="Title" required error={itemForm.formState.errors.title?.message}>
-                  <Input placeholder="e.g. Quiz 1" {...itemForm.register("title")} />
+                  <div className="relative">
+                    <BookOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                    <Input placeholder="e.g. Quiz 1" {...itemForm.register("title")} className="h-11 pl-10" />
+                  </div>
                 </FormField>
                 <FormField label="Max Score" required error={itemForm.formState.errors.maxScore?.message}>
-                  <Input type="number" placeholder="100" {...itemForm.register("maxScore")} />
+                  <div className="relative">
+                    <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                    <Input type="number" placeholder="100" {...itemForm.register("maxScore")} className="h-11 pl-10" />
+                  </div>
                 </FormField>
                 <FormField label="Category" required error={itemForm.formState.errors.categoryId?.message}>
-                  <Select {...itemForm.register("categoryId")}>
+                  <Select {...itemForm.register("categoryId")} className="h-11">
                     <option value="">Select category</option>
                     {categories.map((cat: any) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </Select>
                 </FormField>
                 {itemMutation.isError && <Alert variant="danger" className="md:col-span-3">{(itemMutation.error as Error).message}</Alert>}
                 <div className="md:col-span-3">
-                  <Button type="submit" disabled={itemMutation.isPending}>
-                    <Plus className="h-4 w-4 mr-1" />{itemMutation.isPending ? "Creating..." : "Create Item"}
+                  <Button type="submit" disabled={itemMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+                    {itemMutation.isPending ? (
+                      <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Creating…</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><Plus className="h-4 w-4" />Create Item</span>
+                    )}
                   </Button>
                 </div>
               </form>
             </FormSection>
           )}
-          <SectionCard title="Grade Items" description="All assessment items and activities.">
+          <SectionCard title="Grade Items" description="All assessment items and activities." className="shadow-card">
             {itemsQuery.isError && <Alert variant="danger">Unable to load items.</Alert>}
             {itemsQuery.isLoading ? <LoadingSkeleton rows={3} columns={3} /> : items.length === 0 ? (
               <EmptyState title="No grade items yet" description="Create your first grade item to get started." />
@@ -400,28 +531,34 @@ export function GradesPage() {
         </>
       )}
 
-      {/* Categories Tab */}
-      {activeTab === "categories" && ( // Only render when the categories tab is active
+      {activeTab === "categories" && (
         <>
-          {perms.canCreate && ( // Only show the create form for permitted roles
-            <FormSection title="Create Category" description="Define a grading category with optional weight.">
-              <form className="grid gap-4 md:grid-cols-2" onSubmit={onCategorySubmit}> {/* Two-column grid form */}
+          {perms.canCreate && (
+            <FormSection title="Create Category" description="Define a grading category with optional weight." className="shadow-card">
+              <form className="grid gap-4 md:grid-cols-2" onSubmit={onCategorySubmit}>
                 <FormField label="Name" required error={categoryForm.formState.errors.name?.message}>
-                  <Input placeholder="e.g. Quizzes" {...categoryForm.register("name")} />
+                  <div className="relative">
+                    <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                    <Input placeholder="e.g. Quizzes" {...categoryForm.register("name")} className="h-11 pl-10" />
+                  </div>
                 </FormField>
                 <FormField label="Weight (%)" error={categoryForm.formState.errors.weight?.message}>
-                  <Input type="number" placeholder="30" {...categoryForm.register("weight")} />
+                  <Input type="number" placeholder="30" {...categoryForm.register("weight")} className="h-11" />
                 </FormField>
                 {categoryMutation.isError && <Alert variant="danger" className="md:col-span-2">{(categoryMutation.error as Error).message}</Alert>}
                 <div className="md:col-span-2">
-                  <Button type="submit" disabled={categoryMutation.isPending}>
-                    <Plus className="h-4 w-4 mr-1" />{categoryMutation.isPending ? "Creating..." : "Create Category"}
+                  <Button type="submit" disabled={categoryMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+                    {categoryMutation.isPending ? (
+                      <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Creating…</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><Plus className="h-4 w-4" />Create Category</span>
+                    )}
                   </Button>
                 </div>
               </form>
             </FormSection>
           )}
-          <SectionCard title="Grade Categories" description="All grading categories and their weights.">
+          <SectionCard title="Grade Categories" description="All grading categories and their weights." className="shadow-card">
             {categoriesQuery.isError && <Alert variant="danger">Unable to load categories.</Alert>}
             {categoriesQuery.isLoading ? <LoadingSkeleton rows={3} columns={2} /> : categories.length === 0 ? (
               <EmptyState title="No categories yet" description="Create your first category to organize grade items." />
@@ -432,63 +569,114 @@ export function GradesPage() {
         </>
       )}
 
-      {/* Edit Grade Drawer */}
       <Drawer open={!!editingGrade} onOpenChange={(open) => !open && setEditingGrade(null)} title="Edit Grade">
-        <div className="p-4 space-y-4">
-          <FormField label="Student" required><Input value={editingGrade?.student?.email ?? ""} disabled /></FormField> {/* Read-only student field */}
-          <FormField label="Grade Item" required><Input value={editingGrade?.gradeItem?.title ?? ""} disabled /></FormField> {/* Read-only item field */}
+        <div className="h-1 w-full bg-emerald-500" />
+        <div className="p-4 space-y-5">
+          {editingGrade && (
+            <div className="flex items-center gap-3 pb-3 border-b border-silver/20">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-royal text-sm font-bold text-white shrink-0">
+                {(editingGrade.student?.email?.[0] ?? "?").toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-black truncate">{editingGrade.student?.email ?? "Student"}</p>
+                <p className="text-xs text-darksilver">{editingGrade.gradeItem?.title} · {editingGrade.gradeItem?.category?.name}</p>
+              </div>
+            </div>
+          )}
           <FormField label="Score" required>
-            <Input type="number" value={editGradeScore} onChange={(e) => setEditGradeScore(Number(e.target.value))} placeholder="0" /> {/* Editable score field */}
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+              <Input type="number" value={editGradeScore} onChange={(e) => setEditGradeScore(Number(e.target.value))} placeholder="0" className="h-11 pl-10" />
+            </div>
           </FormField>
           {updateGradeMutation.isError && <Alert variant="danger">{(updateGradeMutation.error as Error).message}</Alert>}
           <div className="flex gap-2">
-            <Button onClick={handleSaveGrade} disabled={updateGradeMutation.isPending}>{updateGradeMutation.isPending ? "Saving..." : "Save Changes"}</Button>
-            <Button variant="outline" onClick={() => setEditingGrade(null)}>Cancel</Button>
+            <Button onClick={handleSaveGrade} disabled={updateGradeMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+              {updateGradeMutation.isPending ? (
+                <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Saving…</span>
+              ) : (
+                <span className="flex items-center gap-2"><Save className="h-4 w-4" />Save Changes</span>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setEditingGrade(null)}><X className="h-4 w-4 mr-1" />Cancel</Button>
           </div>
         </div>
       </Drawer>
 
-      {/* Edit Item Drawer */}
       <Drawer open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)} title="Edit Grade Item">
-        <div className="p-4 space-y-4">
+        <div className="h-1 w-full bg-sky-500" />
+        <div className="p-4 space-y-5">
+          {editingItem && (
+            <div className="flex items-center gap-3 pb-3 border-b border-silver/20">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50">
+                <BookOpen className="h-5 w-5 text-royal" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-black truncate">{editingItem.title}</p>
+                <p className="text-xs text-darksilver">Max: {editingItem.maxScore}</p>
+              </div>
+            </div>
+          )}
           <FormField label="Title" required>
-            <Input value={editItemTitle} onChange={(e) => setEditItemTitle(e.target.value)} placeholder="e.g. Quiz 1" /> {/* Editable title field */}
+            <Input value={editItemTitle} onChange={(e) => setEditItemTitle(e.target.value)} placeholder="e.g. Quiz 1" className="h-11" />
           </FormField>
           <FormField label="Max Score" required>
-            <Input type="number" value={editItemMaxScore} onChange={(e) => setEditItemMaxScore(Number(e.target.value))} placeholder="100" /> {/* Editable max score field */}
+            <Input type="number" value={editItemMaxScore} onChange={(e) => setEditItemMaxScore(Number(e.target.value))} placeholder="100" className="h-11" />
           </FormField>
           <FormField label="Category" required>
-            <Select value={editItemCategoryId} onChange={(e) => setEditItemCategoryId(e.target.value)}> {/* Editable category dropdown */}
+            <Select value={editItemCategoryId} onChange={(e) => setEditItemCategoryId(e.target.value)} className="h-11">
               <option value="">Select category</option>
               {categories.map((cat: any) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
             </Select>
           </FormField>
           {updateItemMutation.isError && <Alert variant="danger">{(updateItemMutation.error as Error).message}</Alert>}
           <div className="flex gap-2">
-            <Button onClick={handleSaveItem} disabled={updateItemMutation.isPending || !editItemTitle}>{updateItemMutation.isPending ? "Saving..." : "Save Changes"}</Button>
-            <Button variant="outline" onClick={() => setEditingItem(null)}>Cancel</Button>
+            <Button onClick={handleSaveItem} disabled={updateItemMutation.isPending || !editItemTitle} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+              {updateItemMutation.isPending ? (
+                <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Saving…</span>
+              ) : (
+                <span className="flex items-center gap-2"><Save className="h-4 w-4" />Save Changes</span>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setEditingItem(null)}><X className="h-4 w-4 mr-1" />Cancel</Button>
           </div>
         </div>
       </Drawer>
 
-      {/* Edit Category Drawer */}
       <Drawer open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)} title="Edit Category">
-        <div className="p-4 space-y-4">
+        <div className="h-1 w-full bg-violet-500" />
+        <div className="p-4 space-y-5">
+          {editingCategory && (
+            <div className="flex items-center gap-3 pb-3 border-b border-silver/20">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50">
+                <Hash className="h-5 w-5 text-violet-600" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-black truncate">{editingCategory.name}</p>
+                <p className="text-xs text-darksilver">{editingCategory.weight ? `${editingCategory.weight}% weight` : "No weight set"}</p>
+              </div>
+            </div>
+          )}
           <FormField label="Name" required>
-            <Input value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)} placeholder="e.g. Quizzes" /> {/* Editable name field */}
+            <Input value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)} placeholder="e.g. Quizzes" className="h-11" />
           </FormField>
           <FormField label="Weight (%)">
-            <Input type="number" value={editCategoryWeight ?? ""} onChange={(e) => setEditCategoryWeight(e.target.value ? Number(e.target.value) : undefined)} placeholder="30" /> {/* Editable weight field */}
+            <Input type="number" value={editCategoryWeight ?? ""} onChange={(e) => setEditCategoryWeight(e.target.value ? Number(e.target.value) : undefined)} placeholder="30" className="h-11" />
           </FormField>
           {updateCategoryMutation.isError && <Alert variant="danger">{(updateCategoryMutation.error as Error).message}</Alert>}
           <div className="flex gap-2">
-            <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending || !editCategoryName}>{updateCategoryMutation.isPending ? "Saving..." : "Save Changes"}</Button>
-            <Button variant="outline" onClick={() => setEditingCategory(null)}>Cancel</Button>
+            <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending || !editCategoryName} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
+              {updateCategoryMutation.isPending ? (
+                <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Saving…</span>
+              ) : (
+                <span className="flex items-center gap-2"><Save className="h-4 w-4" />Save Changes</span>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setEditingCategory(null)}><X className="h-4 w-4 mr-1" />Cancel</Button>
           </div>
         </div>
       </Drawer>
 
-      {/* Delete Confirmations */}
       <ConfirmDialog open={!!deletingGrade} onOpenChange={(open) => !open && setDeletingGrade(null)} title="Delete Grade" description="Are you sure you want to delete this grade entry? This action cannot be undone." confirmLabel="Delete" cancelLabel="Cancel" destructive onConfirm={confirmDeleteGrade} />
       <ConfirmDialog open={!!deletingItem} onOpenChange={(open) => !open && setDeletingItem(null)} title="Delete Grade Item" description={`Are you sure you want to delete "${deletingItem?.title}"? This will also delete all associated grades. This action cannot be undone.`} confirmLabel="Delete" cancelLabel="Cancel" destructive onConfirm={confirmDeleteItem} />
       <ConfirmDialog open={!!deletingCategory} onOpenChange={(open) => !open && setDeletingCategory(null)} title="Delete Category" description={`Are you sure you want to delete "${deletingCategory?.name}"? This will affect all grade items in this category. This action cannot be undone.`} confirmLabel="Delete" cancelLabel="Cancel" destructive onConfirm={confirmDeleteCategory} />

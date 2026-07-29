@@ -41,11 +41,11 @@ export function ConfirmDialog({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={() => onOpenChange(false)} />
-      <div className={cn("relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl")}>
+      <div className="absolute inset-0 bg-navy/40" onClick={() => onOpenChange(false)} />
+      <div className={cn("relative w-full max-w-md rounded-xl border border-silver/30 bg-white p-6 shadow-xl")}>
         <div className="space-y-2">
-          <div className="text-lg font-semibold text-slate-900">{title}</div>
-          {description && <p className="text-sm text-slate-500">{description}</p>}
+          <div className="text-lg font-semibold text-black">{title}</div>
+          {description && <p className="text-sm text-darksilver">{description}</p>}
         </div>
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

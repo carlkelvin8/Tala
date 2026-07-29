@@ -1,6 +1,6 @@
 # Overview
 
-**Kalasag-Tala NSTP Command Center** is a full-stack web application designed to streamline the administration of the National Service Training Program. It provides a centralized platform for managing students, attendance, grades, exams, learning materials, and more.
+**Kalasag-Tala National Service Training Program Management System** is a full-stack web application designed to streamline the administration of the National Service Training Program. It provides a centralized platform for managing students, attendance, grades, exams, learning materials, and more.
 
 ---
 

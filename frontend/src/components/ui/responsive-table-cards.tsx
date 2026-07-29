@@ -33,16 +33,16 @@ export function ResponsiveTableCards<T>({
         {data.map((row) => (
           <Card key={rowKey(row)} className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-900">{renderTitle ? renderTitle(row) : rowKey(row)}</div>
+              <div className="text-sm font-semibold text-black">{renderTitle ? renderTitle(row) : rowKey(row)}</div>
               {renderActions && <div>{renderActions(row)}</div>}
             </div>
-            <div className="mt-3 space-y-2 text-sm text-slate-600">
+            <div className="mt-3 space-y-2 text-sm text-darksilver">
               {columns.map((column) => (
                 <div key={column.header} className="flex items-center justify-between gap-4">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  <span className="text-xs font-medium uppercase tracking-wide text-darksilver">
                     {column.cardLabel ?? column.header}
                   </span>
-                  <div className="text-right text-slate-700">{column.cell(row)}</div>
+                  <div className="text-right text-black/80">{column.cell(row)}</div>
                 </div>
               ))}
             </div>

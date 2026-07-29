@@ -1,12 +1,16 @@
-// Import the Zod validation library for schema definition and parsing
 import { z } from "zod"
 
-/* Schema for assigning a merit or demerit to a student */
 export const meritSchema = z.object({
-  studentId: z.string().uuid(),          // UUID of the student receiving the merit/demerit
-  type: z.enum(["MERIT", "DEMERIT"]),    // Whether this is a positive merit or a negative demerit
-  points: z.number().int(),              // Integer point value (positive for merits, negative for demerits)
-  reason: z.string().min(1)             // Mandatory justification text — must not be empty
+  studentId: z.string().uuid(),
+  type: z.enum(["MERIT", "DEMERIT"]),
+  points: z.number().int().positive(),
+  reason: z.string().min(1)
+})
+
+export const meritUpdateSchema = z.object({
+  type: z.enum(["MERIT", "DEMERIT"]).optional(),
+  points: z.number().int().positive().optional(),
+  reason: z.string().min(1).optional()
 })
 
 export const meritQuerySchema = z.object({

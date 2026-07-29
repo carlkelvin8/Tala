@@ -25,7 +25,7 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
       return {
         score: 0,
         label: "Enter a password",
-        color: "bg-slate-200",
+        color: "bg-silver/30",
         criteria: {
           length: false,
           uppercase: false,
@@ -88,35 +88,35 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
               key={level}
               className={cn(
                 "h-full flex-1 rounded-full transition-all duration-300",
-                level <= strength.score ? strength.color : "bg-slate-200"
+                level <= strength.score ? strength.color : "bg-silver/30"
               )}
             />
           ))}
         </div>
-        <span className="text-xs font-medium text-slate-600 min-w-[60px]">
+        <span className="text-xs font-medium text-darksilver min-w-[60px]">
           {strength.label}
         </span>
       </div>
       
-      <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-        <div className={cn("flex items-center gap-1", strength.criteria.length ? "text-green-600" : "text-slate-400")}>
-          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.length ? "bg-green-500" : "bg-slate-300")} />
+      <div className="grid grid-cols-2 gap-2 text-xs text-darksilver">
+        <div className={cn("flex items-center gap-1", strength.criteria.length ? "text-green-600" : "text-darksilver")}>
+          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.length ? "bg-green-500" : "bg-silver/40")} />
           8+ characters
         </div>
-        <div className={cn("flex items-center gap-1", strength.criteria.uppercase ? "text-green-600" : "text-slate-400")}>
-          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.uppercase ? "bg-green-500" : "bg-slate-300")} />
+        <div className={cn("flex items-center gap-1", strength.criteria.uppercase ? "text-green-600" : "text-darksilver")}>
+          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.uppercase ? "bg-green-500" : "bg-silver/40")} />
           Uppercase
         </div>
-        <div className={cn("flex items-center gap-1", strength.criteria.lowercase ? "text-green-600" : "text-slate-400")}>
-          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.lowercase ? "bg-green-500" : "bg-slate-300")} />
+        <div className={cn("flex items-center gap-1", strength.criteria.lowercase ? "text-green-600" : "text-darksilver")}>
+          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.lowercase ? "bg-green-500" : "bg-silver/40")} />
           Lowercase
         </div>
-        <div className={cn("flex items-center gap-1", strength.criteria.numbers ? "text-green-600" : "text-slate-400")}>
-          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.numbers ? "bg-green-500" : "bg-slate-300")} />
+        <div className={cn("flex items-center gap-1", strength.criteria.numbers ? "text-green-600" : "text-darksilver")}>
+          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.numbers ? "bg-green-500" : "bg-silver/40")} />
           Numbers
         </div>
-        <div className={cn("flex items-center gap-1 col-span-2", strength.criteria.special ? "text-green-600" : "text-slate-400")}>
-          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.special ? "bg-green-500" : "bg-slate-300")} />
+        <div className={cn("flex items-center gap-1 col-span-2", strength.criteria.special ? "text-green-600" : "text-darksilver")}>
+          <div className={cn("h-1.5 w-1.5 rounded-full", strength.criteria.special ? "bg-green-500" : "bg-silver/40")} />
           Special characters (!@#$%^&*)
         </div>
       </div>

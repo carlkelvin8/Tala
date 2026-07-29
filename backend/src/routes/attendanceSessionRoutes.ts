@@ -36,6 +36,7 @@ attendanceSessionRoutes.post(
 
 attendanceSessionRoutes.patch(
   "/:sessionId/verifier-location",
+  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.CADET_OFFICER]),
   updateVerifierLocationHandler
 )
 

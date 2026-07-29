@@ -13,6 +13,12 @@ const routeLabels: Record<string, string> = {
   "/students": "Students", // Students page label
   "/materials": "Materials", // Materials page label
   "/attendance": "Attendance", // Attendance page label
+  "/scanner": "QR Scanner", // Scanner page label
+  "/training": "Training Monitoring", // Training page label
+  "/terms": "Terms", // Terms page label
+  "/sections": "Sections", // Sections page label
+  "/courses": "Courses", // Courses page label
+  "/flights": "Flights", // Flights page label
   "/grades": "Grades", // Grades page label
   "/merits": "Merits", // Merits page label
   "/exams": "Exams", // Exams page label
@@ -32,7 +38,7 @@ const roleLabels: Record<string, string> = {
 // Map of role keys to Tailwind color classes for the role badge background and text
 const roleColors: Record<string, string> = {
   ADMIN: "bg-violet-50 text-violet-600", // Violet badge for admins
-  IMPLEMENTOR: "bg-sky-50 text-sky-600", // Sky blue badge for implementors
+  IMPLEMENTOR: "bg-sky-50 text-royal", // Sky blue badge for implementors
   CADET_OFFICER: "bg-amber-50 text-amber-600", // Amber badge for cadet officers
   STUDENT: "bg-emerald-50 text-emerald-600", // Emerald badge for students
 }
@@ -52,7 +58,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
   const displayName = user ? getUserDisplayName(user) : "Guest" // Get the user's display name or "Guest" if not logged in
   const pageLabel = routeLabels[location.pathname] ?? "Overview" // Look up the current page label by path, defaulting to "Overview"
   const roleLabel = user?.role ? roleLabels[user.role] ?? user.role : "Guest" // Get the human-readable role label or fall back to the raw role string
-  const roleBadge = user?.role ? roleColors[user.role] ?? "bg-slate-100 text-slate-600" : "bg-slate-100 text-slate-600" // Get the role badge color classes or fall back to neutral slate
+  const roleBadge = user?.role ? roleColors[user.role] ?? "bg-silver/20 text-darksilver" : "bg-silver/20 text-darksilver" // Get the role badge color classes or fall back to neutral slate
 
   const handleLogout = () => { // Handler called when the user confirms logout
     clearAuthSession() // Remove all auth data from localStorage
@@ -61,17 +67,17 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 sm:px-6"> {/* Fixed-height header bar with flex layout, bottom border, white background, and responsive horizontal padding */}
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-silver/20 bg-white px-4 sm:px-6"> {/* Fixed-height header bar with flex layout, bottom border, white background, and responsive horizontal padding */}
         {/* Left — mobile menu + page title */}
         <div className="flex items-center gap-3"> {/* Left section: flex row with gap between menu button and title */}
           <button
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 lg:hidden" // Square button, hidden on large screens, visible on mobile
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver transition-colors hover:bg-silver/20 hover:text-black/80 lg:hidden" // Square button, hidden on large screens, visible on mobile
             onClick={onOpenSidebar} // Open the mobile sidebar when clicked
             aria-label="Open menu" // Accessible label for screen readers
           >
             <Menu className="h-4 w-4" /> {/* Hamburger menu icon */}
           </button>
-          <h1 className="text-sm font-semibold text-slate-900">{pageLabel}</h1> {/* Current page title derived from the URL path */}
+          <h1 className="text-sm font-semibold text-black">{pageLabel}</h1> {/* Current page title derived from the URL path */}
         </div>
 
         {/* Right — user info + logout */}
@@ -79,28 +85,28 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
           {/* Session indicator */}
           <div className="hidden items-center gap-1.5 sm:flex"> {/* Active session indicator, hidden on mobile */}
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> {/* Small green dot indicating active session */}
-            <span className="text-xs text-slate-400">Active</span> {/* "Active" label next to the dot */}
+            <span className="text-xs text-darksilver">Active</span> {/* "Active" label next to the dot */}
           </div>
 
-          <div className="h-4 w-px bg-slate-100 hidden sm:block" /> {/* Vertical divider, hidden on mobile */}
+          <div className="h-4 w-px bg-silver/20 hidden sm:block" /> {/* Vertical divider, hidden on mobile */}
 
           {/* User pill */}
           <div className="flex items-center gap-2.5"> {/* User info section: avatar + name + role badge */}
             <AvatarWithRing user={user} size="sm" showStatusDot={false} /> {/* Small avatar with the user's frame style, no status dot */}
             <div className="hidden leading-tight sm:block"> {/* User name and role badge, hidden on mobile */}
-              <p className="text-xs font-semibold text-slate-800 leading-none">{displayName}</p> {/* User's display name */}
+              <p className="text-xs font-semibold text-black leading-none">{displayName}</p> {/* User's display name */}
               <span className={cn("mt-1 inline-block rounded-md px-1.5 py-0.5 text-[10px] font-semibold", roleBadge)}> {/* Role badge with role-specific colors */}
                 {roleLabel} {/* Human-readable role label */}
               </span>
             </div>
           </div>
 
-          <div className="h-4 w-px bg-slate-100" /> {/* Vertical divider before the logout button */}
+          <div className="h-4 w-px bg-silver/20" /> {/* Vertical divider before the logout button */}
 
           {/* Logout */}
           <button
             onClick={() => setConfirmOpen(true)} // Open the logout confirmation dialog instead of logging out immediately
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500" // Square button that turns red on hover
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver transition-colors hover:bg-red-50 hover:text-red-500" // Square button that turns red on hover
             aria-label="Sign out" // Accessible label for screen readers
           >
             <LogOut className="h-4 w-4" /> {/* Logout icon */}
