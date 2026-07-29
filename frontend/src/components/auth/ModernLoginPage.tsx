@@ -173,6 +173,34 @@ export function ModernLoginPage() {
             <button
               type="button"
               onClick={() => {
+                form.setValue("email", "implementor@nstp.local")
+                form.setValue("password", "Password123!")
+              }}
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-black">Implementor</p>
+                <p className="text-[10px] text-darksilver truncate">implementor@nstp.local</p>
+              </div>
+              <ArrowRight className="h-3 w-3 text-silver shrink-0 ml-2" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                form.setValue("email", "cadet@nstp.local")
+                form.setValue("password", "Password123!")
+              }}
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-black">Cadet Officer</p>
+                <p className="text-[10px] text-darksilver truncate">cadet@nstp.local</p>
+              </div>
+              <ArrowRight className="h-3 w-3 text-silver shrink-0 ml-2" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 form.setValue("email", "student@nstp.local")
                 form.setValue("password", "Password123!")
               }}
