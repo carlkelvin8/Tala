@@ -11,6 +11,8 @@ export type JwtPayload = {
   role: RoleType // The user's role (ADMIN, IMPLEMENTOR, CADET_OFFICER, STUDENT)
 }
 
+export type RefreshJwtPayload = JwtPayload & { tokenVersion: number }
+
 /* Sign a short-lived access token with the payload and the access token secret */
 export function signAccessToken(payload: JwtPayload) {
   // jwt.sign encodes the payload, signs it with the secret, and sets the expiry
@@ -18,7 +20,7 @@ export function signAccessToken(payload: JwtPayload) {
 }
 
 /* Sign a long-lived refresh token with the payload and the refresh token secret */
-export function signRefreshToken(payload: JwtPayload) {
+export function signRefreshToken(payload: RefreshJwtPayload) {
   // Uses a separate secret and longer expiry than the access token
   return jwt.sign(payload, env.refreshTokenSecret as Secret, { expiresIn: env.refreshTokenExpiresIn as SignOptions["expiresIn"] })
 }
@@ -32,5 +34,5 @@ export function verifyAccessToken(token: string) {
 /* Verify and decode a refresh token; throws if the token is invalid or expired */
 export function verifyRefreshToken(token: string) {
   // Uses the refresh secret — a different key from the access token secret
-  return jwt.verify(token, env.refreshTokenSecret as Secret) as JwtPayload
+  return jwt.verify(token, env.refreshTokenSecret as Secret) as RefreshJwtPayload
 }

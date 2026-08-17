@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
+import { requestId } from "hono/request-id"
 import { env } from "./lib/env.js"
 import { authRoutes } from "./routes/authRoutes.js"
 import { userRoutes } from "./routes/userRoutes.js"
@@ -21,11 +22,18 @@ import { absenceRoutes } from "./routes/absenceRoutes.js"
 import { termRoutes } from "./routes/termRoutes.js"
 import { remarkRoutes } from "./routes/remarkRoutes.js"
 import { trainingDayRoutes } from "./routes/trainingDayRoutes.js"
-import { errorHandler } from "./middlewares/errorHandler.js"
-import { ok } from "./lib/response.js"
+import { auditRoutes } from "./routes/auditRoutes.js"
+import { fail, ok } from "./lib/response.js"
 
 export const app = new Hono()
 
+app.onError((error, c) => {
+  const id = c.get("requestId")
+  console.error(JSON.stringify({ level: "error", requestId: id, method: c.req.method, path: c.req.path, message: error.message, stack: error.stack }))
+  return c.json(fail("Internal server error", { requestId: id }), 500)
+})
+
+app.use("*", requestId())
 app.use(logger())
 
 app.use(
@@ -78,6 +86,4 @@ app.route("/api/absences", absenceRoutes)
 app.route("/api/terms", termRoutes)
 app.route("/api/remarks", remarkRoutes)
 app.route("/api/training", trainingDayRoutes)
-
-// Register the global error handler as a catch-all middleware — runs after all routes
-app.use("*", errorHandler)
+app.route("/api/audit-logs", auditRoutes)

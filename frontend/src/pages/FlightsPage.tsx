@@ -29,25 +29,33 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+type Flight = {
+  id: string
+  code: string
+  name: string
+  createdAt: string
+  _count?: { enrollments?: number }
+}
+
 export function FlightsPage() {
   const user = getStoredUser()
   const canManage = user?.role === "ADMIN" || user?.role === "CADET_OFFICER"
   const form = useForm<FormValues>({ resolver: zodResolver(schema) })
-  const [editingFlight, setEditingFlight] = useState<any | null>(null)
-  const [deletingFlight, setDeletingFlight] = useState<any | null>(null)
+  const [editingFlight, setEditingFlight] = useState<Flight | null>(null)
+  const [deletingFlight, setDeletingFlight] = useState<Flight | null>(null)
   const [editCode, setEditCode] = useState("")
   const [editName, setEditName] = useState("")
 
   const flightsQuery = useQuery({
     queryKey: ["flights"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/flights"),
+    queryFn: () => apiRequest<ApiResponse<Flight[]>>("/api/flights"),
     refetchInterval: 10000,
     retry: false
   })
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
-      apiRequest<ApiResponse<any>>("/api/flights", {
+      apiRequest<ApiResponse<Flight>>("/api/flights", {
         method: "POST",
         body: JSON.stringify(values)
       }),
@@ -62,7 +70,7 @@ export function FlightsPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, code, name }: { id: string; code: string; name: string }) =>
-      apiRequest<ApiResponse<any>>(`/api/flights/${id}`, {
+      apiRequest<ApiResponse<Flight>>(`/api/flights/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ code, name })
       }),
@@ -78,7 +86,7 @@ export function FlightsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest<ApiResponse<any>>(`/api/flights/${id}`, {
+      apiRequest<ApiResponse<Flight>>(`/api/flights/${id}`, {
         method: "DELETE"
       }),
     onSuccess: () => {
@@ -90,7 +98,7 @@ export function FlightsPage() {
     }
   })
 
-  const handleEdit = (flight: any) => {
+  const handleEdit = (flight: Flight) => {
     setEditingFlight(flight)
     setEditCode(flight.code)
     setEditName(flight.name)
@@ -106,7 +114,7 @@ export function FlightsPage() {
     }
   }
 
-  const handleDelete = (flight: any) => {
+  const handleDelete = (flight: Flight) => {
     setDeletingFlight(flight)
   }
 
@@ -125,12 +133,12 @@ export function FlightsPage() {
   const flights = flightsQuery.data?.data ?? []
 
   const totalFlights = useMemo(() => flights.length, [flights])
-  const totalStudents = useMemo(() => flights.reduce((sum: number, f: any) => sum + (f._count?.enrollments ?? 0), 0), [flights])
+  const totalStudents = useMemo(() => flights.reduce((sum, flight) => sum + (flight._count?.enrollments ?? 0), 0), [flights])
 
   const columns = [
     {
       header: "Code",
-      cell: (flight: any) => (
+      cell: (flight: Flight) => (
         <div className="flex items-center gap-2">
           <Plane className="h-4 w-4 text-primary-600" />
           <span className="font-medium text-black">{flight.code}</span>
@@ -139,11 +147,11 @@ export function FlightsPage() {
     },
     {
       header: "Name",
-      cell: (flight: any) => flight.name
+      cell: (flight: Flight) => flight.name
     },
     {
       header: "Created",
-      cell: (flight: any) =>
+      cell: (flight: Flight) =>
         new Date(flight.createdAt).toLocaleDateString(undefined, {
           year: "numeric",
           month: "short",
@@ -152,7 +160,7 @@ export function FlightsPage() {
     },
     {
       header: "Actions",
-      cell: (flight: any) => {
+      cell: (flight: Flight) => {
         if (!canManage) return null
         return (
           <div className="flex gap-2">

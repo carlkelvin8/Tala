@@ -8,6 +8,15 @@ import { getFullName } from "../lib/display"
 import { toast } from "sonner"
 import { cn } from "../lib/utils"
 
+type ScanResponse = {
+  student?: {
+    email?: string
+    studentProfile?: { firstName: string; lastName: string } | null
+    implementorProfile?: { firstName: string; lastName: string } | null
+    cadetOfficerProfile?: { firstName: string; lastName: string } | null
+  } | null
+}
+
 declare class BarcodeDetector {
   constructor(options?: { formats?: string[] })
   detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
@@ -18,22 +27,31 @@ export function ScannerPage() {
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const processingRef = useRef(false)
+  const lastTokenRef = useRef<string | null>(null)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   const scanMutation = useMutation({
-    mutationFn: (token: string) =>
-      apiRequest<ApiResponse<any>>("/api/attendance/scan", {
+    mutationFn: (token: string) => {
+      if (!navigator.onLine) throw new Error("You are offline. Reconnect, then retry the scan.")
+      lastTokenRef.current = token
+      return apiRequest<ApiResponse<ScanResponse>>("/api/attendance/scan", {
         method: "POST",
         body: JSON.stringify({ token }),
-      }),
+      })
+    },
     onSuccess: (data) => {
       const name = data.data?.student ? getFullName(data.data.student) : "Student"
       setScanResult({ success: true, message: `${name} — marked PRESENT` })
       toast.success("Attendance recorded")
+      lastTokenRef.current = null
+      processingRef.current = false
       setTimeout(() => setScanResult(null), 4000)
     },
     onError: (error) => {
       setScanResult({ success: false, message: error instanceof Error ? error.message : "Scan failed" })
       toast.error("Scan failed")
+      processingRef.current = false
       setTimeout(() => setScanResult(null), 4000)
     },
   })
@@ -50,6 +68,10 @@ export function ScannerPage() {
   }
 
   const startScanning = async () => {
+    if (!navigator.onLine) {
+      setScanResult({ success: false, message: "You are offline. Connect to the internet before scanning." })
+      return
+    }
     setIsScanning(true)
     setScanResult(null)
     try {
@@ -61,10 +83,20 @@ export function ScannerPage() {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
       }
-    } catch {
-      setScanResult({ success: false, message: "Camera access denied. Please allow camera permissions." })
+    } catch (error) {
+      const message = error instanceof DOMException && error.name === "NotAllowedError"
+        ? "Camera access was denied. Enable camera permission in your browser settings, then try again."
+        : "Camera could not start. Check whether another app is using it, then try again."
+      setScanResult({ success: false, message })
       setIsScanning(false)
     }
+  }
+
+  const submitToken = (token: string) => {
+    if (processingRef.current || scanMutation.isPending) return
+    processingRef.current = true
+    scanMutation.mutate(token)
+    stopScanning()
   }
 
   useEffect(() => {
@@ -82,8 +114,7 @@ export function ScannerPage() {
           try {
             const barcodes = await detector.detect(videoRef.current)
             if (barcodes.length > 0 && barcodes[0].rawValue) {
-              scanMutation.mutate(barcodes[0].rawValue)
-              stopScanning()
+              submitToken(barcodes[0].rawValue)
               return
             }
           } catch { /* ignore */ }
@@ -99,8 +130,7 @@ export function ScannerPage() {
             video,
             (result: { data: string }) => {
               if (result?.data) {
-                scanMutation.mutate(result.data)
-                stopScanning()
+                submitToken(result.data)
               }
             },
             { returnDetailedScanResult: true }
@@ -128,6 +158,16 @@ export function ScannerPage() {
     return () => stopScanning()
   }, [])
 
+  useEffect(() => {
+    const updateNetworkState = () => setIsOnline(navigator.onLine)
+    window.addEventListener("online", updateNetworkState)
+    window.addEventListener("offline", updateNetworkState)
+    return () => {
+      window.removeEventListener("online", updateNetworkState)
+      window.removeEventListener("offline", updateNetworkState)
+    }
+  }, [])
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated">
@@ -148,7 +188,11 @@ export function ScannerPage() {
           </div>
           <div className="shrink-0">
             <button
+              type="button"
+              aria-pressed={isScanning}
+              aria-label={isScanning ? "Stop QR scanner" : "Open QR scanner"}
               onClick={isScanning ? stopScanning : startScanning}
+              disabled={scanMutation.isPending || !isOnline}
               className={cn(
                 "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 shadow-soft",
                 isScanning
@@ -181,6 +225,7 @@ export function ScannerPage() {
                 className="w-full"
                 playsInline
                 muted
+                aria-label="Live camera preview for QR scanning"
               />
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="relative h-52 w-52">
@@ -207,19 +252,29 @@ export function ScannerPage() {
               <p className="text-xs text-darksilver mt-1">Click "Open Scanner" to start scanning student QR codes.</p>
             </div>
           )}
+          {!isOnline && (
+            <div role="status" className="w-full max-w-[480px] rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-medium text-amber-900">
+              Offline — reconnect to record attendance.
+            </div>
+          )}
           {scanResult && (
             <div className={cn(
               "flex items-center gap-3 rounded-xl border px-5 py-3.5 text-sm shadow-soft animate-scale-in w-full max-w-[480px]",
               scanResult.success
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-red-200 bg-red-50 text-red-800"
-            )}>
+            )} role="status" aria-live="polite">
               {scanResult.success ? (
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
               ) : (
                 <XCircle className="h-5 w-5 text-red-600 shrink-0" />
               )}
               <span className="font-medium">{scanResult.message}</span>
+              {!scanResult.success && lastTokenRef.current && isOnline && (
+                <Button type="button" size="sm" variant="outline" className="ml-auto" onClick={() => submitToken(lastTokenRef.current!)} disabled={scanMutation.isPending}>
+                  Retry
+                </Button>
+              )}
             </div>
           )}
         </div>

@@ -11,7 +11,7 @@ import "./index.css" // Import global CSS styles including Tailwind base styles
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode> {/* Wrap the entire app in StrictMode to detect potential problems and warn about deprecated APIs in development */}
     <QueryClientProvider client={queryClient}> {/* Provide the React Query client to all descendant components so they can use useQuery/useMutation */}
-      <BrowserRouter> {/* Wrap the app in BrowserRouter to enable routing via the browser's History API */}
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}> {/* Opt into stable v7 transition behavior while using React Router v6 */}
         <App /> {/* Render the root App component which contains all route definitions */}
       </BrowserRouter>
       <Toaster richColors position="top-right" /> {/* Render the toast notification container; richColors enables colored variants, position places it top-right */}

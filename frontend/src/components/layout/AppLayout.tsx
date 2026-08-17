@@ -31,7 +31,7 @@ export function AppLayout() {
         <PremiumAppSidebar className="sticky top-0 hidden h-screen lg:block" />
         <div className="flex min-h-screen flex-1 flex-col">
           <Topbar onOpenSidebar={() => setSidebarOpen(true)} />
-          <main className="flex-1 p-6 overflow-hidden">
+          <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
             <AnimatePresence mode="wait" initial={true}>
               <motion.div
                 key={location.pathname}

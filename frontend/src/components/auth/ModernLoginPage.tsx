@@ -87,41 +87,48 @@ export function ModernLoginPage() {
         )}
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-black/80">
+          <label htmlFor="login-email" className="text-sm font-medium text-black/80">
             Email or Student Number
           </label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-darksilver" />
             <Input
+              id="login-email"
               {...form.register("email")}
               type="text"
               placeholder="email@example.com or 2024-12345"
               className="h-11 pl-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50"
               autoComplete="username"
+              aria-invalid={Boolean(form.formState.errors.email)}
+              aria-describedby={form.formState.errors.email ? "login-email-error" : undefined}
             />
           </div>
           {form.formState.errors.email && (
-            <p className="text-xs text-red-600 mt-1">
+            <p id="login-email-error" role="alert" className="text-xs text-red-600 mt-1">
               {form.formState.errors.email.message}
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-black/80">
+          <label htmlFor="login-password" className="text-sm font-medium text-black/80">
             Password
           </label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-darksilver" />
             <Input
+              id="login-password"
               {...form.register("password")}
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               className="h-11 pl-10 pr-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50"
               autoComplete="current-password"
+              aria-invalid={Boolean(form.formState.errors.password)}
+              aria-describedby={form.formState.errors.password ? "login-password-error" : undefined}
             />
             <button
               type="button"
+              aria-label={showPassword ? "Hide password" : "Show password"}
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-darksilver hover:text-darksilver transition-colors"
             >
@@ -129,7 +136,7 @@ export function ModernLoginPage() {
             </button>
           </div>
           {form.formState.errors.password && (
-            <p className="text-xs text-red-600 mt-1">
+            <p id="login-password-error" role="alert" className="text-xs text-red-600 mt-1">
               {form.formState.errors.password.message}
             </p>
           )}
@@ -153,9 +160,9 @@ export function ModernLoginPage() {
           )}
         </Button>
 
-        <div className="pt-6">
+        {import.meta.env.DEV && <div className="pt-6">
           <p className="text-xs text-darksilver mb-3 font-medium uppercase tracking-wider">Demo accounts</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
@@ -213,7 +220,7 @@ export function ModernLoginPage() {
               <ArrowRight className="h-3 w-3 text-silver shrink-0 ml-2" />
             </button>
           </div>
-        </div>
+        </div>}
       </form>
     </ModernAuthLayout>
   )

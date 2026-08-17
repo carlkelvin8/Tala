@@ -165,5 +165,25 @@ describe("Auth Routes", () => {
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.data.accessToken).toBeDefined()
+
+    const replay = await app.request("/api/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json({ refreshToken }),
+    })
+    expect(replay.status).toBe(401)
+
+    const logout = await app.request("/api/auth/logout", {
+      method: "POST",
+      headers: authHeader(body.data.accessToken),
+    })
+    expect(logout.status).toBe(200)
+
+    const afterLogout = await app.request("/api/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json({ refreshToken: body.data.refreshToken }),
+    })
+    expect(afterLogout.status).toBe(401)
   })
 })

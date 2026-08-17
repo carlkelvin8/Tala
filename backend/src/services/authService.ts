@@ -93,7 +93,7 @@ export async function loginUser(emailOrStudentNo: string, password: string) {
 
   const payload = { sub: user.id, role: user.role }
   const accessToken = signAccessToken(payload)
-  const refreshToken = signRefreshToken(payload)
+  const refreshToken = signRefreshToken({ ...payload, tokenVersion: user.refreshTokenVersion })
   await logAudit("LOGIN", "User", user.id, user.id)
   return { user, accessToken, refreshToken }
 }
@@ -109,7 +109,10 @@ export async function changePassword(userId: string, currentPassword: string, ne
     throw new Error("Invalid current password")
   }
   const passwordHash = await hashPassword(newPassword)
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, passwordUpdatedAt: new Date(), refreshTokenVersion: { increment: 1 } }
+  })
   await logAudit("UPDATE", "UserPassword", userId, userId)
 }
 

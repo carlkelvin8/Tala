@@ -15,9 +15,10 @@ import {
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { NavLink, useNavigate } from "react-router-dom"
 import { navItems } from "../lib/navigation"
-import { getStoredUser, clearAuthSession, getUserDisplayName, getUserInitials } from "../lib/auth"
+import { getStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
+import { logoutSession } from "../lib/api"
 import { cn } from "../lib/utils"
-import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar } from "lucide-react"
+import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar, ShieldCheck } from "lucide-react"
 import { roleLabels, roleBadgeColors } from "../lib/roles"
 
 const iconMap = {
@@ -34,6 +35,7 @@ const iconMap = {
   "/exams": FileText,
   "/reports": BarChart3,
   "/users": UserCog,
+  "/audit-logs": ShieldCheck,
   "/profile": User2,
   "/training": Target,
   "/terms": Calendar,
@@ -71,11 +73,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ["/materials", "/attendance", "/training", "/terms", "/grades", "/merits", "/exams"].includes(item.path)
   )
   const systemItems = items.filter((item) =>
-    ["/reports", "/users"].includes(item.path)
+    ["/reports", "/users", "/audit-logs"].includes(item.path)
   )
 
-  const handleSignOut = () => { // Handler called when the user confirms sign-out
-    clearAuthSession() // Remove all auth data from localStorage
+  const handleSignOut = async () => { // Handler called when the user confirms sign-out
+    await logoutSession()
     navigate("/login") // Redirect to the login page
   }
 

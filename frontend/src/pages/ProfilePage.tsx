@@ -9,6 +9,7 @@ import { ImageCropper } from "../components/ui/image-cropper"
 import { AvatarWithRing } from "../components/ui/avatar-with-ring"
 import { AvatarFrameSelector } from "../components/ui/avatar-frame-selector"
 import { useForm } from "react-hook-form"
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -17,6 +18,7 @@ import * as React from "react"
 import {
   Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Fingerprint, Globe, Key, LogOut, RefreshCw, Circle
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth"
 import { AvatarFrameType } from "../lib/avatar"
 import { cn } from "../lib/utils"
@@ -37,6 +39,27 @@ const profileSchema = z.object({
   gender: z.string().optional(),
 })
 type ProfileFormValues = z.infer<typeof profileSchema>
+
+type ProfileResponse = {
+  id: string
+  email: string
+  role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT"
+  isActive: boolean
+  avatarUrl?: string | null
+  avatarFrame?: string | null
+  createdAt: string
+  passwordUpdatedAt: string
+  profile?: {
+    firstName?: string | null
+    lastName?: string | null
+    middleName?: string | null
+    contactNo?: string | null
+    address?: string | null
+    birthDate?: string | null
+    gender?: string | null
+    studentNo?: string | null
+  } | null
+}
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -113,7 +136,7 @@ function PasswordInput({
   )
 }
 
-function FieldCard({ icon: Icon, label, value, note }: { icon: any; label: string; value: string; note?: string | null }) {
+function FieldCard({ icon: Icon, label, value, note }: { icon: LucideIcon; label: string; value: string; note?: string | null }) {
   return (
     <div className="group flex items-start gap-3 rounded-xl border border-silver/20 bg-white p-4 transition-all duration-200 hover:border-silver/30 hover:shadow-soft">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-darksilver transition-colors group-hover:bg-silver/20">
@@ -147,7 +170,7 @@ export function ProfilePage() {
 
   const { data: profileData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["profile"],
-    queryFn: () => apiRequest<ApiResponse<any>>("/api/auth/profile"),
+    queryFn: () => apiRequest<ApiResponse<ProfileResponse>>("/api/auth/profile"),
     refetchInterval: 10000,
     retry: false
   })
@@ -168,6 +191,10 @@ export function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: { firstName: "", lastName: "", middleName: "", contactNo: "", address: "", birthDate: "", gender: "" }
   })
+  useUnsavedChanges(
+    (isEditingProfile && profileForm.formState.isDirty) ||
+    (isChangingPassword && passwordForm.formState.isDirty)
+  )
 
   React.useEffect(() => {
     if (profileData?.data?.profile) {
@@ -186,14 +213,14 @@ export function ProfilePage() {
 
   const passwordMutation = useMutation({
     mutationFn: (values: PasswordFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/auth/change-password", { method: "POST", body: JSON.stringify(values) }),
+      apiRequest<ApiResponse<never>>("/api/auth/change-password", { method: "POST", body: JSON.stringify(values) }),
     onSuccess: () => { toast.success("Password updated"); passwordForm.reset(); setIsChangingPassword(false) },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to update password") }
   })
 
   const profileMutation = useMutation({
     mutationFn: (values: ProfileFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/auth/profile", { method: "PATCH", body: JSON.stringify(values) }),
+      apiRequest<ApiResponse<never>>("/api/auth/profile", { method: "PATCH", body: JSON.stringify(values) }),
     onSuccess: () => { toast.success("Profile updated successfully"); setIsEditingProfile(false); refetch() },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Unable to update profile") }
   })
@@ -248,7 +275,7 @@ export function ProfilePage() {
     setImageToCrop(null)
     setIsUploadingAvatar(true)
     try {
-      await apiRequest<ApiResponse<any>>("/api/auth/avatar", {
+      await apiRequest<ApiResponse<{ avatarUrl: string }>>("/api/auth/avatar", {
         method: "PATCH",
         body: JSON.stringify({ avatarUrl: croppedImage }),
       })
@@ -269,7 +296,7 @@ export function ProfilePage() {
   const handleAvatarReset = async () => {
     setIsUploadingAvatar(true)
     try {
-      await apiRequest<ApiResponse<any>>("/api/auth/avatar", { method: "DELETE" })
+      await apiRequest<ApiResponse<never>>("/api/auth/avatar", { method: "DELETE" })
       setAvatarPreview(null)
       updateStoredUser({ avatarUrl: undefined })
       toast.success("Profile photo removed")
@@ -284,7 +311,7 @@ export function ProfilePage() {
     const previousFrame = selectedFrame
     setSelectedFrame(frame)
     try {
-      await apiRequest<ApiResponse<any>>("/api/auth/avatar-frame", {
+      await apiRequest<ApiResponse<{ avatarFrame: string }>>("/api/auth/avatar-frame", {
         method: "PATCH",
         body: JSON.stringify({ avatarFrame: frame }),
       })
@@ -297,7 +324,7 @@ export function ProfilePage() {
     }
   }
 
-  const tabs: { id: TabId; label: string; icon: any }[] = [
+  const tabs: { id: TabId; label: string; icon: LucideIcon }[] = [
     { id: "account", label: "Account", icon: User },
     { id: "security", label: "Security", icon: Lock },
   ]

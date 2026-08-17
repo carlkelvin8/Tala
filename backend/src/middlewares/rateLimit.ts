@@ -1,39 +1,59 @@
-import { Context, Next } from "hono"
+import type { Context, Next } from "hono"
 
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+type Entry = { count: number; resetAt: number }
+type KeyResolver = (c: Context) => string | Promise<string>
 
-const MAX_ATTEMPTS = 10
-const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const stores = new Set<Map<string, Entry>>()
 
-export async function rateLimitLogin(c: Context, next: Next) {
-  const body = await c.req.json()
-  const identifier = body.emailOrStudentNo || "unknown"
-  const now = Date.now()
-  const record = loginAttempts.get(identifier)
-
-  if (record && now < record.resetAt) {
-    if (record.count >= MAX_ATTEMPTS) {
-      const remaining = Math.ceil((record.resetAt - now) / 1000)
-      return c.json(
-        { success: false, message: `Too many login attempts. Try again in ${remaining}s.` },
-        429
-      )
-    }
-  } else {
-    loginAttempts.set(identifier, { count: 0, resetAt: now + WINDOW_MS })
-  }
-
-  const entry = loginAttempts.get(identifier)!
-  entry.count++
-  loginAttempts.set(identifier, entry)
-
-  await next()
+function clientIp(c: Context) {
+  return c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
+    || c.req.header("x-real-ip")
+    || "unknown"
 }
 
-// Periodic cleanup of expired entries (every 5 minutes)
+function rateLimit(options: { max: number; windowMs: number; key: KeyResolver }) {
+  const store = new Map<string, Entry>()
+  stores.add(store)
+
+  return async (c: Context, next: Next) => {
+    const now = Date.now()
+    const key = await options.key(c)
+    const current = store.get(key)
+    const entry = !current || current.resetAt <= now
+      ? { count: 0, resetAt: now + options.windowMs }
+      : current
+
+    if (entry.count >= options.max) {
+      const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000))
+      c.header("Retry-After", String(retryAfter))
+      return c.json({ success: false, message: `Too many requests. Try again in ${retryAfter}s.` }, 429)
+    }
+
+    entry.count += 1
+    store.set(key, entry)
+    await next()
+  }
+}
+
+export const rateLimitLogin = rateLimit({
+  max: 10,
+  windowMs: 15 * 60 * 1000,
+  key: async (c) => {
+    const body = await c.req.json<{ email?: string }>()
+    return `login:${clientIp(c)}:${body.email?.trim().toLowerCase() || "unknown"}`
+  },
+})
+
+// High enough for shared campus/NAT networks while still bounding automated signup abuse.
+export const rateLimitRegister = rateLimit({ max: 30, windowMs: 60 * 60 * 1000, key: (c) => `register:${clientIp(c)}` })
+export const rateLimitRefresh = rateLimit({ max: 30, windowMs: 15 * 60 * 1000, key: (c) => `refresh:${clientIp(c)}` })
+export const rateLimitScan = rateLimit({ max: 60, windowMs: 60 * 1000, key: (c) => `scan:${clientIp(c)}:${c.get("user")?.id || "anonymous"}` })
+
 setInterval(() => {
   const now = Date.now()
-  for (const [key, val] of loginAttempts) {
-    if (now >= val.resetAt) loginAttempts.delete(key)
+  for (const store of stores) {
+    for (const [key, entry] of store) {
+      if (entry.resetAt <= now) store.delete(key)
+    }
   }
 }, 5 * 60 * 1000).unref()

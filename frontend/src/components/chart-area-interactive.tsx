@@ -83,7 +83,7 @@ export function ChartAreaInteractive() {
   return (
     <div className="rounded-2xl border border-silver/20 bg-white shadow-card">
       {/* Header */}
-      <div className="flex flex-col gap-3 border-b border-silver/20 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-silver/20 px-4 sm:px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-black">Attendance Over Time</h3>
           <p className="mt-0.5 text-xs text-darksilver">Daily present &amp; late count for the selected period</p>
@@ -108,7 +108,7 @@ export function ChartAreaInteractive() {
       </div>
 
       {/* Chart body */}
-      <div className="px-6 py-5">
+      <div className="px-4 sm:px-6 py-5">
         {isLoading ? (
           <div className="flex h-56 items-center justify-center">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-silver/30 border-t-darksilver" />

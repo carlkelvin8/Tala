@@ -12,7 +12,7 @@ const cardVariants = cva(
         outline: "border-silver/30",
       },
       padding: {
-        default: "p-6",
+        default: "p-4 sm:p-6",
         sm: "p-4",
         lg: "p-8",
         none: "p-0",
@@ -37,7 +37,7 @@ function Card({ className, variant, padding, ...props }: CardProps) {
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col gap-1 px-6 pt-6 pb-0", className)} {...props} />
+    <div ref={ref} className={cn("flex flex-col gap-1 px-4 sm:px-6 pt-4 sm:pt-6 pb-0", className)} {...props} />
   )
 )
 CardHeader.displayName = "CardHeader"
@@ -62,7 +62,7 @@ CardDescription.displayName = "CardDescription"
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("px-6 pb-6 pt-4", className)} {...props} />
+    <div ref={ref} className={cn("px-4 sm:px-6 pb-4 sm:pb-6 pt-4", className)} {...props} />
   )
 )
 CardContent.displayName = "CardContent"
@@ -71,7 +71,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex items-center px-6 pb-6 pt-0 border-t border-silver/20 mt-2", className)}
+      className={cn("flex items-center px-4 sm:px-6 pb-4 sm:pb-6 pt-0 border-t border-silver/20 mt-2", className)}
       {...props}
     />
   )

@@ -483,7 +483,7 @@ function AttendanceHistory() {
       {rows.length > 0 && (
         <div className="space-y-4">
           <motion.div
-            className="grid gap-4 sm:grid-cols-3 px-6 pt-2"
+            className="grid gap-4 sm:grid-cols-3"
             variants={cardContainerVariants}
             initial="initial"
             animate="animate"
@@ -518,7 +518,7 @@ function AttendanceHistory() {
             })}
           </motion.div>
 
-          <div className="flex flex-wrap items-center gap-2 px-6">
+          <div className="flex flex-wrap items-center gap-2">
             {ATTENDANCE_STATUSES.map((s) => {
               const meta = statusMeta[s]
               const count = statusCounts[s] || 0
@@ -552,34 +552,30 @@ function AttendanceHistory() {
       )}
 
       {attendanceQuery.isError && (
-        <div className="px-6 pt-4">
-          <Alert variant="danger">Unable to load attendance history.</Alert>
-        </div>
+        <Alert variant="danger">Unable to load attendance history.</Alert>
       )}
 
-      <div className="px-6 pt-3 pb-2">
-        {attendanceQuery.isLoading ? (
-          <LoadingSkeleton rows={3} columns={4} />
-        ) : rows.length === 0 ? (
-          <div className="py-4">
-            <EmptyState title="No attendance records" description="Scan a QR code to start building history." />
-          </div>
-        ) : filteredRows.length === 0 ? (
-          <div className="py-4">
-            <EmptyState
-              title="No records for this status"
-              description="Try selecting a different attendance status filter."
-            />
-          </div>
-        ) : (
-          <ResponsiveTableCards
-            data={filteredRows}
-            columns={columns}
-            rowKey={(record) => record.id}
-            renderTitle={(record) => new Date(record.date).toLocaleDateString()}
+      {attendanceQuery.isLoading ? (
+        <LoadingSkeleton rows={3} columns={4} />
+      ) : rows.length === 0 ? (
+        <div className="py-4">
+          <EmptyState title="No attendance records" description="Scan a QR code to start building history." />
+        </div>
+      ) : filteredRows.length === 0 ? (
+        <div className="py-4">
+          <EmptyState
+            title="No records for this status"
+            description="Try selecting a different attendance status filter."
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <ResponsiveTableCards
+          data={filteredRows}
+          columns={columns}
+          rowKey={(record) => record.id}
+          renderTitle={(record) => new Date(record.date).toLocaleDateString()}
+        />
+      )}
     </SectionCard>
   )
 }

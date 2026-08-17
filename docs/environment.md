@@ -9,17 +9,21 @@ File: `backend/.env`
 | Variable | Required | Description | Example |
 |---|---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql://user:pass@host:5432/db?sslmode=require` |
-| `JWT_SECRET` | Yes | Secret key for signing JWTs | `super-secret-key-min-32-chars` |
+| `TEST_DATABASE_URL` | For tests | Dedicated disposable PostgreSQL database used by `npm test` | `postgresql://user:pass@host:5432/db_test?sslmode=require` |
+| `JWT_ACCESS_SECRET` | Yes | Secret key for signing access tokens | `random-secret-at-least-32-characters` |
+| `JWT_REFRESH_SECRET` | Yes | Separate secret for signing refresh tokens | `different-random-secret-at-least-32-characters` |
+| `QR_TOKEN_SECRET` | Yes | Separate secret for attendance QR tokens | `another-random-secret-at-least-32-characters` |
 | `PORT` | No | HTTP server port (default: 4000) | `4000` |
 | `NODE_ENV` | No | Environment mode | `development` or `production` |
 
 ### Notes
 
-- `JWT_SECRET` should be at least 32 characters in production. Use a random generator:
+- Each secret should be unique and at least 32 characters in production. Use a random generator:
   ```bash
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
 - `DATABASE_URL` for Neon must include `?sslmode=require`
+- `npm test` prefers `TEST_DATABASE_URL` when present because integration tests create and delete records. Never point it at production.
 - Never commit `.env` to version control
 
 ---
@@ -46,7 +50,9 @@ File: `frontend/.env.local` (development) or `frontend/.env.production` (product
 
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/nstp_db"
-JWT_SECRET="change-this-to-a-random-32-char-string"
+JWT_ACCESS_SECRET="change-this-to-a-random-32-char-string"
+JWT_REFRESH_SECRET="use-a-different-random-32-char-string"
+QR_TOKEN_SECRET="use-another-random-32-char-string"
 PORT=4000
 NODE_ENV=development
 ```

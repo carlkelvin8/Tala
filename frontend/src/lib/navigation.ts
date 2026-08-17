@@ -25,5 +25,6 @@ export const navItems: NavItem[] = [
   { label: "Exams", path: "/exams", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }, // Exams are accessible to all roles
   { label: "Reports", path: "/reports", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] }, // Reports are hidden from students
   { label: "User Management", path: "/users", roles: ["ADMIN"] }, // User management is restricted to admins only
+  { label: "Audit Logs", path: "/audit-logs", roles: ["ADMIN"] },
   { label: "Profile", path: "/profile", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] } // Profile page is accessible to all roles
 ]

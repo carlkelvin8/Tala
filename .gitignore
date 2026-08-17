@@ -33,8 +33,9 @@ Thumbs.db
 # Uploads
 backend/uploads/
 
-# Prisma
-backend/prisma/migrations/*_*/
+# Test artifacts
+frontend/test-results/
+frontend/playwright-report/
 
 # Lock files (optional - you may want to keep these)
 # package-lock.json

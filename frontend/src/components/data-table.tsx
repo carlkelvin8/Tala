@@ -29,7 +29,7 @@ export function DataTable() {
   return (
     <div className="rounded-2xl border border-silver/20 bg-white shadow-card">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-silver/20 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-silver/20 px-4 sm:px-6 py-4">
         <div>
           <h3 className="text-sm font-semibold text-black">Recent Attendance</h3>
           <p className="mt-0.5 text-xs text-darksilver">
@@ -44,7 +44,7 @@ export function DataTable() {
       </div>
 
       {/* Table */}
-      <div className="px-6 pt-3 pb-2">
+      <div className="px-4 sm:px-6 pt-3 pb-2">
         {isError && (
           <p className="py-4 text-sm text-rose-500">Unable to load attendance records.</p>
         )}
@@ -121,7 +121,7 @@ export function DataTable() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-silver/20 px-6 py-3">
+        <div className="flex items-center justify-between border-t border-silver/20 px-4 sm:px-6 py-3">
           <span className="text-xs text-darksilver">
             Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
           </span>

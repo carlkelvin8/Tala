@@ -1,4 +1,4 @@
-import { LogOut, User2, Shield } from "lucide-react"
+import { LogOut, User2, Shield, ShieldCheck } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +12,8 @@ import {
 } from "../ui/sidebar"
 import { NavLink } from "react-router-dom"
 import { navItems } from "../../lib/navigation"
-import { getStoredUser, clearAuthSession, getUserDisplayName } from "../../lib/auth"
+import { getStoredUser, getUserDisplayName } from "../../lib/auth"
+import { logoutSession } from "../../lib/api"
 import { cn } from "../../lib/utils"
 import { 
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
@@ -33,6 +34,7 @@ const iconMap = {
   "/reports": FileBarChart,
   "/scanner": ScanLine,
   "/users": Shield,
+  "/audit-logs": ShieldCheck,
   "/profile": User2,
 } as const
 
@@ -42,8 +44,8 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
   const items = navItems.filter((item: typeof navItems[0]) => (user ? item.roles.includes(user.role) : false)) // Filter nav items to only those the current user's role is allowed to see
   const displayName = user ? getUserDisplayName(user) : "Guest User" // Get the user's display name or "Guest User" fallback
 
-  const handleLogout = () => { // Handler for the sign out button
-    clearAuthSession() // Remove all auth data from localStorage
+  const handleLogout = async () => { // Handler for the sign out button
+    await logoutSession()
     window.location.href = '/login' // Hard redirect to the login page (full page reload to clear any in-memory state)
   }
 

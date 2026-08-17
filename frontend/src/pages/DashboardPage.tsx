@@ -1,14 +1,20 @@
+import { lazy, Suspense, useState } from "react"
 import { getStoredUser, getUserDisplayName } from "../lib/auth"
 import { PremiumAppSidebar } from "../components/layout/PremiumAppSidebar"
-import { ChartAreaInteractive } from "../components/chart-area-interactive"
 import { DataTable } from "../components/data-table"
 import { SectionCards } from "../components/section-cards"
 import { SiteHeader } from "../components/site-header"
 import { SidebarInset, SidebarProvider } from "../components/ui/sidebar"
+import { Drawer } from "../components/ui/drawer"
 import { Sparkles } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
+const ChartAreaInteractive = lazy(() =>
+  import("../components/chart-area-interactive").then((module) => ({ default: module.ChartAreaInteractive }))
+)
+
 export default function DashboardPage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const user = getStoredUser()
   const displayName = user ? getUserDisplayName(user) : null
 
@@ -21,18 +27,18 @@ export default function DashboardPage() {
         } as React.CSSProperties
       }
     >
-      <PremiumAppSidebar variant="inset" />
+      <PremiumAppSidebar variant="inset" className="hidden lg:block" />
       <SidebarInset className="bg-white/50">
-        <SiteHeader />
+        <SiteHeader onMenuClick={() => setSidebarOpen(true)} />
         <motion.div
-          className="flex flex-1 flex-col gap-6 p-6"
+          className="flex flex-1 flex-col gap-6 p-4 sm:p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
         >
           {/* Hero banner */}
           <motion.div
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-8 py-7 shadow-card"
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-8 py-6 sm:py-7 shadow-card"
             initial={{ opacity: 0, y: 32, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
@@ -100,7 +106,9 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] as const }}
           >
-            <ChartAreaInteractive />
+            <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-slate-100" aria-label="Loading attendance chart" />}>
+              <ChartAreaInteractive />
+            </Suspense>
           </motion.div>
 
           <motion.div
@@ -112,6 +120,9 @@ export default function DashboardPage() {
           </motion.div>
         </motion.div>
       </SidebarInset>
+      <Drawer open={sidebarOpen} onOpenChange={setSidebarOpen} title="Navigation">
+        <PremiumAppSidebar onNavigate={() => setSidebarOpen(false)} className="border-none" />
+      </Drawer>
     </SidebarProvider>
   )
 }

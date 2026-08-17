@@ -1,5 +1,6 @@
 import { useState } from "react" // Import useState for managing the confirm dialog open/close state
-import { clearAuthSession, getStoredUser, getUserDisplayName } from "../../lib/auth" // Import auth utilities: clear session on logout, get current user, get display name
+import { getStoredUser, getUserDisplayName } from "../../lib/auth"
+import { logoutSession } from "../../lib/api"
 import { ConfirmDialog } from "../ui/confirm-dialog" // Import the confirmation dialog component for the logout confirmation
 import { useNavigate, useLocation } from "react-router-dom" // Import useNavigate for programmatic redirect and useLocation to read the current URL path
 import { LogOut, Menu } from "lucide-react" // Import LogOut icon for the logout button and Menu icon for the mobile sidebar toggle
@@ -14,6 +15,7 @@ const routeLabels: Record<string, string> = {
   "/materials": "Materials", // Materials page label
   "/attendance": "Attendance", // Attendance page label
   "/scanner": "QR Scanner", // Scanner page label
+  "/audit-logs": "Audit Logs",
   "/training": "Training Monitoring", // Training page label
   "/terms": "Terms", // Terms page label
   "/sections": "Sections", // Sections page label
@@ -60,8 +62,8 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
   const roleLabel = user?.role ? roleLabels[user.role] ?? user.role : "Guest" // Get the human-readable role label or fall back to the raw role string
   const roleBadge = user?.role ? roleColors[user.role] ?? "bg-silver/20 text-darksilver" : "bg-silver/20 text-darksilver" // Get the role badge color classes or fall back to neutral slate
 
-  const handleLogout = () => { // Handler called when the user confirms logout
-    clearAuthSession() // Remove all auth data from localStorage
+  const handleLogout = async () => { // Handler called when the user confirms logout
+    await logoutSession()
     navigate("/login") // Redirect to the login page
   }
 

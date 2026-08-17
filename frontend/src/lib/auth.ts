@@ -40,7 +40,18 @@ export function getRefreshToken() {
 // Retrieve and deserialize the stored user object from localStorage
 export function getStoredUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY) // Read the raw JSON string from localStorage
-  return raw ? (JSON.parse(raw) as AuthUser) : null // Parse and cast to AuthUser if present, otherwise return null
+  if (!raw) return null
+  try {
+    const user = JSON.parse(raw) as Partial<AuthUser>
+    if (typeof user.id !== "string" || typeof user.email !== "string" || typeof user.role !== "string") {
+      clearAuthSession()
+      return null
+    }
+    return user as AuthUser
+  } catch {
+    clearAuthSession()
+    return null
+  }
 }
 
 // Merge partial updates into the stored user object without replacing the entire record

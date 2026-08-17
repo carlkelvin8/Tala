@@ -1,32 +1,38 @@
+import { lazy, Suspense } from "react"
 import { Routes, Route, Navigate } from "react-router-dom" // Import routing primitives: Routes (route container), Route (individual route), Navigate (redirect component)
-import { LoginPage } from "./pages/LoginPage" // Import the legacy login page (kept for reference but not used in active routes)
-import { RegisterPage } from "./pages/RegisterPage" // Import the legacy register page (kept for reference but not used in active routes)
-import { ModernLoginPage } from "./components/auth/ModernLoginPage" // Import the modern redesigned login page component
-import { ModernRegisterPage } from "./components/auth/ModernRegisterPage" // Import the modern redesigned register page component
-import DashboardPage from "./pages/DashboardPage" // Import the dashboard page (default export) with its own sidebar layout
-import { EnrollmentPage } from "./pages/EnrollmentPage" // Import the enrollment management page
-import { StudentsPage } from "./pages/StudentsPage" // Import the student directory page
-import { MaterialsPage } from "./pages/MaterialsPage" // Import the learning materials page
-import { AttendancePage } from "./pages/AttendancePage" // Import the attendance tracking page
-import { GradesPage } from "./pages/GradesPage" // Import the grades management page
-import { MeritsPage } from "./pages/MeritsPage" // Import the merits and demerits page
-import { ExamsPage } from "./pages/ExamsPage" // Import the exam sessions page
-import { ReportsPage } from "./pages/ReportsPage" // Import the reports and CSV export page
-import { UsersPage } from "./pages/UsersPage" // Import the user management page (admin only)
-import { ProfilePage } from "./pages/ProfilePage" // Import the user profile settings page
-import { FlightsPage } from "./pages/FlightsPage" // Import the flight groups management page
-import { SectionsPage } from "./pages/SectionsPage"
-import { CoursesPage } from "./pages/CoursesPage" // Import the class sections management page
-import { ScannerPage } from "./pages/ScannerPage" // Import the QR scanner page
-import { TrainingPage } from "./pages/TrainingPage" // Import the training monitoring page
-import { TermsPage } from "./pages/TermsPage" // Import the academic terms management page
-import { NotFoundPage } from "./pages/NotFoundPage" // Import the 404 not found page
 import { AppLayout } from "./components/layout/AppLayout" // Import the shared app layout wrapper (sidebar + topbar) for most pages
 import { ProtectedRoute } from "./components/ProtectedRoute" // Import the route guard component that checks authentication and role
+
+const ModernLoginPage = lazy(() => import("./components/auth/ModernLoginPage").then((module) => ({ default: module.ModernLoginPage })))
+const ModernRegisterPage = lazy(() => import("./components/auth/ModernRegisterPage").then((module) => ({ default: module.ModernRegisterPage })))
+const DashboardPage = lazy(() => import("./pages/DashboardPage"))
+const EnrollmentPage = lazy(() => import("./pages/EnrollmentPage").then((module) => ({ default: module.EnrollmentPage })))
+const StudentsPage = lazy(() => import("./pages/StudentsPage").then((module) => ({ default: module.StudentsPage })))
+const MaterialsPage = lazy(() => import("./pages/MaterialsPage").then((module) => ({ default: module.MaterialsPage })))
+const AttendancePage = lazy(() => import("./pages/AttendancePage").then((module) => ({ default: module.AttendancePage })))
+const GradesPage = lazy(() => import("./pages/GradesPage").then((module) => ({ default: module.GradesPage })))
+const MeritsPage = lazy(() => import("./pages/MeritsPage").then((module) => ({ default: module.MeritsPage })))
+const ExamsPage = lazy(() => import("./pages/ExamsPage").then((module) => ({ default: module.ExamsPage })))
+const ReportsPage = lazy(() => import("./pages/ReportsPage").then((module) => ({ default: module.ReportsPage })))
+const UsersPage = lazy(() => import("./pages/UsersPage").then((module) => ({ default: module.UsersPage })))
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((module) => ({ default: module.ProfilePage })))
+const FlightsPage = lazy(() => import("./pages/FlightsPage").then((module) => ({ default: module.FlightsPage })))
+const SectionsPage = lazy(() => import("./pages/SectionsPage").then((module) => ({ default: module.SectionsPage })))
+const CoursesPage = lazy(() => import("./pages/CoursesPage").then((module) => ({ default: module.CoursesPage })))
+const ScannerPage = lazy(() => import("./pages/ScannerPage").then((module) => ({ default: module.ScannerPage })))
+const TrainingPage = lazy(() => import("./pages/TrainingPage").then((module) => ({ default: module.TrainingPage })))
+const TermsPage = lazy(() => import("./pages/TermsPage").then((module) => ({ default: module.TermsPage })))
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })))
+const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage").then((module) => ({ default: module.AuditLogsPage })))
+
+function PageFallback() {
+  return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-medium text-slate-500">Loading…</div>
+}
 
 // Root application component that defines the entire client-side routing tree
 export function App() {
   return (
+    <Suspense fallback={<PageFallback />}>
     <Routes> {/* Routes container — renders only the first matching Route */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} /> {/* Redirect the root path "/" to "/dashboard" without adding to browser history */}
       <Route path="/login" element={<ModernLoginPage />} /> {/* Public route: render the modern login page at /login */}
@@ -93,9 +99,11 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/audit-logs" element={<ProtectedRoute roles={["ADMIN"]}><AuditLogsPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProfilePage />} /> {/* Profile settings page inside AppLayout, accessible to all authenticated users */}
       </Route>
       <Route path="*" element={<NotFoundPage />} /> {/* Catch-all route: render the 404 page for any unmatched URL */}
     </Routes>
+    </Suspense>
   )
 }

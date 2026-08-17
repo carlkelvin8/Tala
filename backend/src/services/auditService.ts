@@ -22,3 +22,27 @@ export async function logAudit(
     }
   })
 }
+
+export async function listAuditLogs(filters: { action?: string; entity?: string; search?: string }, skip: number, take: number) {
+  const where: Prisma.AuditLogWhereInput = {
+    action: filters.action ? { equals: filters.action, mode: "insensitive" } : undefined,
+    entity: filters.entity ? { equals: filters.entity, mode: "insensitive" } : undefined,
+    OR: filters.search ? [
+      { action: { contains: filters.search, mode: "insensitive" } },
+      { entity: { contains: filters.search, mode: "insensitive" } },
+      { actor: { email: { contains: filters.search, mode: "insensitive" } } },
+    ] : undefined,
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { createdAt: "desc" },
+      include: { actor: { select: { id: true, email: true, role: true } } },
+    }),
+    prisma.auditLog.count({ where }),
+  ])
+  return { items, total }
+}

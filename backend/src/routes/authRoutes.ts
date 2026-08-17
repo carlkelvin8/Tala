@@ -3,16 +3,16 @@ import { login, logout, profile, refresh, register, updateAvatar, removeAvatar, 
 import { validateBody } from "../middlewares/zod.js"
 import { authMiddleware } from "../middlewares/auth.js"
 import { changePasswordSchema, loginSchema, refreshSchema, registerSchema } from "../validators/auth.js"
-import { rateLimitLogin } from "../middlewares/rateLimit.js"
+import { rateLimitLogin, rateLimitRefresh, rateLimitRegister } from "../middlewares/rateLimit.js"
 
 export const authRoutes = new Hono()
 
-authRoutes.post("/register", validateBody(registerSchema), register)
+authRoutes.post("/register", rateLimitRegister, validateBody(registerSchema), register)
 authRoutes.post("/login", validateBody(loginSchema), rateLimitLogin, login)
 // POST /api/auth/refresh — validate body then issue new token pair
-authRoutes.post("/refresh", validateBody(refreshSchema), refresh)
-// POST /api/auth/logout — stateless logout (client discards tokens); no auth required
-authRoutes.post("/logout", logout)
+authRoutes.post("/refresh", rateLimitRefresh, validateBody(refreshSchema), refresh)
+// POST /api/auth/logout — authenticated server-side refresh-token revocation
+authRoutes.post("/logout", authMiddleware, logout)
 // GET /api/auth/profile — requires valid JWT; returns the authenticated user's full profile
 authRoutes.get("/profile", authMiddleware, profile)
 // PATCH /api/auth/profile — requires valid JWT; updates the authenticated user's profile fields

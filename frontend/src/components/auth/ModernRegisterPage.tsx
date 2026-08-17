@@ -13,6 +13,7 @@ import { ApiResponse } from "../../types"
 import { toast } from "sonner"
 import { Mail, Lock, Eye, EyeOff, User, Shield, ArrowRight, CheckCircle2 } from "lucide-react"
 import { PasswordStrength } from "./PasswordStrength"
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges"
 
 const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -58,6 +59,8 @@ export function ModernRegisterPage() {
     }
   })
 
+  useUnsavedChanges(form.formState.isDirty && !mutation.isSuccess)
+
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values)
     toast.success("Account created successfully! Please sign in.")
@@ -84,7 +87,7 @@ export function ModernRegisterPage() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label htmlFor="firstName" className="text-sm font-medium text-black/80">
               First Name
@@ -181,6 +184,7 @@ export function ModernRegisterPage() {
             />
             <button
               type="button"
+              aria-label={showPassword ? "Hide password" : "Show password"}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-darksilver hover:text-darksilver transition-colors"
               onClick={() => setShowPassword(!showPassword)}
             >

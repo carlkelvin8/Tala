@@ -12,6 +12,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { userRepository } from "../repositories/userRepository.js"
 // Import the Prisma client for direct database queries
 import { prisma } from "../lib/prisma.js"
+import { validateAvatarDataUrl } from "../lib/imageData.js"
 
 /* POST /api/auth/register — create a new user account */
 export async function register(c: Context) {
@@ -79,13 +80,20 @@ export async function refresh(c: Context) {
     // Look up the user by the subject claim (user ID) from the token
     const user = await userRepository.findById(payload.sub)
     // If the user no longer exists, reject the refresh attempt
-    if (!user) {
+    if (!user || !user.isActive || user.refreshTokenVersion !== payload.tokenVersion) {
+      return c.json(fail("Invalid token"), 401)
+    }
+    const rotated = await prisma.user.updateMany({
+      where: { id: user.id, refreshTokenVersion: payload.tokenVersion },
+      data: { refreshTokenVersion: { increment: 1 } }
+    })
+    if (rotated.count !== 1) {
       return c.json(fail("Invalid token"), 401)
     }
     // Issue a new access token with the user's current ID and role
     const accessToken = signAccessToken({ sub: user.id, role: user.role })
     // Issue a new refresh token (token rotation for security)
-    const refreshToken = signRefreshToken({ sub: user.id, role: user.role })
+    const refreshToken = signRefreshToken({ sub: user.id, role: user.role, tokenVersion: payload.tokenVersion + 1 })
     // Return both new tokens to the client
     return c.json(ok("Token refreshed", { accessToken, refreshToken }))
   } catch {
@@ -129,6 +137,7 @@ export async function profile(c: Context) {
       avatarUrl: user.avatarUrl ?? null,        // Avatar image URL or null
       avatarFrame: user.avatarFrame ?? "gradient", // Avatar frame style
       createdAt: user.createdAt,                // Account creation timestamp
+      passwordUpdatedAt: user.passwordUpdatedAt,
       profile: roleProfile
         ? {
             firstName: roleProfile.firstName,                                                          // First name from the role profile
@@ -152,15 +161,7 @@ export async function updateAvatar(c: Context) {
     const authUser = getAuthUser(c)
     // Parse the JSON body containing the base64-encoded image data
     const body = await c.req.json()
-    const { avatarUrl } = body
-    // Validate that the value is a string and starts with the expected data URI prefix
-    if (typeof avatarUrl !== "string" || !avatarUrl.startsWith("data:image/")) {
-      return c.json(fail("Invalid image data"), 400)
-    }
-    // Reject images larger than ~300 KB to prevent database bloat
-    if (avatarUrl.length > 300_000) {
-      return c.json(fail("Image is too large. Please use a smaller photo."), 400)
-    }
+    const avatarUrl = validateAvatarDataUrl(body.avatarUrl)
     // Persist the new avatar URL to the user record in the database
     const updated = await prisma.user.update({
       where: { id: authUser.id },
@@ -234,9 +235,13 @@ export async function updatePassword(c: Context) {
   }
 }
 
-/* POST /api/auth/logout — stateless logout (client is responsible for discarding tokens) */
+/* POST /api/auth/logout — revoke every refresh token issued for this user. */
 export async function logout(c: Context) {
-  // No server-side state to clear — simply return a success message
+  const authUser = getAuthUser(c)
+  await prisma.user.update({
+    where: { id: authUser.id },
+    data: { refreshTokenVersion: { increment: 1 } }
+  })
   return c.json(ok("Logged out"))
 }
 

@@ -23,7 +23,11 @@ const pageTitles: Record<string, string> = {
   "/terms": "Academic Terms",
 }
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  onMenuClick?: () => void
+}
+
+export function SiteHeader({ onMenuClick }: SiteHeaderProps) {
   const user = getStoredUser()
   const [currentUser, setCurrentUser] = React.useState(user)
   const location = useLocation()
@@ -49,9 +53,9 @@ export function SiteHeader() {
   const pageTitle = pageTitles[location.pathname] || "Command Overview"
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-silver/30 bg-white/95 backdrop-blur-sm px-6 shadow-sm">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-silver/30 bg-white/95 backdrop-blur-sm px-4 sm:px-6 shadow-sm">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="-ml-1 text-darksilver hover:text-black hover:bg-silver/20 rounded-lg p-2 transition-colors" />
+        <SidebarTrigger className="-ml-1 text-darksilver hover:text-black hover:bg-silver/20 rounded-lg p-2 transition-colors lg:hidden" onClick={onMenuClick} />
         <div className="h-6 w-px bg-silver/30" />
         <div>
           <h1 className="text-base font-bold text-black">{pageTitle}</h1>

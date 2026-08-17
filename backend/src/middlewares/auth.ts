@@ -11,37 +11,45 @@ export async function authMiddleware(c: Context, next: Next) {
     return c.json(fail("Unauthorized"), 401)
   }
 
-  const token = header.replace("Bearer ", "")
+  if (!header.startsWith("Bearer ")) {
+    return c.json(fail("Unauthorized"), 401)
+  }
+
+  const token = header.slice("Bearer ".length)
+  let payload
   try {
-    const payload = verifyAccessToken(token)
-    const user = await prisma.user.findUnique({ where: { id: payload.sub } })
-    if (!user || !user.isActive) {
-      return c.json(fail("Unauthorized"), 401)
-    }
-
-    let sectionId: string | undefined
-
-    if (user.role === RoleType.STUDENT) {
-      const profile = await prisma.studentProfile.findUnique({
-        where: { userId: user.id },
-        select: { sectionId: true }
-      })
-      sectionId = profile?.sectionId ?? undefined
-    } else if (user.role === RoleType.CADET_OFFICER) {
-      const enrollment = await prisma.enrollment.findFirst({
-        where: { userId: user.id, status: "APPROVED" },
-        select: { sectionId: true },
-        orderBy: { createdAt: "desc" }
-      })
-      sectionId = enrollment?.sectionId ?? undefined
-    }
-
-    const authUser: AuthUser = { id: user.id, role: user.role, email: user.email, sectionId }
-    c.set("user", authUser)
-    await next()
+    payload = verifyAccessToken(token)
   } catch {
     return c.json(fail("Unauthorized"), 401)
   }
+
+  // Keep downstream database/controller errors out of the token-validation catch.
+  // Those errors must reach the global error handler as 500 responses, not 401s.
+  const user = await prisma.user.findUnique({ where: { id: payload.sub } })
+  if (!user || !user.isActive) {
+    return c.json(fail("Unauthorized"), 401)
+  }
+
+  let sectionId: string | undefined
+
+  if (user.role === RoleType.STUDENT) {
+    const profile = await prisma.studentProfile.findUnique({
+      where: { userId: user.id },
+      select: { sectionId: true }
+    })
+    sectionId = profile?.sectionId ?? undefined
+  } else if (user.role === RoleType.CADET_OFFICER) {
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { userId: user.id, status: "APPROVED" },
+      select: { sectionId: true },
+      orderBy: { createdAt: "desc" }
+    })
+    sectionId = enrollment?.sectionId ?? undefined
+  }
+
+  const authUser: AuthUser = { id: user.id, role: user.role, email: user.email, sectionId }
+  c.set("user", authUser)
+  await next()
 }
 
 export function getAuthUser(c: Context): AuthUser {

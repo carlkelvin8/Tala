@@ -69,3 +69,11 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}) {
   }
   return (data ?? {}) as T
 }
+
+export async function logoutSession() {
+  try {
+    await apiRequest("/api/auth/logout", { method: "POST" })
+  } finally {
+    clearAuthSession()
+  }
+}
