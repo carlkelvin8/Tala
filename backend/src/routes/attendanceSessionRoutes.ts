@@ -18,19 +18,19 @@ attendanceSessionRoutes.use("*", authMiddleware)
 
 attendanceSessionRoutes.post(
   "/",
-  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.IMPLEMENTOR]),
   createSessionHandler
 )
 
 attendanceSessionRoutes.patch(
   "/:sessionId/host-location",
-  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.IMPLEMENTOR]),
   updateHostLocationHandler
 )
 
 attendanceSessionRoutes.post(
   "/:sessionId/verifier",
-  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.IMPLEMENTOR]),
   setVerifierHandler
 )
 
@@ -42,6 +42,7 @@ attendanceSessionRoutes.patch(
 
 attendanceSessionRoutes.post(
   "/:sessionId/mark",
+  roleGuard([RoleType.STUDENT]),
   markAttendanceHandler
 )
 
@@ -52,6 +53,6 @@ attendanceSessionRoutes.get(
 
 attendanceSessionRoutes.post(
   "/:sessionId/end",
-  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.IMPLEMENTOR]),
   endSessionHandler
 )

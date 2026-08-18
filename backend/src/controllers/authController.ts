@@ -1,16 +1,9 @@
-// Import the Context type from Hono for request/response handling
 import { Context } from "hono"
-// Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
-// Import the auth service functions for business logic
-import { changePassword, loginUser, registerUser, updateProfile as updateProfileData } from "../services/authService.js"
-// Import JWT helpers for signing and verifying tokens
+import { changePassword, loginUser, registerUser, updateProfile as updateProfileData, forgotPassword as forgotPasswordService, resetPassword as resetPasswordService } from "../services/authService.js"
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js"
-// Import the helper to retrieve the authenticated user from context
 import { getAuthUser } from "../middlewares/auth.js"
-// Import the user repository for direct user lookups
 import { userRepository } from "../repositories/userRepository.js"
-// Import the Prisma client for direct database queries
 import { prisma } from "../lib/prisma.js"
 import { validateAvatarDataUrl } from "../lib/imageData.js"
 
@@ -104,54 +97,58 @@ export async function refresh(c: Context) {
 
 /* GET /api/auth/profile — return the authenticated user's full profile */
 export async function profile(c: Context) {
-  // Retrieve the authenticated user from the Hono context (set by authMiddleware)
-  const authUser = getAuthUser(c)
-  // Fetch the full user record including all role-specific profile relations
-  const user = await prisma.user.findUnique({
-    where: { id: authUser.id },
-    include: {
-      studentProfile: true,       // Include student-specific profile fields if applicable
-      implementorProfile: true,   // Include implementor-specific profile fields if applicable
-      cadetOfficerProfile: true,  // Include cadet officer-specific profile fields if applicable
-    },
-  })
-  // If the user was deleted after the token was issued, return 404
-  if (!user) {
-    return c.json(fail("User not found"), 404)
-  }
-
-  // Pick the first non-null role profile (only one will be set per user)
-  const roleProfile =
-    user.studentProfile ??
-    user.implementorProfile ??
-    user.cadetOfficerProfile ??
-    null
-
-  // Return the user's public profile data
-  return c.json(
-    ok("Profile fetched", {
-      id: user.id,                              // User's unique ID
-      email: user.email,                        // User's email address
-      role: user.role,                          // User's assigned role
-      isActive: user.isActive,                  // Whether the account is active
-      avatarUrl: user.avatarUrl ?? null,        // Avatar image URL or null
-      avatarFrame: user.avatarFrame ?? "gradient", // Avatar frame style
-      createdAt: user.createdAt,                // Account creation timestamp
-      passwordUpdatedAt: user.passwordUpdatedAt,
-      profile: roleProfile
-        ? {
-            firstName: roleProfile.firstName,                                                          // First name from the role profile
-            lastName: roleProfile.lastName,                                                            // Last name from the role profile
-            contactNo: roleProfile.contactNo ?? null,                                                  // Contact number or null
-            studentNo: "studentNo" in roleProfile ? roleProfile.studentNo ?? null : null,              // Student number (students only)
-            middleName: "middleName" in roleProfile ? roleProfile.middleName ?? null : null,           // Middle name (students only)
-            birthDate: "birthDate" in roleProfile ? roleProfile.birthDate ?? null : null,              // Birth date (students only)
-            gender: "gender" in roleProfile ? roleProfile.gender ?? null : null,                       // Gender (students only)
-            address: "address" in roleProfile ? roleProfile.address ?? null : null,                    // Address (students only)
-          }
-        : null, // Return null if no role profile exists
+  try {
+    // Retrieve the authenticated user from the Hono context (set by authMiddleware)
+    const authUser = getAuthUser(c)
+    // Fetch the full user record including all role-specific profile relations
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      include: {
+        studentProfile: true,       // Include student-specific profile fields if applicable
+        implementorProfile: true,   // Include implementor-specific profile fields if applicable
+        cadetOfficerProfile: true,  // Include cadet officer-specific profile fields if applicable
+      },
     })
-  )
+    // If the user was deleted after the token was issued, return 404
+    if (!user) {
+      return c.json(fail("User not found"), 404)
+    }
+
+    // Pick the first non-null role profile (only one will be set per user)
+    const roleProfile =
+      user.studentProfile ??
+      user.implementorProfile ??
+      user.cadetOfficerProfile ??
+      null
+
+    // Return the user's public profile data
+    return c.json(
+      ok("Profile fetched", {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        avatarUrl: user.avatarUrl ?? null,
+        avatarFrame: user.avatarFrame ?? "gradient",
+        createdAt: user.createdAt,
+        passwordUpdatedAt: user.passwordUpdatedAt,
+        profile: roleProfile
+          ? {
+              firstName: roleProfile.firstName,
+              lastName: roleProfile.lastName,
+              contactNo: roleProfile.contactNo ?? null,
+              studentNo: "studentNo" in roleProfile ? roleProfile.studentNo ?? null : null,
+              middleName: "middleName" in roleProfile ? roleProfile.middleName ?? null : null,
+              birthDate: "birthDate" in roleProfile ? roleProfile.birthDate ?? null : null,
+              gender: "gender" in roleProfile ? roleProfile.gender ?? null : null,
+              address: "address" in roleProfile ? roleProfile.address ?? null : null,
+            }
+          : null,
+      })
+    )
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch profile"), 500)
+  }
 }
 
 /* PATCH /api/auth/avatar — update the authenticated user's avatar image */
@@ -237,26 +234,48 @@ export async function updatePassword(c: Context) {
 
 /* POST /api/auth/logout — revoke every refresh token issued for this user. */
 export async function logout(c: Context) {
-  const authUser = getAuthUser(c)
-  await prisma.user.update({
-    where: { id: authUser.id },
-    data: { refreshTokenVersion: { increment: 1 } }
-  })
-  return c.json(ok("Logged out"))
+  try {
+    const authUser = getAuthUser(c)
+    await prisma.user.update({
+      where: { id: authUser.id },
+      data: { refreshTokenVersion: { increment: 1 } }
+    })
+    return c.json(ok("Logged out"))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Logout failed"), 500)
+  }
 }
 
 /* PATCH /api/auth/profile — update the authenticated user's profile fields */
 export async function updateProfile(c: Context) {
   try {
-    // Retrieve the authenticated user from context
     const authUser = getAuthUser(c)
-    // Parse the JSON body containing the profile fields to update
     const body = await c.req.json()
-    // Delegate to the auth service to update the appropriate role-specific profile
     await updateProfileData(authUser.id, body)
-    // Return a success message with no data payload
     return c.json(ok("Profile updated"))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Profile update failed"), 400)
+  }
+}
+
+/* POST /api/auth/forgot-password — generate a password reset token */
+export async function forgotPassword(c: Context) {
+  try {
+    const body = await c.req.json()
+    const result = await forgotPasswordService(body.email)
+    return c.json(ok("Password reset token generated", result))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to generate reset token"), 400)
+  }
+}
+
+/* POST /api/auth/reset-password — reset password using token */
+export async function resetPassword(c: Context) {
+  try {
+    const body = await c.req.json()
+    await resetPasswordService(body.token, body.newPassword)
+    return c.json(ok("Password reset successfully"))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Password reset failed"), 400)
   }
 }

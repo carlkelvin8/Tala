@@ -4,6 +4,8 @@ import { hashPassword, verifyPassword } from "../lib/password.js"
 import { signAccessToken, signRefreshToken } from "../lib/jwt.js"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
+import jwt from "jsonwebtoken"
+import { env } from "../lib/env.js"
 
 /* Register a new user account and create the appropriate role-specific profile */
 export async function registerUser(data: {
@@ -168,4 +170,42 @@ export async function updateProfile(userId: string, data: {
   }
 
   await logAudit("UPDATE", "UserProfile", userId, userId)
+}
+
+export async function forgotPassword(email: string) {
+  const user = await userRepository.findByEmail(email)
+  if (!user) {
+    return { message: "If an account exists with this email, a reset token has been generated." }
+  }
+  const resetToken = jwt.sign(
+    { sub: user.id, type: "password-reset" },
+    env.accessTokenSecret,
+    { expiresIn: "15m" }
+  )
+  await logAudit("FORGOT_PASSWORD", "User", user.id, user.id)
+  return { message: "If an account exists with this email, a reset token has been generated.", resetToken }
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  try {
+    const payload = jwt.verify(token, env.accessTokenSecret) as { sub: string; type: string }
+    if (payload.type !== "password-reset") {
+      throw new Error("Invalid reset token")
+    }
+    const user = await userRepository.findById(payload.sub)
+    if (!user) {
+      throw new Error("User not found")
+    }
+    const passwordHash = await hashPassword(newPassword)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, passwordUpdatedAt: new Date(), refreshTokenVersion: { increment: 1 } }
+    })
+    await logAudit("RESET_PASSWORD", "User", user.id, user.id)
+  } catch (error) {
+    if (error instanceof Error && error.message === "User not found") {
+      throw error
+    }
+    throw new Error("Invalid or expired reset token")
+  }
 }

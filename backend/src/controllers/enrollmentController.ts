@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { createEnrollment, listEnrollments, updateEnrollmentStatus } from "../services/enrollmentService.js"
+import { createEnrollment, listEnrollments, updateEnrollmentStatus, bulkCreateEnrollments } from "../services/enrollmentService.js"
 import { getPagination } from "../lib/pagination.js"
 import { EnrollmentStatus, RoleType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
@@ -29,21 +29,25 @@ export async function create(c: Context) {
 }
 
 export async function list(c: Context) {
-  const authUser = getAuthUser(c)
-  const query = c.req.query()
-  const { page, pageSize, skip, take } = getPagination(query)
-  const sectionId = resolveSectionId(authUser, query.sectionId)
-  const result = await listEnrollments(
-    {
-      status: query.status as EnrollmentStatus | undefined,
-      sectionId,
-      flightId: query.flightId,
-      search: query.search
-    },
-    skip,
-    take
-  )
-  return c.json(ok("Enrollments fetched", result.items, { page, pageSize, total: result.total }))
+  try {
+    const authUser = getAuthUser(c)
+    const query = c.req.query()
+    const { page, pageSize, skip, take } = getPagination(query)
+    const sectionId = resolveSectionId(authUser, query.sectionId)
+    const result = await listEnrollments(
+      {
+        status: query.status as EnrollmentStatus | undefined,
+        sectionId,
+        flightId: query.flightId,
+        search: query.search
+      },
+      skip,
+      take
+    )
+    return c.json(ok("Enrollments fetched", result.items, { page, pageSize, total: result.total }))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch enrollments"), 400)
+  }
 }
 
 /* PATCH /api/enrollments/:id/status — approve or reject an enrollment */
@@ -65,26 +69,33 @@ export async function updateStatus(c: Context) {
 /* PATCH /api/enrollments/:id — update the section/flight assignment for an enrollment */
 export async function update(c: Context) {
   try {
-    // Extract the enrollment ID from the URL path parameter
     const id = c.req.param("id")
-    // Parse the JSON body containing the new sectionId and/or flightId
     const body = await c.req.json()
-    // Directly update the enrollment record using Prisma (bypasses service layer for simplicity)
     const enrollment = await prisma.enrollment.update({
-      where: { id }, // Target the specific enrollment by ID
+      where: { id },
       data: {
-        sectionId: body.sectionId || null, // Set to null if falsy (removes assignment)
-        flightId: body.flightId || null    // Set to null if falsy (removes assignment)
+        sectionId: body.sectionId || null,
+        flightId: body.flightId || null
       },
       include: {
-        user: true,    // Include the associated user in the response
-        section: true, // Include the associated section in the response
-        flight: true   // Include the associated flight in the response
+        user: true,
+        section: true,
+        flight: true
       }
     })
-    // Return the updated enrollment with all related data
     return c.json(ok("Enrollment updated", enrollment))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)
+  }
+}
+
+/* POST /api/enrollments/bulk — bulk create enrollments */
+export async function bulkCreate(c: Context) {
+  try {
+    const body = await c.req.json()
+    const result = await bulkCreateEnrollments({ enrollments: body.enrollments })
+    return c.json(ok("Bulk enrollment completed", result))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Bulk enrollment failed"), 400)
   }
 }

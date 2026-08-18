@@ -42,7 +42,7 @@ const statusMeta: Record<string, { label: string; color: string; bg: string; dot
 
 export function AttendancePage() {
   const user = getStoredUser()
-  const isScanner = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
+  const isScanner = user?.role === "IMPLEMENTOR"
 
   return (
     <div className="space-y-6">
@@ -270,6 +270,7 @@ function ScannerView() {
 
     let animFrame: number | null = null
     let stopped = false
+    let scannerCleanup: (() => void) | null = null
 
     async function init() {
       if (typeof BarcodeDetector !== "undefined") {
@@ -303,9 +304,7 @@ function ScannerView() {
             { returnDetailedScanResult: true }
           )
           await scanner.start()
-          if (!stopped) {
-            return () => { scanner.stop(); scanner.destroy() }
-          }
+          scannerCleanup = () => { scanner.stop(); scanner.destroy() }
         } catch {
           setScanResult({ success: false, message: "QR scanner not supported in this browser" })
           stopScanning()
@@ -318,6 +317,7 @@ function ScannerView() {
     return () => {
       stopped = true
       if (animFrame) cancelAnimationFrame(animFrame)
+      if (scannerCleanup) scannerCleanup()
     }
   }, [isScanning])
 

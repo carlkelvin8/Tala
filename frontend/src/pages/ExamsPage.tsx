@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
@@ -20,6 +20,7 @@ export function ExamsPage() {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
 
   const sessionsQuery = useQuery({
     queryKey: ["exams"],
@@ -38,20 +39,25 @@ export function ExamsPage() {
     }
   })
 
-  const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
-
   useEffect(() => {
     if (!running || timeLeft <= 0) return
     const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
     return () => clearInterval(timer)
   }, [running, timeLeft])
 
-  // Auto-submit when timer reaches 0
   useEffect(() => {
     if (running && timeLeft <= 0 && currentAttemptId) {
       setRunning(false)
       toast.warning("Time's up! Auto-submitting your exam...")
-      finishExam()
+      apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST" })
+        .then(() => {
+          toast.success("Exam submitted successfully")
+          setCurrentAttemptId(null)
+          sessionsQuery.refetch()
+        })
+        .catch((error) => {
+          toast.error(error instanceof Error ? error.message : "Failed to submit exam")
+        })
     }
   }, [timeLeft, running, currentAttemptId])
 
@@ -63,26 +69,41 @@ export function ExamsPage() {
     }
   }, [])
 
+  const ensureCameraActive = useCallback(async () => {
+    if (streamRef.current && streamRef.current.active) {
+      if (videoRef.current && !videoRef.current.srcObject) {
+        videoRef.current.srcObject = streamRef.current
+      }
+      return true
+    }
+    return false
+  }, [])
+
   const startCamera = async () => {
     try {
       setCameraError(null)
+      if (streamRef.current && streamRef.current.active) {
+        if (videoRef.current) {
+          videoRef.current.srcObject = streamRef.current
+        }
+        setCameraEnabled(true)
+        return
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
       })
-
+      streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        streamRef.current = stream
-        setCameraEnabled(true)
-        toast.success("Camera enabled successfully")
       }
+      setCameraEnabled(true)
+      toast.success("Camera enabled successfully")
     } catch (error) {
       console.error("Camera error:", error)
       let errorMessage = "Unable to access camera"
-
       if (error instanceof Error) {
         if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
           errorMessage = "Camera permission denied. Please allow camera access in your browser settings."
@@ -92,7 +113,6 @@ export function ExamsPage() {
           errorMessage = "Camera is already in use by another application."
         }
       }
-
       setCameraError(errorMessage)
       toast.error(errorMessage)
     }
@@ -110,12 +130,38 @@ export function ExamsPage() {
     toast.info("Camera disabled")
   }
 
+  useEffect(() => {
+    if (!videoRef.current || !streamRef.current) return
+    const video = videoRef.current
+    const stream = streamRef.current
+    if (video.srcObject !== stream) {
+      video.srcObject = stream
+    }
+    const handleTrackEnded = () => {
+      setCameraEnabled(false)
+      setCameraError("Camera stream was interrupted. Please re-enable the camera.")
+    }
+    stream.getTracks().forEach(track => {
+      track.addEventListener("ended", handleTrackEnded)
+    })
+    return () => {
+      stream.getTracks().forEach(track => {
+        track.removeEventListener("ended", handleTrackEnded)
+      })
+    }
+  }, [cameraEnabled])
+
   const startExam = async (durationMin: number, examSessionId: string) => {
     if (!cameraEnabled) {
       toast.error("Please enable camera before starting the exam")
       return
     }
-
+    const isActive = await ensureCameraActive()
+    if (!isActive) {
+      toast.error("Camera is not active. Please re-enable it.")
+      setCameraEnabled(false)
+      return
+    }
     try {
       const result = await attemptMutation.mutateAsync(examSessionId)
       setCurrentAttemptId(result.data?.id ?? null)
@@ -123,7 +169,6 @@ export function ExamsPage() {
       setRunning(true)
       toast.success("Exam started — timer is now counting down")
     } catch {
-      // Error handled by mutation onError
     }
   }
 
@@ -181,7 +226,6 @@ export function ExamsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero banner */}
       <motion.div
         className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-card"
         initial={{ opacity: 0, y: 32, scale: 0.97 }}
@@ -247,7 +291,6 @@ export function ExamsPage() {
       >
       <SectionCard title="Exam Monitoring" description="Enable camera for proctored exam sessions" className="shadow-card">
         <div className="space-y-4">
-          {/* Camera Controls */}
           <div className="flex flex-wrap items-center gap-3">
             {!cameraEnabled ? (
               <Button onClick={startCamera} className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-royal hover:to-navy text-white">
@@ -282,16 +325,21 @@ export function ExamsPage() {
                 <span className="text-xs font-semibold text-green-700">Camera Active</span>
               </div>
             )}
+
+            {running && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                <Shield className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-xs font-semibold text-amber-700">Proctoring Active</span>
+              </div>
+            )}
           </div>
 
-          {/* Camera Error */}
           {cameraError && (
             <Alert variant="danger">
               {cameraError}
             </Alert>
           )}
 
-          {/* Video Preview */}
           <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-navy border-2 border-silver/30">
             <video
               ref={videoRef}
@@ -309,9 +357,14 @@ export function ExamsPage() {
                 <p className="text-xs text-darksilver mt-1">Click "Enable Camera" to start</p>
               </div>
             )}
+            {cameraEnabled && running && (
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-red-500/90 px-2.5 py-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                <span className="text-[10px] font-bold text-white uppercase tracking-wider">REC</span>
+              </div>
+            )}
           </div>
 
-          {/* Anti-cheat Notice */}
           <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-5">
             <div className="flex gap-3">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
@@ -320,10 +373,11 @@ export function ExamsPage() {
               <div>
                 <h4 className="text-sm font-semibold text-amber-900">Anti-Cheat Guidelines</h4>
                 <ul className="mt-2 text-xs text-amber-800 space-y-1">
-                  <li>• Keep your camera enabled throughout the exam</li>
+                  <li>• Keep your camera enabled throughout the entire exam</li>
                   <li>• Do not switch tabs or minimize the browser</li>
                   <li>• Ensure you are in a well-lit, quiet environment</li>
-                  <li>• Keep your face visible in the camera frame</li>
+                  <li>• Keep your face visible in the camera frame at all times</li>
+                  <li>• The camera feed is continuously monitored during the exam</li>
                 </ul>
               </div>
             </div>

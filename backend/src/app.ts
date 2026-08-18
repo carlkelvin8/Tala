@@ -23,6 +23,9 @@ import { termRoutes } from "./routes/termRoutes.js"
 import { remarkRoutes } from "./routes/remarkRoutes.js"
 import { trainingDayRoutes } from "./routes/trainingDayRoutes.js"
 import { auditRoutes } from "./routes/auditRoutes.js"
+import { medicalCertificateRoutes } from "./routes/medicalCertificateRoutes.js"
+import { notificationRoutes } from "./routes/notificationRoutes.js"
+import { autoSectioningRoutes } from "./routes/autoSectioningRoutes.js"
 import { fail, ok } from "./lib/response.js"
 
 export const app = new Hono()
@@ -87,3 +90,6 @@ app.route("/api/terms", termRoutes)
 app.route("/api/remarks", remarkRoutes)
 app.route("/api/training", trainingDayRoutes)
 app.route("/api/audit-logs", auditRoutes)
+app.route("/api/medical-certificates", medicalCertificateRoutes)
+app.route("/api/notifications", notificationRoutes)
+app.route("/api/auto-sectioning", autoSectioningRoutes)
