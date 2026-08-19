@@ -518,19 +518,24 @@ export function ExamsPage() {
               columns={[
                 { header: "Exam", cell: (a: any) => <span className="font-semibold text-black">{a.examSession?.title ?? "—"}</span> },
                 { header: "Started", cell: (a: any) => <span className="text-sm text-darksilver">{new Date(a.startedAt).toLocaleString()}</span> },
-                { header: "Score", cell: (a: any) => <span className="font-semibold text-black">{a.score != null ? `${a.score}%` : "—"}</span> },
+                { header: "Duration", cell: (a: any) => {
+                  const end = a.endedAt ? new Date(a.endedAt) : null
+                  if (!end) return <span className="text-sm text-darksilver">In progress</span>
+                  const mins = Math.round((end.getTime() - new Date(a.startedAt).getTime()) / 60000)
+                  return <span className="text-sm text-darksilver">{mins}m</span>
+                }},
                 {
                   header: "Status",
-                  cell: (a: any) => (
+                  cell: (a: any) => {
+                    const finished = !!a.endedAt
+                    return (
                     <span className={cn(
                       "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-                      a.status === "GRADED" ? "bg-emerald-50 text-emerald-700" :
-                      a.status === "FINISHED" ? "bg-amber-50 text-amber-700" :
-                      "bg-silver/20 text-darksilver"
+                      finished ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                     )}>
-                      {a.status}
+                      {finished ? "Completed" : "In Progress"}
                     </span>
-                  )
+                  )},
                 }
               ]}
               rowKey={(a: any) => a.id}

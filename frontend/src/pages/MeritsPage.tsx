@@ -369,8 +369,7 @@ export function MeritsPage() {
                           <li
                             key={enrollment.id}
                             className="flex items-center gap-3 cursor-pointer px-4 py-2.5 hover:bg-silver/10 transition-colors"
-                            onMouseDown={(event) => {
-                              event.preventDefault()
+                            onClick={() => {
                               form.setValue("studentId", enrollment.userId)
                               setStudentSearch(enrollment.user?.email ?? enrollment.userId)
                             }}

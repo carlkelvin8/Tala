@@ -17,7 +17,8 @@ import { logoutSession } from "../../lib/api"
 import { cn } from "../../lib/utils"
 import { 
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
-  FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine, FileHeart
+  FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine, FileHeart,
+  Grid, Plane, BookOpen, Calendar
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
 import { roleTextColors, roleBgColors, roleLabels } from "../../lib/roles"
@@ -26,6 +27,9 @@ const iconMap = {
   "/dashboard": LayoutDashboard,
   "/enrollment": UserPlus,
   "/students": Users,
+  "/sections": Grid,
+  "/courses": BookOpen,
+  "/flights": Plane,
   "/materials": BookMarked,
   "/attendance": CalendarCheck,
   "/grades": GraduationCap,

@@ -18,7 +18,7 @@ import { navItems } from "../lib/navigation"
 import { getStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
 import { logoutSession } from "../lib/api"
 import { cn } from "../lib/utils"
-import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar, ShieldCheck, FileHeart } from "lucide-react"
+import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar, ShieldCheck, FileHeart, ScanLine } from "lucide-react"
 import { roleLabels, roleBadgeColors } from "../lib/roles"
 
 const iconMap = {
@@ -40,6 +40,7 @@ const iconMap = {
   "/profile": User2,
   "/training": Target,
   "/terms": Calendar,
+  "/scanner": ScanLine,
 } as const
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
