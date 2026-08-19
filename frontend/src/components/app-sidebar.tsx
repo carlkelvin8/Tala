@@ -18,7 +18,7 @@ import { navItems } from "../lib/navigation"
 import { getStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
 import { logoutSession } from "../lib/api"
 import { cn } from "../lib/utils"
-import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar, ShieldCheck } from "lucide-react"
+import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar, ShieldCheck, FileHeart } from "lucide-react"
 import { roleLabels, roleBadgeColors } from "../lib/roles"
 
 const iconMap = {
@@ -33,6 +33,7 @@ const iconMap = {
   "/grades": GraduationCap,
   "/merits": Medal,
   "/exams": FileText,
+  "/medical-certificates": FileHeart,
   "/reports": BarChart3,
   "/users": UserCog,
   "/audit-logs": ShieldCheck,
@@ -65,7 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   )
   
   const academicItems = items.filter((item) =>
-    ["/materials", "/attendance", "/training", "/terms", "/grades", "/merits", "/exams"].includes(item.path)
+    ["/materials", "/attendance", "/training", "/terms", "/grades", "/merits", "/exams", "/medical-certificates"].includes(item.path)
   )
   const systemItems = items.filter((item) =>
     ["/reports", "/users", "/audit-logs"].includes(item.path)

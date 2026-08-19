@@ -69,3 +69,12 @@ export async function logMonitoringEvent(examAttemptId: string, event: string) {
   // Return the created monitoring log object
   return log
 }
+
+/* List exam attempts for a student (or all for admin) */
+export async function listExamAttempts(studentId: string) {
+  return prisma.examAttempt.findMany({
+    where: { studentId },
+    include: { examSession: { select: { title: true, durationMin: true, scheduledAt: true } } },
+    orderBy: { createdAt: "desc" }
+  })
+}

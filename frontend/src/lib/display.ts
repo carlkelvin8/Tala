@@ -1,26 +1,45 @@
 // Derive a human-readable full name from a user object that may have different profile types
 export function getFullName(user?: {
-  studentProfile?: { firstName: string; lastName: string } | null // Optional student profile with name fields
-  implementorProfile?: { firstName: string; lastName: string } | null // Optional implementor profile with name fields
-  cadetOfficerProfile?: { firstName: string; lastName: string } | null // Optional cadet officer profile with name fields
-  email?: string // Fallback email address if no profile name is available
+  studentProfile?: { firstName: string; lastName: string } | null
+  implementorProfile?: { firstName: string; lastName: string } | null
+  cadetOfficerProfile?: { firstName: string; lastName: string } | null
+  email?: string
 } | null): string {
-  if (!user) return "—" // Return an em dash placeholder if no user object is provided
-  const p = user.studentProfile ?? user.implementorProfile ?? user.cadetOfficerProfile // Pick the first non-null profile using nullish coalescing
-  if (p?.firstName && p?.lastName) return `${p.firstName} ${p.lastName}` // If the profile has both first and last name, return the full name
-  return user.email ?? "—" // Fall back to the email address, or em dash if email is also absent
+  if (!user) return "—"
+  const p = user.studentProfile ?? user.implementorProfile ?? user.cadetOfficerProfile
+  if (p?.firstName && p?.lastName) return `${p.firstName} ${p.lastName}`
+  return user.email ?? "—"
 }
 
-// Build an absolute URL for a file path stored in the backend, handling both dev and production environments
+// Build an absolute URL for a file path stored in the backend
 export function getApiFileUrl(path?: string | null): string | null {
-  if (!path) return null // Return null if no path is provided
-  if (path.startsWith("http")) return path // If the path is already an absolute URL, return it as-is
-  // In development, the proxy handles /uploads
-  // In production, we need the full API URL
-  const base = import.meta.env.VITE_API_URL ?? "" // Read the API base URL from the Vite environment variable
+  if (!path) return null
+  if (path.startsWith("http")) return path
+  const base = import.meta.env.VITE_API_URL ?? ""
   if (base) {
-    return `${base.replace(/\/$/, "")}${path}` // Combine the base URL (with trailing slash removed) and the relative path
+    return `${base.replace(/\/$/, "")}${path}`
   }
-  // In development with proxy, just return the path
-  return path // In dev mode with a Vite proxy, the relative path is sufficient
+  return path
+}
+
+// Format a date string as relative time (e.g. "5m ago", "2h ago", "3d ago")
+export function relativeTime(dateStr: string): string {
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(months / 12)}y ago`
+}
+
+// Get initials from an email or name string
+export function getInitials(name: string): string {
+  return name.charAt(0).toUpperCase()
 }

@@ -85,7 +85,7 @@ export function GradesPage() {
 
   const gradesQuery = useQuery({
     queryKey: ["grades", currentUser?.id],
-    queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/grades?userId=${currentUser?.id}` : "/api/grades"),
+    queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/grades?studentId=${currentUser?.id}` : "/api/grades"),
     refetchInterval: 30000,
     retry: false
   })

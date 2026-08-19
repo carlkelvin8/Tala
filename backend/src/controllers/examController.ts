@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { createExamSession, endExamAttempt, listExamSessions, logMonitoringEvent, startExamAttempt } from "../services/examService.js"
+import { createExamSession, endExamAttempt, listExamSessions, listExamAttempts, logMonitoringEvent, startExamAttempt } from "../services/examService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { RoleType } from "@prisma/client"
 
@@ -39,16 +39,23 @@ export async function listSessions(c: Context) {
 /* POST /api/exams/attempts — start a new exam attempt for the authenticated student */
 export async function startAttempt(c: Context) {
   try {
-    // Retrieve the authenticated user (the student starting the attempt)
     const authUser = getAuthUser(c)
-    // Parse the JSON body containing the exam session ID
     const body = await c.req.json()
-    // Delegate to the exam service to create the attempt record with a start timestamp
     const attempt = await startExamAttempt(body.examSessionId, authUser.id)
-    // Return the created attempt object
     return c.json(ok("Exam attempt started", attempt))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Start failed"), 400)
+  }
+}
+
+/* GET /api/exams/attempts — list the authenticated student's exam attempts */
+export async function listAttempts(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const attempts = await listExamAttempts(authUser.id)
+    return c.json(ok("Exam attempts fetched", attempts))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch attempts"), 400)
   }
 }
 

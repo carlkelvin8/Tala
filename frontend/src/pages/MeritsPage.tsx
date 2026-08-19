@@ -67,7 +67,7 @@ export function MeritsPage() {
 
   const meritsQuery = useQuery({
     queryKey: ["merits", currentUser?.id],
-    queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/merits?userId=${currentUser?.id}` : "/api/merits"),
+    queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/merits?studentId=${currentUser?.id}` : "/api/merits"),
     refetchInterval: 30000
   })
 

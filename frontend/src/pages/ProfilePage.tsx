@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useRef, useState, useMemo } from "react"
 import * as React from "react"
 import {
-  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Fingerprint, Globe, Key, LogOut, RefreshCw, Circle
+  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Globe, Key, LogOut, RefreshCw, Circle
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth"
@@ -769,24 +769,6 @@ export function ProfilePage() {
                             Active now
                           </span>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-silver/20 pt-8">
-                      <div>
-                        <h3 className="text-lg font-bold text-black">Two-Factor Authentication</h3>
-                        <p className="text-sm text-darksilver mt-0.5">Add an extra layer of security</p>
-                      </div>
-                      <div className="mt-5 rounded-xl border border-dashed border-silver/40 bg-white/50 p-6 text-center">
-                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-silver/20 mx-auto">
-                          <Fingerprint className="h-6 w-6 text-darksilver" />
-                        </span>
-                        <p className="mt-3 text-sm font-semibold text-black/80">Two-factor authentication is not enabled</p>
-                        <p className="mt-1 text-xs text-darksilver">Protect your account with an additional verification step.</p>
-                        <Button variant="outline" size="sm" className="mt-4" disabled>
-                          <Shield className="h-3.5 w-3.5 mr-1.5" />
-                          Coming Soon
-                        </Button>
                       </div>
                     </div>
                   </div>

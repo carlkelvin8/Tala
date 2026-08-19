@@ -38,6 +38,10 @@ export function ReportsPage() {
   const [activeReport, setActiveReport] = useState<ReportType>("enrollment")
 
   const downloadCsv = async (report: typeof reportTypes[0]) => {
+    if (from && to && new Date(to) < new Date(from)) {
+      toast.error("End date cannot be before start date")
+      return
+    }
     setIsDownloading(true)
     try {
       const params = new URLSearchParams()

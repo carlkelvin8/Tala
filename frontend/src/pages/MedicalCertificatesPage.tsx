@@ -15,7 +15,7 @@ import { getStoredUser } from "../lib/auth"
 import { Drawer } from "../components/ui/drawer"
 import { FormField } from "../components/ui/form-field"
 import { RefreshIndicator } from "../components/ui/refresh-indicator"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { FileText, Sparkles, Check, X, Upload, CalendarDays } from "lucide-react"
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
@@ -124,6 +124,8 @@ function StudentView() {
   const [reason, setReason] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const certificatesQuery = useQuery({
     queryKey: ["my-medical-certificates"],
@@ -154,6 +156,20 @@ function StudentView() {
     setReason("")
     setDateFrom("")
     setDateTo("")
+    setSelectedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File must be under 5MB")
+        return
+      }
+      setSelectedFile(file)
+      setFileName(file.name)
+    }
   }
 
   const handleSubmit = () => {
@@ -165,7 +181,16 @@ function StudentView() {
       toast.error("End date cannot be before start date")
       return
     }
-    uploadMutation.mutate({ fileName: fileName.trim(), fileUrl: fileUrl.trim(), reason: reason.trim(), dateFrom, dateTo })
+    if (selectedFile) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        uploadMutation.mutate({ fileName: fileName.trim(), fileUrl: dataUrl, reason: reason.trim(), dateFrom, dateTo })
+      }
+      reader.readAsDataURL(selectedFile)
+    } else {
+      uploadMutation.mutate({ fileName: fileName.trim(), fileUrl: fileUrl.trim(), reason: reason.trim(), dateFrom, dateTo })
+    }
   }
 
   const rows = certificatesQuery.data?.data ?? []
@@ -259,21 +284,32 @@ function StudentView() {
       >
         <div className="h-1 w-full bg-sky-500" />
         <div className="p-4 space-y-5">
-          <FormField label="File Name" required>
-            <Input
-              placeholder="e.g. Medical_Cert_Oct2024.pdf"
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className="h-11"
+          <FormField label="Certificate File" required>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-11 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-silver/50 bg-white px-4 hover:border-navy/40 hover:bg-slate-50 transition-colors"
+            >
+              <Upload className="h-4 w-4 text-darksilver" />
+              <span className="text-sm text-darksilver truncate">
+                {selectedFile ? selectedFile.name : "Click to upload PDF, JPG, or PNG (max 5MB)"}
+              </span>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileChange}
+              className="hidden"
             />
           </FormField>
 
-          <FormField label="File URL (optional)">
+          <FormField label="Or paste file URL (optional)">
             <Input
               placeholder="https://..."
               value={fileUrl}
               onChange={(e) => setFileUrl(e.target.value)}
               className="h-11"
+              disabled={Boolean(selectedFile)}
             />
           </FormField>
 

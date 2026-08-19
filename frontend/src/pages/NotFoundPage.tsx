@@ -1,11 +1,42 @@
-// 404 Not Found page component — rendered for any URL that doesn't match a defined route
+import { useNavigate } from "react-router-dom"
+import { Button } from "../components/ui/button"
+import { ArrowLeft, Home } from "lucide-react"
+import { motion } from "framer-motion"
+
 export function NotFoundPage() {
+  const navigate = useNavigate()
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-6"> {/* Full viewport height flex container, centered content, light gray background, horizontal padding */}
-      <div className="rounded-xl border border-silver/30 bg-white px-8 py-10 text-center shadow-sm"> {/* Card container: rounded corners, border, white background, padding, centered text, subtle shadow */}
-        <div className="text-2xl font-semibold text-black">Page not found</div> {/* Large bold heading */}
-        <div className="mt-2 text-sm text-darksilver">The page you are looking for does not exist.</div> {/* Smaller muted description text with top margin */}
-      </div>
+    <div className="grid min-h-screen place-items-center bg-slate-50 px-4">
+      <motion.div
+        className="max-w-md text-center"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="mb-6 text-7xl font-black text-navy/10">404</div>
+        <h1 className="text-2xl font-bold text-black">Page not found</h1>
+        <p className="mt-2 text-sm text-darksilver">
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <Button
+            onClick={() => navigate(-1)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Go Back
+          </Button>
+          <Button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-2 bg-navy text-white hover:bg-navy/90"
+          >
+            <Home className="h-4 w-4" />
+            Dashboard
+          </Button>
+        </div>
+      </motion.div>
     </div>
   )
 }
