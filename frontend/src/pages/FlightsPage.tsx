@@ -39,7 +39,7 @@ type Flight = {
 
 export function FlightsPage() {
   const user = getStoredUser()
-  const canManage = user?.role === "ADMIN" || user?.role === "CADET_OFFICER"
+  const canManage = user?.role === "ADMIN"
   const form = useForm<FormValues>({ resolver: zodResolver(schema) })
   const [editingFlight, setEditingFlight] = useState<Flight | null>(null)
   const [deletingFlight, setDeletingFlight] = useState<Flight | null>(null)

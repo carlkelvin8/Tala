@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { usePermissions } from "../hooks/usePermissions"
+import { getStoredUser } from "../lib/auth"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
@@ -58,6 +59,8 @@ function getInitials(email: string): string {
 
 export function GradesPage() {
   const perms = usePermissions()
+  const currentUser = getStoredUser()
+  const isStudent = currentUser?.role === "STUDENT"
   const [activeTab, setActiveTab] = useState<TabId>("grades")
   const gradeForm = useForm<GradeFormValues>({ resolver: zodResolver(gradeSchema) })
   const categoryForm = useForm<CategoryFormValues>({ resolver: zodResolver(categorySchema) })
@@ -81,9 +84,9 @@ export function GradesPage() {
   const [editCategoryWeight, setEditCategoryWeight] = useState<number | undefined>(undefined)
 
   const gradesQuery = useQuery({
-    queryKey: ["grades"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/grades"),
-    refetchInterval: 5000,
+    queryKey: ["grades", currentUser?.id],
+    queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/grades?userId=${currentUser?.id}` : "/api/grades"),
+    refetchInterval: 30000,
     retry: false
   })
 

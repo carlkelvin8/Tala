@@ -412,6 +412,7 @@ function ScannerView() {
 }
 
 function AttendanceHistory() {
+  const user = getStoredUser()
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PRESENT" | "LATE" | "ABSENT">("ALL")
 
   const attendanceQuery = useQuery({
@@ -559,7 +560,7 @@ function AttendanceHistory() {
         <LoadingSkeleton rows={3} columns={4} />
       ) : rows.length === 0 ? (
         <div className="py-4">
-          <EmptyState title="No attendance records" description="Scan a QR code to start building history." />
+          <EmptyState title="No attendance records" description={user?.role === "STUDENT" ? "Your attendance will appear here after your instructor scans your QR code." : "Scan a QR code to start building history."} />
         </div>
       ) : filteredRows.length === 0 ? (
         <div className="py-4">

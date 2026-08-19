@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { usePermissions } from "../hooks/usePermissions"
+import { getStoredUser } from "../lib/auth"
 import { PageHeader } from "../components/ui/page-header"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
@@ -18,6 +19,7 @@ import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
 import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { useState } from "react"
 import { Search, Medal, Hash, FileText, Clock, Sparkles, Award, ChevronRight, Plus, Minus, Pencil, Trash2 } from "lucide-react"
 import { cn } from "../lib/utils"
@@ -55,15 +57,18 @@ function getInitials(email: string): string {
 
 export function MeritsPage() {
   const perms = usePermissions()
+  const currentUser = getStoredUser()
+  const isStudent = currentUser?.role === "STUDENT"
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { type: "MERIT" } })
   const [studentSearch, setStudentSearch] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<{ type: string; points: number; reason: string }>({ type: "MERIT", points: 0, reason: "" })
+  const [deletingMerit, setDeletingMerit] = useState<any | null>(null)
 
   const meritsQuery = useQuery({
-    queryKey: ["merits"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/merits"),
-    refetchInterval: 5000
+    queryKey: ["merits", currentUser?.id],
+    queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/merits?userId=${currentUser?.id}` : "/api/merits"),
+    refetchInterval: 30000
   })
 
   const studentsQuery = useQuery({
@@ -202,11 +207,7 @@ export function MeritsPage() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => {
-            if (confirm("Delete this merit record?")) {
-              deleteMutation.mutate(item.id)
-            }
-          }}
+          onClick={() => setDeletingMerit(item)}
           className="text-red-600 hover:text-red-700 hover:bg-red-50"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -450,6 +451,19 @@ export function MeritsPage() {
           />
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={Boolean(deletingMerit)}
+        onOpenChange={(open) => { if (!open) setDeletingMerit(null) }}
+        title="Delete merit record?"
+        description="This action cannot be undone. The merit or demerit record will be permanently removed."
+        onConfirm={() => {
+          if (deletingMerit) {
+            deleteMutation.mutate(deletingMerit.id)
+            setDeletingMerit(null)
+          }
+        }}
+      />
     </div>
   )
 }

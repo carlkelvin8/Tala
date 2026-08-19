@@ -4,16 +4,23 @@ import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
 import { toast } from "sonner"
 import { SectionCard } from "../components/ui/section-card"
 import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
-import { FileText, Sparkles, Camera, CameraOff, Video, VideoOff, Clock, Shield, AlertTriangle, Eye, Monitor, Smartphone } from "lucide-react"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { getStoredUser } from "../lib/auth"
+import { FileText, Sparkles, Camera, CameraOff, Video, VideoOff, Clock, Shield, AlertTriangle, Plus, X, RefreshCw } from "lucide-react"
 import { motion } from "framer-motion"
 
 export function ExamsPage() {
+  const user = getStoredUser()
+  const isAdminOrImplementor = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
+  const isStudent = user?.role === "STUDENT"
+
   const [timeLeft, setTimeLeft] = useState(0)
   const [running, setRunning] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(false)
@@ -22,10 +29,19 @@ export function ExamsPage() {
   const streamRef = useRef<MediaStream | null>(null)
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
 
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createForm, setCreateForm] = useState({ title: "", scheduledAt: "", durationMin: 60 })
+
   const sessionsQuery = useQuery({
     queryKey: ["exams"],
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams"),
-    refetchInterval: 5000
+    refetchInterval: 30000
+  })
+
+  const myAttemptsQuery = useQuery({
+    queryKey: ["exam-attempts"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams/attempts"),
+    enabled: isStudent
   })
 
   const attemptMutation = useMutation({
@@ -36,6 +52,23 @@ export function ExamsPage() {
       }),
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Unable to start exam")
+    }
+  })
+
+  const createExamMutation = useMutation({
+    mutationFn: (values: { title: string; scheduledAt: string; durationMin: number }) =>
+      apiRequest<ApiResponse<any>>("/api/exams", {
+        method: "POST",
+        body: JSON.stringify(values)
+      }),
+    onSuccess: () => {
+      toast.success("Exam session created")
+      setShowCreateForm(false)
+      setCreateForm({ title: "", scheduledAt: "", durationMin: 60 })
+      sessionsQuery.refetch()
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to create exam")
     }
   })
 
@@ -397,6 +430,58 @@ export function ExamsPage() {
         transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
       >
       <SectionCard title="Exam Sessions" description="Upcoming sessions and availability" className="shadow-card">
+        {isAdminOrImplementor && (
+          <div className="mb-4 flex items-center justify-between">
+            <div />
+            <Button onClick={() => setShowCreateForm(!showCreateForm)} className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-royal hover:to-navy text-white">
+              {showCreateForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showCreateForm ? "Cancel" : "Create Session"}
+            </Button>
+          </div>
+        )}
+
+        {showCreateForm && isAdminOrImplementor && (
+          <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 p-5">
+            <h4 className="text-sm font-semibold text-black mb-4">New Exam Session</h4>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="text-xs font-medium text-darksilver mb-1 block">Title</label>
+                <Input
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  placeholder="e.g. Midterm Exam"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-darksilver mb-1 block">Scheduled At</label>
+                <Input
+                  type="datetime-local"
+                  value={createForm.scheduledAt}
+                  onChange={(e) => setCreateForm({ ...createForm, scheduledAt: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-darksilver mb-1 block">Duration (minutes)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={createForm.durationMin}
+                  onChange={(e) => setCreateForm({ ...createForm, durationMin: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={() => createExamMutation.mutate(createForm)}
+                disabled={!createForm.title || !createForm.scheduledAt || createExamMutation.isPending}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {createExamMutation.isPending ? "Creating..." : "Create Session"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {sessionsQuery.isError && <Alert variant="danger">Unable to load exam sessions.</Alert>}
         {sessionsQuery.isLoading ? (
           <LoadingSkeleton rows={3} columns={3} />
@@ -420,6 +505,40 @@ export function ExamsPage() {
           />
         )}
       </SectionCard>
+
+      {isStudent && (
+        <SectionCard title="My Exam Results" description="View your past exam attempts and scores" className="shadow-card">
+          {myAttemptsQuery.isLoading ? (
+            <LoadingSkeleton rows={3} columns={4} />
+          ) : (myAttemptsQuery.data?.data ?? []).length === 0 ? (
+            <EmptyState title="No exam attempts yet" description="Start an exam above to see your results here." />
+          ) : (
+            <ResponsiveTableCards
+              data={myAttemptsQuery.data?.data ?? []}
+              columns={[
+                { header: "Exam", cell: (a: any) => <span className="font-semibold text-black">{a.examSession?.title ?? "—"}</span> },
+                { header: "Started", cell: (a: any) => <span className="text-sm text-darksilver">{new Date(a.startedAt).toLocaleString()}</span> },
+                { header: "Score", cell: (a: any) => <span className="font-semibold text-black">{a.score != null ? `${a.score}%` : "—"}</span> },
+                {
+                  header: "Status",
+                  cell: (a: any) => (
+                    <span className={cn(
+                      "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+                      a.status === "GRADED" ? "bg-emerald-50 text-emerald-700" :
+                      a.status === "FINISHED" ? "bg-amber-50 text-amber-700" :
+                      "bg-silver/20 text-darksilver"
+                    )}>
+                      {a.status}
+                    </span>
+                  )
+                }
+              ]}
+              rowKey={(a: any) => a.id}
+              renderTitle={(a: any) => a.examSession?.title ?? "Exam Attempt"}
+            />
+          )}
+        </SectionCard>
+      )}
       </motion.div>
       </motion.div>
     </div>

@@ -46,7 +46,7 @@ export function EnrollmentPage() {
     queryKey: ["enrollments"],
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/enrollments"),
     retry: false,
-    refetchInterval: 5000
+    refetchInterval: 30000
   })
 
   const flightsQuery = useQuery({

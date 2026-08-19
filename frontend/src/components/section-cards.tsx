@@ -54,7 +54,7 @@ export function SectionCards() {
   const { data: summaryData, isLoading } = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: () => apiRequest<ApiResponse<DashboardSummary>>("/api/dashboard"),
-    refetchInterval: 5000
+    refetchInterval: 30000
   })
 
   const summary = summaryData?.data

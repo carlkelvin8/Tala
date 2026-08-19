@@ -108,7 +108,7 @@ export function MaterialsPage() {
   const materialsQuery = useQuery({
     queryKey: ["materials"],
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/materials"),
-    refetchInterval: 5000
+    refetchInterval: 30000
   })
 
   const mutation = useMutation({

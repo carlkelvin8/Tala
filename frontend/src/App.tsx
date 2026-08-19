@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react"
 import { Routes, Route, Navigate } from "react-router-dom"
 import { AppLayout } from "./components/layout/AppLayout"
 import { ProtectedRoute } from "./components/ProtectedRoute"
+import { getStoredUser } from "./lib/auth"
 
 const ModernLoginPage = lazy(() => import("./components/auth/ModernLoginPage").then((module) => ({ default: module.ModernLoginPage })))
 const ModernRegisterPage = lazy(() => import("./components/auth/ModernRegisterPage").then((module) => ({ default: module.ModernRegisterPage })))
@@ -28,14 +29,23 @@ const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage").then((module) =
 const MedicalCertificatesPage = lazy(() => import("./pages/MedicalCertificatesPage").then((module) => ({ default: module.MedicalCertificatesPage })))
 
 function PageFallback() {
-  return <div className="grid min-h-screen place-items-center bg-slate-50 text-sm font-medium text-slate-500">Loading…</div>
+  return (
+    <div className="grid min-h-screen place-items-center bg-slate-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-silver border-t-navy" />
+        <p className="text-sm font-medium text-slate-500">Loading…</p>
+      </div>
+    </div>
+  )
 }
 
 export function App() {
+  const user = getStoredUser()
+
   return (
     <Suspense fallback={<PageFallback />}>
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
       <Route path="/login" element={<ModernLoginPage />} />
       <Route path="/register" element={<ModernRegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -56,59 +66,24 @@ export function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/enrollment" element={<EnrollmentPage />} />
-        <Route path="/students" element={<StudentsPage />} />
-        <Route path="/courses" element={<CoursesPage />} />
-        <Route path="/sections" element={<SectionsPage />} />
-        <Route path="/flights" element={<FlightsPage />} />
-        <Route path="/materials" element={<MaterialsPage />} />
-        <Route path="/attendance" element={<AttendancePage />} />
-        <Route
-          path="/scanner"
-          element={
-            <ProtectedRoute roles={["IMPLEMENTOR"]}>
-              <ScannerPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/training" element={<TrainingPage />} />
-        <Route
-          path="/terms"
-          element={
-            <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
-              <TermsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/grades" element={<GradesPage />} />
-        <Route path="/merits" element={<MeritsPage />} />
-        <Route path="/exams" element={<ExamsPage />} />
-        <Route
-          path="/medical-certificates"
-          element={
-            <ProtectedRoute roles={["IMPLEMENTOR", "STUDENT"]}>
-              <MedicalCertificatesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}>
-              <ReportsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute roles={["ADMIN"]}>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/enrollment" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><EnrollmentPage /></ProtectedRoute>} />
+        <Route path="/students" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><StudentsPage /></ProtectedRoute>} />
+        <Route path="/courses" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage /></ProtectedRoute>} />
+        <Route path="/sections" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><SectionsPage /></ProtectedRoute>} />
+        <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
+        <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><MaterialsPage /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><AttendancePage /></ProtectedRoute>} />
+        <Route path="/scanner" element={<ProtectedRoute roles={["IMPLEMENTOR"]}><ScannerPage /></ProtectedRoute>} />
+        <Route path="/training" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TrainingPage /></ProtectedRoute>} />
+        <Route path="/terms" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TermsPage /></ProtectedRoute>} />
+        <Route path="/grades" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><GradesPage /></ProtectedRoute>} />
+        <Route path="/merits" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><MeritsPage /></ProtectedRoute>} />
+        <Route path="/exams" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><ExamsPage /></ProtectedRoute>} />
+        <Route path="/medical-certificates" element={<ProtectedRoute roles={["IMPLEMENTOR", "STUDENT"]}><MedicalCertificatesPage /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><ReportsPage /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute roles={["ADMIN"]}><UsersPage /></ProtectedRoute>} />
         <Route path="/audit-logs" element={<ProtectedRoute roles={["ADMIN"]}><AuditLogsPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

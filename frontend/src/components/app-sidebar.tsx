@@ -55,13 +55,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     
     window.addEventListener('storage', handleStorageChange)
     
-    const interval = setInterval(() => {
-      setCurrentUser(getStoredUser())
-    }, 1000)
-    
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      clearInterval(interval)
     }
   }, [])
 

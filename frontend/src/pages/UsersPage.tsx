@@ -45,7 +45,7 @@ export function UsersPage() {
   const usersQuery = useQuery({
     queryKey: ["users", search],
     queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/users?search=${encodeURIComponent(search)}`),
-    refetchInterval: 5000
+    refetchInterval: 30000
   })
 
   const mutation = useMutation({
