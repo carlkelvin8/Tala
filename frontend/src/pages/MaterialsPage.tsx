@@ -19,7 +19,7 @@ import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
 import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
-import { getFullName, getApiFileUrl } from "../lib/display"
+import { getFullName, getApiFileUrl, relativeTime } from "../lib/display"
 import { useRef, useState, useMemo } from "react"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
@@ -49,22 +49,6 @@ function getFileIcon(fileUrl: string | null) {
   if (ext === "docx") return { icon: FileText, color: "text-blue-600", bg: "bg-blue-50", label: "DOCX" }
   if (["jpg", "jpeg"].includes(ext || "")) return { icon: FileImage, color: "text-emerald-500", bg: "bg-emerald-50", label: "IMG" }
   return { icon: File, color: "text-darksilver", bg: "bg-white", label: ext?.toUpperCase() || "FILE" }
-}
-
-function relativeTime(dateStr: string): string {
-  const now = Date.now()
-  const date = new Date(dateStr).getTime()
-  const diff = now - date
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
-  const weeks = Math.floor(days / 7)
-  if (weeks < 4) return `${weeks}w ago`
-  return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
 }
 
 const schema = z.object({

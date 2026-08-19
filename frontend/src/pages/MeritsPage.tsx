@@ -25,6 +25,7 @@ import { Search, Medal, Hash, FileText, Clock, Sparkles, Award, ChevronRight, Pl
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
 import { cardContainerVariants, cardItemVariants } from "../components/ui/page-transition"
+import { relativeTime, getInitials } from "../lib/display"
 
 const schema = z.object({
   studentId: z.string().uuid(),
@@ -34,26 +35,6 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
-
-function relativeTime(dateStr: string): string {
-  const now = Date.now()
-  const date = new Date(dateStr).getTime()
-  const diff = now - date
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  return `${Math.floor(months / 12)}y ago`
-}
-
-function getInitials(email: string): string {
-  return email.charAt(0).toUpperCase()
-}
 
 export function MeritsPage() {
   const perms = usePermissions()

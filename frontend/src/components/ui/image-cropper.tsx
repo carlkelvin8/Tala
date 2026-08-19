@@ -84,7 +84,7 @@ export function ImageCropper({ image, onCropComplete, onCancel }: ImageCropperPr
       const croppedImage = await getCroppedImg(image, croppedAreaPixels, rotation) // Generate the cropped image using the stored crop area and rotation
       onCropComplete(croppedImage) // Pass the cropped base64 image to the parent component
     } catch (e) {
-      console.error(e) // Log any errors to the console (e.g. canvas context unavailable)
+      // Canvas crop failed silently
     }
   }
 

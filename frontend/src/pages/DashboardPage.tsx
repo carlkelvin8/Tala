@@ -7,7 +7,7 @@ import { SiteHeader } from "../components/site-header"
 import { SidebarInset, SidebarProvider } from "../components/ui/sidebar"
 import { Drawer } from "../components/ui/drawer"
 import { Sparkles } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 
 const ChartAreaInteractive = lazy(() =>
   import("../components/chart-area-interactive").then((module) => ({ default: module.ChartAreaInteractive }))

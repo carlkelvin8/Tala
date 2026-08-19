@@ -97,7 +97,7 @@ export function TermsPage() {
 
   const activateMutation = useMutation({
     mutationFn: (id: string) =>
-      apiRequest<ApiResponse<any>>(`/api/terms/${id}/activate`, { method: "POST" }),
+      apiRequest<ApiResponse<any>>(`/api/terms/${id}`, { method: "PATCH", body: JSON.stringify({ isActive: true }) }),
     onSuccess: () => {
       toast.success("Term activated")
       termsQuery.refetch()

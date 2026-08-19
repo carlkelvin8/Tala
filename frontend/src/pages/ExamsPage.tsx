@@ -135,7 +135,6 @@ export function ExamsPage() {
       setCameraEnabled(true)
       toast.success("Camera enabled successfully")
     } catch (error) {
-      console.error("Camera error:", error)
       let errorMessage = "Unable to access camera"
       if (error instanceof Error) {
         if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {

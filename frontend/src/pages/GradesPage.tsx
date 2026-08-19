@@ -53,10 +53,6 @@ const tabs: { id: TabId; label: string; icon: typeof GraduationCap }[] = [
   { id: "categories", label: "Categories",  icon: Hash },
 ]
 
-function getInitials(email: string): string {
-  return email.charAt(0).toUpperCase()
-}
-
 export function GradesPage() {
   const perms = usePermissions()
   const currentUser = getStoredUser()
