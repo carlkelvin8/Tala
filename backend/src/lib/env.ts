@@ -20,6 +20,7 @@ function secret(name: string, developmentFallback: string) {
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   corsOrigin: process.env.CORS_ORIGIN?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? ["http://localhost:5173"],
+  allowVercelPreviewOrigins: process.env.ALLOW_VERCEL_PREVIEW_ORIGINS === "true",
   accessTokenSecret: secret("JWT_ACCESS_SECRET", "dev-access-secret"),
   refreshTokenSecret: secret("JWT_REFRESH_SECRET", "dev-refresh-secret"),
   accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",

@@ -11,23 +11,30 @@ import { ModernAuthLayout } from "../layout/ModernAuthLayout"
 import { Link } from "react-router-dom"
 import { ApiResponse } from "../../types"
 import { toast } from "sonner"
-import { Mail, KeyRound, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from "lucide-react"
+import { Mail, KeyRound, Lock, Eye, EyeOff, ArrowRight, CheckCircle, ShieldCheck } from "lucide-react"
 
 const emailSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email")
 })
 
-const resetSchema = z.object({
-  token: z.string().min(1, "Reset token is required"),
-  newPassword: z.string().min(8, "Password must be at least 8 characters")
-})
+const resetSchema = z
+  .object({
+    code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(8, "Please confirm your password")
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"]
+  })
 
 type EmailFormValues = z.infer<typeof emailSchema>
 type ResetFormValues = z.infer<typeof resetSchema>
 
 export function ForgotPasswordPage() {
-  const [step, setStep] = useState<"email" | "reset" | "done">("email")
-  const [resetToken, setResetToken] = useState("")
+  const [step, setStep] = useState<"email" | "otp" | "done">("email")
+  const [otp, setOtp] = useState("")
+  const [ticket, setTicket] = useState("")
   const [showPassword, setShowPassword] = useState(false)
 
   const emailForm = useForm<EmailFormValues>({
@@ -37,25 +44,27 @@ export function ForgotPasswordPage() {
 
   const resetForm = useForm<ResetFormValues>({
     resolver: zodResolver(resetSchema),
-    defaultValues: { token: "", newPassword: "" }
+    defaultValues: { code: "", newPassword: "", confirmPassword: "" }
   })
 
   const forgotPasswordMutation = useMutation({
     mutationFn: (values: EmailFormValues) =>
-      apiRequest<ApiResponse<{ resetToken: string }>>(
+      apiRequest<ApiResponse<{ otp: string; ticket: string }>>(
         "/api/auth/forgot-password",
         { method: "POST", body: JSON.stringify(values) }
       ),
     onSuccess: (response) => {
-      if (response.data) {
-        setResetToken(response.data.resetToken)
-        toast.success("Reset token sent to your email")
-        setStep("reset")
-        resetForm.setValue("token", response.data.resetToken)
+      if (response.data?.otp && response.data.ticket) {
+        setOtp(response.data.otp)
+        setTicket(response.data.ticket)
+        toast.success("Verification code generated")
+        setStep("otp")
+      } else {
+        toast.info("If an account exists with this email, a reset code has been generated.")
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to send reset token")
+      toast.error(error instanceof Error ? error.message : "Failed to generate reset code")
     }
   })
 
@@ -63,7 +72,7 @@ export function ForgotPasswordPage() {
     mutationFn: (values: ResetFormValues) =>
       apiRequest<ApiResponse<void>>(
         "/api/auth/reset-password",
-        { method: "POST", body: JSON.stringify(values) }
+        { method: "POST", body: JSON.stringify({ ...values, ticket }) }
       ),
     onSuccess: () => {
       toast.success("Password reset successfully")
@@ -122,7 +131,7 @@ export function ForgotPasswordPage() {
   return (
     <ModernAuthLayout
       title="Reset your password"
-      description="Enter your email to receive a reset token"
+      description={step === "email" ? "Enter your email to receive a verification code" : "Enter the verification code and your new password"}
       footer={
         <Link
           to="/login"
@@ -138,7 +147,7 @@ export function ForgotPasswordPage() {
             <Alert variant="danger" className="text-sm">
               {forgotPasswordMutation.error instanceof Error
                 ? forgotPasswordMutation.error.message
-                : "Failed to send reset token"}
+                : "Failed to generate reset code"}
             </Alert>
           )}
 
@@ -174,11 +183,11 @@ export function ForgotPasswordPage() {
             {forgotPasswordMutation.isPending ? (
               <span className="flex items-center gap-2">
                 <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Sending reset token...
+                Generating code...
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                Send reset token
+                Get verification code
                 <ArrowRight className="h-4 w-4" />
               </span>
             )}
@@ -194,31 +203,49 @@ export function ForgotPasswordPage() {
             </Alert>
           )}
 
-          {resetToken && (
-            <Alert variant="success" className="text-sm">
-              A reset token has been sent to your email.
-            </Alert>
+          {otp && (
+            <div className="rounded-xl border border-silver/30 bg-silver/10 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-darksilver uppercase tracking-wider">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Your verification code
+              </div>
+              <div className="flex justify-center gap-2">
+                {otp.split("").map((digit, i) => (
+                  <span
+                    key={i}
+                    className="flex h-11 w-9 items-center justify-center rounded-lg border border-silver/40 bg-white text-lg font-bold text-navy shadow-sm"
+                  >
+                    {digit}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-darksilver text-center">
+                Demo mode: the code is shown here instead of being emailed. Valid for 10 minutes.
+              </p>
+            </div>
           )}
 
           <div className="space-y-2">
-            <label htmlFor="reset-token" className="text-sm font-medium text-black/80">
-              Reset token
+            <label htmlFor="reset-code" className="text-sm font-medium text-black/80">
+              Verification code
             </label>
             <div className="relative">
               <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-darksilver" />
               <Input
-                id="reset-token"
-                {...resetForm.register("token")}
+                id="reset-code"
+                {...resetForm.register("code")}
                 type="text"
-                placeholder="Enter the reset token from your email"
-                className="h-11 pl-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50"
-                aria-invalid={Boolean(resetForm.formState.errors.token)}
-                aria-describedby={resetForm.formState.errors.token ? "reset-token-error" : undefined}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="Enter 6-digit code"
+                className="h-11 pl-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50 tracking-widest"
+                aria-invalid={Boolean(resetForm.formState.errors.code)}
+                aria-describedby={resetForm.formState.errors.code ? "reset-code-error" : undefined}
               />
             </div>
-            {resetForm.formState.errors.token && (
-              <p id="reset-token-error" role="alert" className="text-xs text-red-600 mt-1">
-                {resetForm.formState.errors.token.message}
+            {resetForm.formState.errors.code && (
+              <p id="reset-code-error" role="alert" className="text-xs text-red-600 mt-1">
+                {resetForm.formState.errors.code.message}
               </p>
             )}
           </div>
@@ -255,6 +282,30 @@ export function ForgotPasswordPage() {
             )}
           </div>
 
+          <div className="space-y-2">
+            <label htmlFor="reset-confirm-password" className="text-sm font-medium text-black/80">
+              Confirm new password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-darksilver" />
+              <Input
+                id="reset-confirm-password"
+                {...resetForm.register("confirmPassword")}
+                type={showPassword ? "text" : "password"}
+                placeholder="Confirm your new password"
+                className="h-11 pl-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50"
+                autoComplete="new-password"
+                aria-invalid={Boolean(resetForm.formState.errors.confirmPassword)}
+                aria-describedby={resetForm.formState.errors.confirmPassword ? "reset-confirm-password-error" : undefined}
+              />
+            </div>
+            {resetForm.formState.errors.confirmPassword && (
+              <p id="reset-confirm-password-error" role="alert" className="text-xs text-red-600 mt-1">
+                {resetForm.formState.errors.confirmPassword.message}
+              </p>
+            )}
+          </div>
+
           <Button
             type="submit"
             className="w-full h-11 bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
@@ -275,7 +326,12 @@ export function ForgotPasswordPage() {
 
           <button
             type="button"
-            onClick={() => setStep("email")}
+            onClick={() => {
+              setStep("email")
+              setOtp("")
+              setTicket("")
+              resetForm.reset()
+            }}
             className="w-full text-sm text-darksilver hover:text-black transition-colors"
           >
             Use a different email

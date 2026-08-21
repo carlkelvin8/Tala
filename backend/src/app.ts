@@ -42,7 +42,15 @@ app.use(logger())
 app.use(
   "/api/*",
   cors({
-    origin: env.corsOrigin,
+    origin: (origin) => {
+      if (env.corsOrigin.includes(origin)) {
+        return origin
+      }
+      if (env.allowVercelPreviewOrigins && /^https:\/\/[a-z0-9-]+-carlkelvin8s-projects\.vercel\.app$/.test(origin)) {
+        return origin
+      }
+      return null
+    },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,

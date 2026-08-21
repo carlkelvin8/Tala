@@ -15,6 +15,8 @@ File: `backend/.env`
 | `QR_TOKEN_SECRET` | Yes | Separate secret for attendance QR tokens | `another-random-secret-at-least-32-characters` |
 | `PORT` | No | HTTP server port (default: 4000) | `4000` |
 | `NODE_ENV` | No | Environment mode | `development` or `production` |
+| `CORS_ORIGIN` | Yes (prod) | Comma-separated list of allowed frontend origins | `https://app.example.com,http://localhost:5173` |
+| `ALLOW_VERCEL_PREVIEW_ORIGINS` | No | When `true`, allows any `*-carlkelvin8s-projects.vercel.app` origin (preview/staging deploys) | `true` |
 
 ### Notes
 
@@ -24,6 +26,7 @@ File: `backend/.env`
   ```
 - `DATABASE_URL` for Neon must include `?sslmode=require`
 - `npm test` prefers `TEST_DATABASE_URL` when present because integration tests create and delete records. Never point it at production.
+- The seed script (`npm run seed`) refuses to run against a non-localhost database unless `FORCE_SEED=true` is set — this protects production data from accidental wipes.
 - Never commit `.env` to version control
 
 ---
@@ -62,3 +65,17 @@ NODE_ENV=development
 ```env
 VITE_API_URL=http://localhost:4000
 ```
+
+---
+
+## Staging / Preview Workflow
+
+- **Frontend**: push to any branch → Vercel auto-creates a preview deployment (Git integration). The `master` branch deploys to production (`tala-frontend-tau.vercel.app`).
+- **Backend**: deploys are manual via Vercel CLI:
+  ```bash
+  cd backend
+  vercel          # preview deployment (staging URL)
+  vercel --prod   # production deployment
+  ```
+- Preview/staging frontend origins are accepted by the backend CORS when `ALLOW_VERCEL_PREVIEW_ORIGINS=true`.
+- Use a **separate database** for staging when possible; never run the seed against production without `FORCE_SEED=true`.

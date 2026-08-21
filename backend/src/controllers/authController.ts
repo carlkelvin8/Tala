@@ -258,22 +258,22 @@ export async function updateProfile(c: Context) {
   }
 }
 
-/* POST /api/auth/forgot-password — generate a password reset token */
+/* POST /api/auth/forgot-password — generate a password reset code */
 export async function forgotPassword(c: Context) {
   try {
     const body = await c.req.json()
     const result = await forgotPasswordService(body.email)
-    return c.json(ok("Password reset token generated", result))
+    return c.json(ok("Password reset code generated", result))
   } catch (error) {
-    return c.json(fail(error instanceof Error ? error.message : "Failed to generate reset token"), 400)
+    return c.json(fail(error instanceof Error ? error.message : "Failed to generate reset code"), 400)
   }
 }
 
-/* POST /api/auth/reset-password — reset password using token */
+/* POST /api/auth/reset-password — reset password using ticket + verification code */
 export async function resetPassword(c: Context) {
   try {
     const body = await c.req.json()
-    await resetPasswordService(body.token, body.newPassword)
+    await resetPasswordService(body.ticket, body.code, body.newPassword)
     return c.json(ok("Password reset successfully"))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Password reset failed"), 400)

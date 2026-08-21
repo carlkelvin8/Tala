@@ -29,6 +29,14 @@ function daysFromNow(n: number) {
 }
 
 async function main() {
+  const dbUrl = process.env.DATABASE_URL ?? ""
+  const isLocalDb = /localhost|127\.0\.0\.1/.test(dbUrl)
+  if (!isLocalDb && process.env.FORCE_SEED !== "true") {
+    console.error("🛑  Refusing to seed a remote database (possible production data!).")
+    console.error("    If you really want to wipe and reseed it, run with FORCE_SEED=true")
+    process.exit(1)
+  }
+
   const hash = await bcrypt.hash(PASSWORD, 10)
   console.log("🌱  Seeding database…")
 

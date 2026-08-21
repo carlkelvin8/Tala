@@ -28,6 +28,7 @@ export const forgotPasswordSchema = z.object({
 })
 
 export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
+  ticket: z.string().min(1),
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
   newPassword: z.string().min(8)
 })

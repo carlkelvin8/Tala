@@ -10,6 +10,8 @@ import {
   GraduationCap,
   Award,
   Users,
+  FileText,
+  Sheet,
 } from "lucide-react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -19,6 +21,7 @@ import { SectionCard } from "../components/ui/section-card"
 import { getAccessToken } from "../lib/auth"
 import { toast } from "sonner"
 import { cn } from "../lib/utils"
+import { parseCsv, exportPdf, exportExcel } from "../lib/export"
 
 const baseUrl = import.meta.env.VITE_API_URL ?? ""
 
@@ -37,10 +40,10 @@ export function ReportsPage() {
   const [isDownloading, setIsDownloading] = useState(false)
   const [activeReport, setActiveReport] = useState<ReportType>("enrollment")
 
-  const downloadCsv = async (report: typeof reportTypes[0]) => {
+  const fetchReportRows = async (report: typeof reportTypes[0]): Promise<string[][] | null> => {
     if (from && to && new Date(to) < new Date(from)) {
       toast.error("End date cannot be before start date")
-      return
+      return null
     }
     setIsDownloading(true)
     try {
@@ -58,35 +61,64 @@ export function ReportsPage() {
       if (!response.ok) {
         if (response.status === 404) {
           toast.warning(`${report.label} endpoint is not yet available`)
-          return
+          return null
         }
         const text = await response.text()
         throw new Error(text || "Failed to generate report")
       }
 
-      const blob = await response.blob()
-
-      if (blob.size < 50) {
-        toast.warning(`No data found for the selected date range`)
+      const csvText = await response.text()
+      const rows = parseCsv(csvText)
+      if (rows.length < 2) {
+        toast.warning("No data found for the selected date range")
+        return null
       }
-
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = downloadUrl
-      a.download = `${report.key}-${new Date().toISOString().split("T")[0]}.csv`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(downloadUrl)
-      document.body.removeChild(a)
-
-      if (blob.size >= 50) {
-        toast.success(`${report.label} downloaded successfully`)
-      }
+      return rows
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to download report")
+      return null
     } finally {
       setIsDownloading(false)
     }
+  }
+
+  const downloadCsv = async (report: typeof reportTypes[0]) => {
+    const rows = await fetchReportRows(report)
+    if (!rows) return
+
+    const blob = new Blob([rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n")], {
+      type: "text/csv;charset=utf-8",
+    })
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = downloadUrl
+    a.download = `${report.key}-${new Date().toISOString().split("T")[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(downloadUrl)
+    document.body.removeChild(a)
+    toast.success(`${report.label} downloaded successfully`)
+  }
+
+  const downloadPdf = async (report: typeof reportTypes[0]) => {
+    const rows = await fetchReportRows(report)
+    if (!rows) return
+    const dateStr = new Date().toISOString().split("T")[0]
+    exportPdf(
+      report.label,
+      `${activeReportConfig.description}${from || to ? ` (${from || "start"} → ${to || "present"})` : ""}`,
+      rows,
+      `${report.key}-${dateStr}`
+    )
+    toast.success(`${report.label} PDF exported successfully`)
+  }
+
+  const downloadExcel = async (report: typeof reportTypes[0]) => {
+    const rows = await fetchReportRows(report)
+    if (!rows) return
+    const dateStr = new Date().toISOString().split("T")[0]
+    exportExcel(rows, `${report.key}-${dateStr}`, report.label)
+    toast.success(`${report.label} Excel exported successfully`)
   }
 
   const activeReportConfig = reportTypes.find(r => r.key === activeReport)!
@@ -108,7 +140,7 @@ export function ReportsPage() {
               <Sparkles className="h-5 w-5 text-gold" />
             </h1>
             <p className="mt-1 text-sm text-silver">
-              Generate and export various reports as CSV files
+              Generate and export reports as PDF, Excel, or CSV
             </p>
           </div>
         </div>
@@ -175,22 +207,39 @@ export function ReportsPage() {
           </FormField>
         </div>
 
-        <div className="flex items-center gap-4 pt-2">
+        <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button
             onClick={() => downloadCsv(activeReportConfig)}
             disabled={isDownloading}
-            className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
+            variant="outline"
           >
             {isDownloading ? (
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Download className="mr-2 h-4 w-4" />
             )}
-            {isDownloading ? "Downloading..." : `Download ${activeReportConfig.label}`}
+            CSV
+          </Button>
+          <Button
+            onClick={() => downloadExcel(activeReportConfig)}
+            disabled={isDownloading}
+            variant="outline"
+            className="border-green-600/30 text-green-700 hover:bg-green-50"
+          >
+            <Sheet className="mr-2 h-4 w-4" />
+            Excel
+          </Button>
+          <Button
+            onClick={() => downloadPdf(activeReportConfig)}
+            disabled={isDownloading}
+            className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Export PDF
           </Button>
           {(from || to) && (
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => {
                 setFrom("")
                 setTo("")
