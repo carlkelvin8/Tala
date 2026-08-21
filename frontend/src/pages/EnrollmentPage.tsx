@@ -17,9 +17,10 @@ import { RefreshIndicator } from "../components/ui/refresh-indicator"
 import { Drawer } from "../components/ui/drawer"
 import { FormField } from "../components/ui/form-field"
 import { usePermissions } from "../hooks/usePermissions"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Check, X, Eye, Edit, Search, Sparkles, Users, UserPlus, Ban, Save, BookOpen, Plane, Upload, Wand2 } from "lucide-react"
 import { cn } from "../lib/utils"
+import { parseCsv } from "../lib/export"
 import { motion } from "framer-motion"
 import { cardContainerVariants, cardItemVariants } from "../components/ui/page-transition"
 
@@ -105,6 +106,63 @@ export function EnrollmentPage() {
     queryKey: ["courses"],
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/courses"),
     retry: false
+  })
+
+  const importFileRef = useRef<HTMLInputElement>(null)
+  const [importPreview, setImportPreview] = useState<Record<string, string>[] | null>(null)
+  const [importStatus, setImportStatus] = useState<"APPROVED" | "PENDING">("APPROVED")
+  const [importResult, setImportResult] = useState<{ created: number; skipped: number; failed: number; errors?: string[] } | null>(null)
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const parsed = parseCsv(text)
+      if (parsed.length < 2) throw new Error("CSV is empty")
+      const headers = parsed[0].map((h) => h.trim().toLowerCase().replace(/\s+/g, ""))
+      const rows = parsed.slice(1).map((cells) => {
+        const row: Record<string, string> = {}
+        headers.forEach((header, i) => {
+          const key =
+            header === "firstname" ? "firstName" :
+            header === "lastname" ? "lastName" :
+            header === "studentno" ? "studentNo" :
+            header === "birthdate" ? "birthDate" :
+            header === "contactno" ? "contactNo" :
+            header === "sectioncode" ? "sectionCode" : header
+          row[key] = (cells[i] ?? "").trim()
+        })
+        return row
+      })
+      const valid = rows.filter((row) => row.email && row.firstName && row.lastName && row.studentNo)
+      if (valid.length === 0) throw new Error("No valid rows — required columns: email, firstName, lastName, studentNo")
+      if (valid.length < rows.length) toast.warning(`${rows.length - valid.length} rows skipped due to missing required fields`)
+      setImportPreview(valid)
+      setImportResult(null)
+      toast.success(`${valid.length} rows parsed and ready to import`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to parse CSV")
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  const importMutation = useMutation({
+    mutationFn: () =>
+      apiRequest<ApiResponse<{ created: number; skipped: number; failed: number; errors: string[] }>>("/api/enrollments/import", {
+        method: "POST",
+        body: JSON.stringify({ rows: importPreview, enrollmentStatus: importStatus }),
+      }),
+    onSuccess: (data) => {
+      setImportResult(data.data ?? null)
+      setImportPreview(null)
+      enrollmentsQuery.refetch()
+      toast.success(`Import complete: ${data.data?.created ?? 0} students created`)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Import failed")
+    }
   })
 
   const handleEdit = (enrollment: any) => {
@@ -418,6 +476,75 @@ export function EnrollmentPage() {
                 Sorts students alphabetically and assigns them to sections of 28.
               </p>
             </div>
+          </SectionCard>
+        </motion.div>
+      )}
+
+      {perms.canEdit && (
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+        >
+          <SectionCard title="CSV Bulk Import" description="Import a whole block of students from a CSV file (columns: email, firstName, lastName, studentNo, gender, birthDate, contactNo, sectionCode)" className="shadow-card">
+            <div className="flex flex-wrap items-center gap-3 px-6 pb-4">
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+              <Button
+                variant="outline"
+                onClick={() => importFileRef.current?.click()}
+                disabled={importMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                {importPreview ? `${importPreview.length} rows ready` : "Choose CSV file"}
+              </Button>
+              <Select
+                value={importStatus}
+                onChange={(e) => setImportStatus(e.target.value as "APPROVED" | "PENDING")}
+                className="h-10 w-40"
+              >
+                <option value="APPROVED">Enroll as Approved</option>
+                <option value="PENDING">Enroll as Pending</option>
+              </Select>
+              <Button
+                onClick={() => importMutation.mutate()}
+                disabled={!importPreview || importMutation.isPending}
+                className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white"
+              >
+                {importMutation.isPending ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4" />
+                    Import Students
+                  </>
+                )}
+              </Button>
+              <a
+                href="data:text/csv;charset=utf-8,email,firstName,lastName,studentNo,gender,birthDate,contactNo,sectionCode%0Ajuandelacruz%40example.com,Juan,Dela+Cruz,2025-00001,Male,2005-01-15,09171234567,CWTS-SEC-A"
+                download="import-template.csv"
+                className="text-xs text-royal hover:text-navy underline"
+              >
+                Download template
+              </a>
+            </div>
+            {importResult && (
+              <div className="px-6 pb-4">
+                <Alert variant={importResult.failed > 0 ? "warning" : "success"} className="text-sm">
+                  Imported: {importResult.created} created, {importResult.skipped} skipped (already exist), {importResult.failed} failed.
+                  {importResult.errors && importResult.errors.length > 0 && ` First error: ${importResult.errors[0]}`}
+                </Alert>
+              </div>
+            )}
           </SectionCard>
         </motion.div>
       )}

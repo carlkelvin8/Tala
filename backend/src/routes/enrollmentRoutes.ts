@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { create, list, updateStatus, update, bulkCreate } from "../controllers/enrollmentController.js"
+import { create, list, updateStatus, update, bulkCreate, importStudentsHandler } from "../controllers/enrollmentController.js"
 import { authMiddleware } from "../middlewares/auth.js"
 import { roleGuard } from "../middlewares/roleGuard.js"
 import { validateBody, validateQuery } from "../middlewares/zod.js"
@@ -13,5 +13,6 @@ enrollmentRoutes.use(authMiddleware)
 enrollmentRoutes.get("/", validateQuery(enrollmentQuerySchema), list)
 enrollmentRoutes.post("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(enrollmentCreateSchema), create)
 enrollmentRoutes.post("/bulk", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), bulkCreate)
+enrollmentRoutes.post("/import", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), importStudentsHandler)
 enrollmentRoutes.patch("/:id/status", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(enrollmentStatusSchema), updateStatus)
 enrollmentRoutes.patch("/:id", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), update)

@@ -16,6 +16,7 @@ export const navItems: NavItem[] = [
   { label: "Learning Materials", path: "/materials", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Attendance", path: "/attendance", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "QR Scanner", path: "/scanner", roles: ["IMPLEMENTOR"] },
+  { label: "Live Monitor", path: "/live-monitor", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
   { label: "Training Monitoring", path: "/training", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Terms", path: "/terms", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Grades", path: "/grades", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
@@ -23,6 +24,9 @@ export const navItems: NavItem[] = [
   { label: "Exams", path: "/exams", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Medical Certificates", path: "/medical-certificates", roles: ["IMPLEMENTOR", "STUDENT"] },
   { label: "Reports", path: "/reports", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
+  { label: "Certificates", path: "/certificates", roles: ["ADMIN", "IMPLEMENTOR"] },
+  { label: "Leaderboard", path: "/leaderboard", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] },
+  { label: "Calendar", path: "/calendar", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] },
   { label: "User Management", path: "/users", roles: ["ADMIN"] },
   { label: "Audit Logs", path: "/audit-logs", roles: ["ADMIN"] },
   { label: "Profile", path: "/profile", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] }

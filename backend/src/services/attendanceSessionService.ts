@@ -473,3 +473,100 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
   await logAudit("UPDATE", "AttendanceSession", sessionId, hostId);
   return updated;
 }
+
+/**
+ * Live feed for an active session — stats + most recent check-ins.
+ * Polled by the Live Attendance Monitor page.
+ */
+export async function getSessionLiveFeed(sessionId: string) {
+  const session = await prisma.attendanceSession.findUnique({
+    where: { id: sessionId },
+    include: { section: true, flight: true },
+  });
+  if (!session) throw new Error("Session not found");
+
+  const records = await prisma.attendanceRecord.findMany({
+    where: { sessionId },
+    orderBy: [{ checkInAt: "desc" }, { createdAt: "desc" }],
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          studentProfile: {
+            select: { firstName: true, lastName: true, studentNo: true },
+          },
+        },
+      },
+    },
+  });
+
+  const roster = await prisma.enrollment.count({
+    where: {
+      status: "APPROVED",
+      ...(session.sectionId ? { sectionId: session.sectionId } : {}),
+    },
+  });
+
+  const present = records.filter((r) => r.status === "PRESENT").length;
+  const late = records.filter((r) => r.status === "LATE").length;
+  const absent = records.filter((r) => r.status === "ABSENT").length;
+
+  return {
+    session: {
+      id: session.id,
+      title: session.title,
+      isActive: session.isActive,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      section: session.section ? { name: session.section.name, code: session.section.code } : null,
+      flight: session.flight ? { name: session.flight.name } : null,
+    },
+    stats: {
+      roster,
+      present,
+      late,
+      absent,
+      checkedIn: present + late,
+      attendanceRate: roster > 0 ? Math.round(((present + late) / roster) * 100) : 0,
+    },
+    recent: records
+      .filter((r) => r.checkInAt)
+      .slice(0, 25)
+      .map((r) => ({
+        id: r.id,
+        name: r.user.studentProfile
+          ? `${r.user.studentProfile.firstName} ${r.user.studentProfile.lastName}`
+          : r.user.email,
+        studentNo: r.user.studentProfile?.studentNo ?? "",
+        status: r.status,
+        checkInAt: r.checkInAt,
+      })),
+  };
+}
+
+/**
+ * Calendar view — attendance sessions within a date range (any role).
+ */
+export async function listSessionsInRange(filters: { from?: Date; to?: Date }) {
+  const where: Record<string, unknown> = {};
+  if (filters.from || filters.to) {
+    where.date = {
+      ...(filters.from ? { gte: filters.from } : {}),
+      ...(filters.to ? { lte: filters.to } : {}),
+    };
+  }
+  return prisma.attendanceSession.findMany({
+    where,
+    select: {
+      id: true,
+      title: true,
+      date: true,
+      startTime: true,
+      endTime: true,
+      isActive: true,
+      section: { select: { name: true, code: true } },
+    },
+    orderBy: { date: "asc" },
+  });
+}

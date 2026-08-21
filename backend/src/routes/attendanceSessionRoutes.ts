@@ -10,6 +10,8 @@ import {
   markAttendanceHandler,
   getActiveSessionsHandler,
   endSessionHandler,
+  getSessionLiveFeedHandler,
+  listCalendarHandler,
 } from "../controllers/attendanceSessionController.js"
 
 export const attendanceSessionRoutes = new Hono()
@@ -49,6 +51,17 @@ attendanceSessionRoutes.post(
 attendanceSessionRoutes.get(
   "/active",
   getActiveSessionsHandler
+)
+
+attendanceSessionRoutes.get(
+  "/calendar",
+  listCalendarHandler
+)
+
+attendanceSessionRoutes.get(
+  "/:sessionId/live",
+  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.CADET_OFFICER]),
+  getSessionLiveFeedHandler
 )
 
 attendanceSessionRoutes.post(

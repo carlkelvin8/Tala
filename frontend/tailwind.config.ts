@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss"
 
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -48,7 +49,7 @@ export default {
           950: '#1A1507',
         },
         silver: {
-          DEFAULT: '#C8CDD3',
+          DEFAULT: 'rgb(var(--c-line) / <alpha-value>)',
           50: '#F5F6F7',
           100: '#EBEDF0',
           200: '#D7DAE0',
@@ -75,8 +76,8 @@ export default {
           900: '#1F2125',
           950: '#101113',
         },
-        black: '#111111',
-        white: '#F8F8F8',
+        black: 'rgb(var(--c-ink) / <alpha-value>)',
+        white: 'rgb(var(--c-surface) / <alpha-value>)',
       },
       boxShadow: {
         'soft': '0 1px 3px 0 rgb(0 0 0 / 0.03), 0 1px 2px -1px rgb(0 0 0 / 0.02)',

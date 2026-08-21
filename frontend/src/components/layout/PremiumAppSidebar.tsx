@@ -15,10 +15,10 @@ import { navItems } from "../../lib/navigation"
 import { getStoredUser, getUserDisplayName } from "../../lib/auth"
 import { logoutSession } from "../../lib/api"
 import { cn } from "../../lib/utils"
-import { 
+import {
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
   FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine, FileHeart,
-  Grid, Plane, BookOpen, Calendar
+  Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
 import { roleTextColors, roleBgColors, roleLabels } from "../../lib/roles"
@@ -37,7 +37,11 @@ const iconMap = {
   "/exams": ClipboardCheck,
   "/medical-certificates": FileHeart,
   "/reports": FileBarChart,
+  "/certificates": Medal,
+  "/leaderboard": Trophy,
+  "/calendar": Calendar,
   "/scanner": ScanLine,
+  "/live-monitor": RadioTower,
   "/users": Shield,
   "/audit-logs": ShieldCheck,
   "/profile": User2,

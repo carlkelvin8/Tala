@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { LogOut, Menu, Bell, CheckCheck } from "lucide-react"
 import { cn } from "../../lib/utils"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
+import { ThemeToggle } from "../ThemeToggle"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiRequest } from "../../lib/api"
 import { ApiResponse } from "../../types"
@@ -31,6 +32,10 @@ const routeLabels: Record<string, string> = {
   "/users": "Users",
   "/profile": "Profile",
   "/medical-certificates": "Medical Certificates",
+  "/certificates": "Certificates",
+  "/leaderboard": "Leaderboard",
+  "/calendar": "Calendar",
+  "/live-monitor": "Live Monitor",
 }
 
 const roleLabels: Record<string, string> = {
@@ -138,6 +143,8 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
           </div>
 
           <div className="h-4 w-px bg-silver/20 hidden sm:block" />
+
+          <ThemeToggle />
 
           <div ref={notifRef} className="relative">
             <button

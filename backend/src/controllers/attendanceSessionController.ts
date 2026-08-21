@@ -9,6 +9,8 @@ import {
   markAttendanceWithLocation,
   getActiveSessions,
   endSession,
+  getSessionLiveFeed,
+  listSessionsInRange,
 } from "../services/attendanceSessionService.js"
 import { RoleType } from "@prisma/client"
 
@@ -173,5 +175,28 @@ export async function endSessionHandler(c: Context) {
     return c.json(ok("Session ended", session))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to end session"), 400)
+  }
+}
+
+/* GET /api/attendance-sessions/:sessionId/live — live feed for the monitor page */
+export async function getSessionLiveFeedHandler(c: Context) {
+  try {
+    const sessionId = c.req.param("sessionId")
+    const feed = await getSessionLiveFeed(sessionId)
+    return c.json(ok("Live feed fetched", feed))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch live feed"), 400)
+  }
+}
+
+/* GET /api/attendance-sessions/calendar?from&to — sessions in a date range for the calendar */
+export async function listCalendarHandler(c: Context) {
+  try {
+    const from = c.req.query("from") ? new Date(c.req.query("from")!) : undefined
+    const to = c.req.query("to") ? new Date(c.req.query("to")!) : undefined
+    const items = await listSessionsInRange({ from, to })
+    return c.json(ok("Calendar sessions fetched", items))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch calendar"), 400)
   }
 }

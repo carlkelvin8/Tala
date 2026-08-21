@@ -26,6 +26,7 @@ import { auditRoutes } from "./routes/auditRoutes.js"
 import { medicalCertificateRoutes } from "./routes/medicalCertificateRoutes.js"
 import { notificationRoutes } from "./routes/notificationRoutes.js"
 import { autoSectioningRoutes } from "./routes/autoSectioningRoutes.js"
+import { leaderboardRoutes } from "./routes/leaderboardRoutes.js"
 import { fail, ok } from "./lib/response.js"
 
 export const app = new Hono()
@@ -101,3 +102,4 @@ app.route("/api/audit-logs", auditRoutes)
 app.route("/api/medical-certificates", medicalCertificateRoutes)
 app.route("/api/notifications", notificationRoutes)
 app.route("/api/auto-sectioning", autoSectioningRoutes)
+app.route("/api/leaderboard", leaderboardRoutes)

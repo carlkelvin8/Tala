@@ -1,9 +1,10 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { createEnrollment, listEnrollments, updateEnrollmentStatus, bulkCreateEnrollments } from "../services/enrollmentService.js"
+import { createEnrollment, listEnrollments, updateEnrollmentStatus, bulkCreateEnrollments, importStudents as importStudentsService } from "../services/enrollmentService.js"
 import { getPagination } from "../lib/pagination.js"
 import { EnrollmentStatus, RoleType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
+import { logAudit } from "../services/auditService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
@@ -97,5 +98,29 @@ export async function bulkCreate(c: Context) {
     return c.json(ok("Bulk enrollment completed", result))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Bulk enrollment failed"), 400)
+  }
+}
+
+/* POST /api/enrollments/import — bulk import students from parsed CSV rows */
+export async function importStudentsHandler(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const body = await c.req.json()
+    const rows = Array.isArray(body.rows) ? body.rows : []
+    if (rows.length === 0) {
+      return c.json(fail("No rows to import"), 400)
+    }
+    if (rows.length > 1000) {
+      return c.json(fail("Maximum 1000 rows per import"), 400)
+    }
+    const result = await importStudentsService({
+      rows,
+      enrollmentStatus: body.enrollmentStatus === "PENDING" ? "PENDING" : "APPROVED",
+      defaultPassword: typeof body.defaultPassword === "string" && body.defaultPassword.length >= 8 ? body.defaultPassword : undefined,
+    })
+    await logAudit("CREATE", "Enrollment", undefined, undefined, { importedBy: authUser.id, ...result })
+    return c.json(ok("Import finished", result))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Import failed"), 400)
   }
 }
