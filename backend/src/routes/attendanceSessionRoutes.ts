@@ -20,13 +20,13 @@ attendanceSessionRoutes.use("*", authMiddleware)
 
 attendanceSessionRoutes.post(
   "/",
-  roleGuard([RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
   createSessionHandler
 )
 
 attendanceSessionRoutes.patch(
   "/:sessionId/host-location",
-  roleGuard([RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
   updateHostLocationHandler
 )
 
@@ -66,6 +66,6 @@ attendanceSessionRoutes.get(
 
 attendanceSessionRoutes.post(
   "/:sessionId/end",
-  roleGuard([RoleType.IMPLEMENTOR]),
+  roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]),
   endSessionHandler
 )

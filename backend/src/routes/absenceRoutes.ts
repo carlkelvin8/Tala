@@ -7,5 +7,5 @@ import { RoleType } from "@prisma/client"
 export const absenceRoutes = new Hono()
 
 absenceRoutes.use(authMiddleware)
-absenceRoutes.post("/check", roleGuard([RoleType.IMPLEMENTOR]), checkAll)
+absenceRoutes.post("/check", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), checkAll)
 absenceRoutes.get("/count/:userId", getCount)
