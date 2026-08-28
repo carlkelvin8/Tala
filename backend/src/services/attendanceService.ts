@@ -66,7 +66,7 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
     throw new Error("Student not found")
   }
 
-  // A program-scoped scanner (e.g. a CWTS-locked implementor) may only record the
+  // A program-scoped scanner (e.g. an ROTC-locked implementor) may only record the
   // attendance of students who belong to that program.
   if (scannerProgram && user.program && user.program !== scannerProgram) {
     throw new Error(`${user.email} belongs to the ${user.program} program. This scanner can only record ${scannerProgram} students.`)

@@ -98,7 +98,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
                   {roleLabels[user.role]} {/* Human-readable role label */}
                 </span>
               )}
-              {getEffectiveProgram(user) && ( // Show the user's NSTP program badge (implementors are locked to CWTS)
+              {getEffectiveProgram(user) && ( // Show the user's NSTP program badge (implementors are locked to ROTC)
                 <span className={cn(
                   "inline-block mt-1 ml-1 text-[10px] font-semibold px-2 py-0.5 rounded tracking-wide",
                   programTextColors[getEffectiveProgram(user) as ProgramType],

@@ -31,6 +31,10 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
   if (user?.role === "ADMIN" && !programProp) {
     return <Navigate to="/dashboard/cwts" replace />
   }
+  // Implementors are locked to ROTC and land on the ROTC dashboard
+  if (isImplementor && !programProp) {
+    return <Navigate to="/dashboard/rotc" replace />
+  }
 
   const program = programProp ?? (getEffectiveProgram(user) as ProgramType | null)
   const programLabel = program ? programFullLabels[program] : null

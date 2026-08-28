@@ -66,7 +66,7 @@ export function App() {
       <Route
         path="/dashboard/cwts"
         element={
-          <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
+          <ProtectedRoute roles={["ADMIN"]}>
             <DashboardPage program="CWTS" />
           </ProtectedRoute>
         }
@@ -74,7 +74,7 @@ export function App() {
       <Route
         path="/dashboard/rotc"
         element={
-          <ProtectedRoute roles={["ADMIN"]}>
+          <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
             <DashboardPage program="ROTC" />
           </ProtectedRoute>
         }
@@ -89,9 +89,9 @@ export function App() {
       >
         <Route path="/enrollment" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><EnrollmentPage /></ProtectedRoute>} />
         <Route path="/students" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><StudentsPage /></ProtectedRoute>} />
-        <Route path="/courses/cwts" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="CWTS" /></ProtectedRoute>} />
-        <Route path="/courses/rotc" element={<ProtectedRoute roles={["ADMIN"]}><CoursesPage program="ROTC" /></ProtectedRoute>} />
-        <Route path="/courses" element={<Navigate to="/courses/cwts" replace />} />
+        <Route path="/courses/cwts" element={<ProtectedRoute roles={["ADMIN"]}><CoursesPage program="CWTS" /></ProtectedRoute>} />
+        <Route path="/courses/rotc" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="ROTC" /></ProtectedRoute>} />
+        <Route path="/courses" element={<Navigate to="/courses/rotc" replace />} />
         <Route path="/sections" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><SectionsPage /></ProtectedRoute>} />
         <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
         <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><MaterialsPage /></ProtectedRoute>} />

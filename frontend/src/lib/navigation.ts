@@ -7,14 +7,14 @@ export type NavItem = {
 }
 
 export const navItems: NavItem[] = [
-  { label: "CWTS Dashboard", path: "/dashboard/cwts", roles: ["ADMIN", "IMPLEMENTOR"] },
-  { label: "ROTC Dashboard", path: "/dashboard/rotc", roles: ["ADMIN"] },
+  { label: "CWTS Dashboard", path: "/dashboard/cwts", roles: ["ADMIN"] },
+  { label: "ROTC Dashboard", path: "/dashboard/rotc", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Dashboard", path: "/dashboard", roles: ["CADET_OFFICER", "STUDENT"] },
   { label: "Enrollment", path: "/enrollment", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Students", path: "/students", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Sections", path: "/sections", roles: ["ADMIN", "IMPLEMENTOR"] },
-  { label: "Mandatory CWTS Courses", path: "/courses/cwts", roles: ["ADMIN", "IMPLEMENTOR"] },
-  { label: "Mandatory ROTC Courses", path: "/courses/rotc", roles: ["ADMIN"] },
+  { label: "Mandatory CWTS Courses", path: "/courses/cwts", roles: ["ADMIN"] },
+  { label: "Mandatory ROTC Courses", path: "/courses/rotc", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Flights", path: "/flights", roles: ["ADMIN", "CADET_OFFICER"] },
   { label: "Learning Materials", path: "/materials", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Attendance", path: "/attendance", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },

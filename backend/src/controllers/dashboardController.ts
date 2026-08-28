@@ -30,7 +30,7 @@ async function attendanceRateFor(since: Date, filter: object): Promise<number | 
    scoped to their account-level program, falling back to their section's course program. */
 async function resolveProgram(c: Context): Promise<NstpType | null> {
   const authUser = getAuthUser(c)
-  if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.CWTS
+  if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.ROTC
   if (authUser.role === RoleType.ADMIN) {
     const raw = c.req.query("program")
     const program = raw?.toUpperCase() === "ROTC" || raw?.toUpperCase() === "CWTS" ? (raw.toUpperCase() as NstpType) : null

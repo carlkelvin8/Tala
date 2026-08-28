@@ -8,8 +8,8 @@ export async function create(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const body = await c.req.json()
-    // Implementors are locked to CWTS — always create CWTS courses
-    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (body.nstpType ?? undefined)
+    // Implementors are locked to ROTC — always create ROTC courses
+    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (body.nstpType ?? undefined)
     const course = await createCourse(body.code, body.name, nstpType)
     return c.json(ok("Course created", course))
   } catch (error) {
@@ -19,8 +19,8 @@ export async function create(c: Context) {
 
 export async function list(c: Context) {
   const authUser = getAuthUser(c)
-  // Implementors only see CWTS content
-  const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : undefined
+  // Implementors only see ROTC content
+  const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : undefined
   const courses = await listCourses(nstpType)
   return c.json(ok("Courses fetched", courses))
 }
@@ -48,8 +48,8 @@ export async function update(c: Context) {
     const authUser = getAuthUser(c)
     const id = c.req.param("id")
     const body = await c.req.json()
-    // Implementors are locked to CWTS and cannot change a course's program to ROTC
-    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (body.nstpType ?? undefined)
+    // Implementors are locked to ROTC and cannot change a course's program to CWTS
+    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (body.nstpType ?? undefined)
     const course = await updateCourse(id, body.code, body.name, nstpType)
     return c.json(ok("Course updated", course))
   } catch (error) {

@@ -25,8 +25,8 @@ export async function createUser(data: {
   }
   // Hash the plain-text password using bcrypt before storing it
   const passwordHash = await hashPassword(data.password)
-  // Implementor accounts are locked to the CWTS program; all other roles may carry any program
-  const program = data.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (data.program ?? null)
+  // Implementor accounts are locked to the ROTC program; all other roles may carry any program
+  const program = data.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (data.program ?? null)
   // Create the base user record with email, hashed password, and role
   const user = await userRepository.create({
     email: data.email,
@@ -86,14 +86,14 @@ export async function listUsers(filters: { role?: RoleType; search?: string }, s
 
 /* Update a user's role, program, and/or active status */
 export async function updateUser(id: string, data: { role?: RoleType; program?: NstpType | null; isActive?: boolean }) {
-  // Read the current role so implementor accounts stay locked to CWTS even on role changes
+  // Read the current role so implementor accounts stay locked to ROTC even on role changes
   const existing = await prisma.user.findUnique({ where: { id }, select: { role: true, program: true } })
   if (!existing) {
     throw new Error("User not found")
   }
   const role = data.role ?? existing.role
-  // Implementor accounts are locked to the CWTS program regardless of the submitted program
-  const program = role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (data.program !== undefined ? data.program : existing.program)
+  // Implementor accounts are locked to the ROTC program regardless of the submitted program
+  const program = role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (data.program !== undefined ? data.program : existing.program)
   // Delegate to the repository to update the user record
   const user = await userRepository.update(id, {
     ...(data.role !== undefined ? { role: data.role } : {}),

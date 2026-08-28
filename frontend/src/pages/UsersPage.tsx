@@ -106,8 +106,8 @@ export function UsersPage() {
     {
       header: "Program",
       cell: (user: any) => {
-        // Implementors are locked to CWTS regardless of the stored value
-        const program = user.role === "IMPLEMENTOR" ? "CWTS" : (user.program ?? null)
+        // Implementors are locked to ROTC regardless of the stored value
+        const program = user.role === "IMPLEMENTOR" ? "ROTC" : (user.program ?? null)
         if (!program) return <span className="text-xs text-silver">—</span>
         const isROTC = program === "ROTC"
         return (
@@ -236,7 +236,7 @@ export function UsersPage() {
               <option value="CWTS">CWTS</option>
               <option value="ROTC">ROTC</option>
             </Select>
-            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementors are locked to CWTS.</p>}
+            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementors are locked to ROTC.</p>}
           </FormField>
           {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>}
           <div className="md:col-span-2">

@@ -15,7 +15,7 @@ const shortcuts = [
   {
     path: "/students",
     label: "Student Directory",
-    description: "Browse and search enrolled CWTS students",
+    description: "Browse and search enrolled ROTC students",
     icon: Users,
     iconBg: "bg-teal-50",
     iconColor: "text-teal-600",

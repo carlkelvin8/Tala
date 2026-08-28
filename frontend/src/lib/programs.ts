@@ -26,10 +26,10 @@ export const programBadgeColors: Record<ProgramType, string> = {
   ROTC: "bg-amber-100 text-amber-700",
 }
 
-/* Implementor accounts are locked to CWTS regardless of the stored program value. */
+/* Implementor accounts are locked to ROTC regardless of the stored program value. */
 export function getEffectiveProgram(user?: AuthUser | null): ProgramType | null {
   if (!user) return null
-  if (user.role === "IMPLEMENTOR") return "CWTS"
+  if (user.role === "IMPLEMENTOR") return "ROTC"
   if (user.role === "ADMIN") return null
   return user.program ?? null
 }

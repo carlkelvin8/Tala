@@ -60,7 +60,7 @@ export async function listHandler(c: Context) {
         userId: query.userId,
         status: query.status && STATUSES.includes(query.status) ? (query.status as DocumentStatus) : undefined,
         docType: query.docType && DOC_TYPES.includes(query.docType) ? (query.docType as DocumentType) : undefined,
-        program: authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : undefined,
+        program: authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : undefined,
         search: query.search,
       },
       skip,
