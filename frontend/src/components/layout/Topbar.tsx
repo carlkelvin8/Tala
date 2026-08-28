@@ -14,6 +14,8 @@ import { ApiResponse } from "../../types"
 // Map of URL paths to human-readable page labels for the topbar title
 const routeLabels: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/dashboard/cwts": "CWTS Dashboard",
+  "/dashboard/rotc": "ROTC Dashboard",
   "/enrollment": "Enrollment",
   "/students": "Students",
   "/materials": "Materials",
@@ -23,7 +25,8 @@ const routeLabels: Record<string, string> = {
   "/training": "Training Monitoring",
   "/terms": "Terms",
   "/sections": "Sections",
-  "/courses": "Courses",
+  "/courses/cwts": "CWTS Courses",
+  "/courses/rotc": "ROTC Courses",
   "/flights": "Flights",
   "/grades": "Grades",
   "/merits": "Merits",

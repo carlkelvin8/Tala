@@ -7,4 +7,4 @@ import { RoleType } from "@prisma/client"
 export const autoSectioningRoutes = new Hono()
 
 autoSectioningRoutes.use(authMiddleware)
-autoSectioningRoutes.post("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), autoSectionHandler)
+autoSectioningRoutes.post("/", roleGuard([RoleType.ADMIN]), autoSectionHandler)

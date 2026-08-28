@@ -4,20 +4,20 @@ import { StatusBadge } from "../components/ui/status-badge"
 import { EmptyState } from "../components/ui/empty-state"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { apiRequest } from "../lib/api"
-import { ApiResponse } from "../types"
+import { ApiResponse, ProgramType } from "../types"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "../lib/utils"
 
 const PAGE_SIZE = 8
 
-export function DataTable() {
+export function DataTable({ program }: { program?: ProgramType }) {
   const [page, setPage] = useState(1)
 
   const { data: response, isLoading, isError } = useQuery({
-    queryKey: ["dashboard-attendance-recent", page],
+    queryKey: ["dashboard-attendance-recent", page, program ?? "all"],
     queryFn: () =>
       apiRequest<ApiResponse<any[]>>(
-        `/api/attendance?page=${page}&pageSize=${PAGE_SIZE}`
+        `/api/attendance?page=${page}&pageSize=${PAGE_SIZE}${program ? `&program=${program}` : ""}`
       ),
     placeholderData: (prev) => prev,
   })

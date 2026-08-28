@@ -4,6 +4,15 @@ import { logAudit } from "./auditService.js"
 const STUDENTS_PER_SECTION = 28
 
 export async function autoSectionEnrollees(courseId: string) {
+  // Determine the course's NSTP program so we never section a student into the other program
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { nstpType: true },
+  })
+  if (!course) {
+    throw new Error("Course not found")
+  }
+
   const unassignedEnrollments = await prisma.enrollment.findMany({
     where: {
       status: "APPROVED",
@@ -11,6 +20,8 @@ export async function autoSectionEnrollees(courseId: string) {
       user: {
         role: "STUDENT",
         studentProfile: { isNot: null },
+        // Only students whose program matches the course (or have no program set)
+        OR: [{ program: course.nstpType }, { program: null }],
       },
     },
     include: {

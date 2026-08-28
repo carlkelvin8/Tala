@@ -16,7 +16,6 @@ import { StudentProfileDrawer } from "../components/StudentProfileDrawer"
 import { RefreshIndicator } from "../components/ui/refresh-indicator"
 import { Drawer } from "../components/ui/drawer"
 import { FormField } from "../components/ui/form-field"
-import { usePermissions } from "../hooks/usePermissions"
 import { useState, useMemo, useRef } from "react"
 import { Check, X, Eye, Edit, Search, Sparkles, Users, UserPlus, Ban, Save, BookOpen, Plane, Upload, Wand2 } from "lucide-react"
 import { cn } from "../lib/utils"
@@ -34,8 +33,8 @@ const statusMeta: Record<string, { label: string; color: string; bg: string; dot
 
 export function EnrollmentPage() {
   const currentUser = getStoredUser()
-  const perms = usePermissions()
-  const canApprove = perms.canEdit
+  // Enrollment is view-only for implementors — only admins may approve/reject/edit
+  const canApprove = currentUser?.role === "ADMIN"
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [selectedFlight, setSelectedFlight] = useState<string>("")
@@ -302,7 +301,7 @@ export function EnrollmentPage() {
                 </button>
               </>
             )}
-            {enrollment.status === "APPROVED" && perms.canEdit && (
+            {enrollment.status === "APPROVED" && canApprove && (
               <button
                 onClick={() => handleEdit(enrollment)}
                 className="flex h-8 items-center gap-1.5 rounded-lg border border-silver/30 bg-white px-2.5 text-xs font-medium text-darksilver hover:bg-silver/10 hover:border-silver/40 transition-all"
@@ -429,7 +428,7 @@ export function EnrollmentPage() {
         </motion.div>
       )}
 
-      {perms.canEdit && (
+      {canApprove && (
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -480,7 +479,7 @@ export function EnrollmentPage() {
         </motion.div>
       )}
 
-      {perms.canEdit && (
+      {canApprove && (
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}

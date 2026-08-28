@@ -1,69 +1,82 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../lib/api"
-import { ApiResponse } from "../types"
+import { ApiResponse, ProgramType } from "../types"
 import { getStoredUser } from "../lib/auth"
 import { CalendarCheck, GraduationCap, Award, Users } from "lucide-react"
 import { cn } from "../lib/utils"
 
 interface DashboardSummary {
   attendanceRate: number | null
+  attendanceByProgram: { CWTS: number | null; ROTC: number | null } | null
   gradeAverage: number | null
   netMerits: number
   enrollmentCount: number
 }
 
-const cardConfig = [
-  {
-    key: "attendance",
-    label: "Attendance Rate",
-    description: "Present or late · last 30 days",
-    icon: CalendarCheck,
-    iconBg: "bg-sky-50",
-    iconColor: "text-sky-500",
-    accent: "before:bg-sky-400",
-  },
-  {
-    key: "grade",
-    label: "Average Grade",
-    description: "Mean score across all entries",
-    icon: GraduationCap,
-    iconBg: "bg-violet-50",
-    iconColor: "text-violet-500",
-    accent: "before:bg-violet-400",
-  },
-  {
-    key: "merits",
-    label: "Net Merits",
-    description: "Merit points minus demerits",
-    icon: Award,
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-500",
-    accent: "before:bg-amber-400",
-  },
-  {
-    key: "enrollment",
-    label: "Enrollments",
-    description: "Approved enrollment records",
-    icon: Users,
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-500",
-    accent: "before:bg-emerald-400",
-  },
-]
+interface StatCard {
+  key: string
+  label: string
+  description: string
+  icon: typeof CalendarCheck
+  iconBg: string
+  iconColor: string
+  accent: string
+}
 
-export function SectionCards() {
+export function SectionCards({ program }: { program?: ProgramType }) {
   const { data: summaryData, isLoading } = useQuery({
-    queryKey: ["dashboard-summary"],
-    queryFn: () => apiRequest<ApiResponse<DashboardSummary>>("/api/dashboard"),
+    queryKey: ["dashboard-summary", program ?? "all"],
+    queryFn: () => apiRequest<ApiResponse<DashboardSummary>>(`/api/dashboard${program ? `?program=${program}` : ""}`),
     refetchInterval: 30000
   })
 
   const summary = summaryData?.data
   const user = getStoredUser()
+
+  const cardConfig: StatCard[] = [
+    {
+      key: "attendance",
+      label: program ? `${program} Attendance Rate` : "Attendance Rate",
+      description: "Present or late · last 30 days",
+      icon: CalendarCheck,
+      iconBg: "bg-sky-50",
+      iconColor: "text-sky-500",
+      accent: "before:bg-sky-400",
+    },
+    {
+      key: "grade",
+      label: "Average Grade",
+      description: "Mean score across all entries",
+      icon: GraduationCap,
+      iconBg: "bg-violet-50",
+      iconColor: "text-violet-500",
+      accent: "before:bg-violet-400",
+    },
+    {
+      key: "merits",
+      label: "Net Merits",
+      description: "Merit points minus demerits",
+      icon: Award,
+      iconBg: "bg-amber-50",
+      iconColor: "text-amber-500",
+      accent: "before:bg-amber-400",
+    },
+    {
+      key: "enrollment",
+      label: "Enrollments",
+      description: "Approved enrollment records",
+      icon: Users,
+      iconBg: "bg-emerald-50",
+      iconColor: "text-emerald-500",
+      accent: "before:bg-emerald-400",
+    },
+  ]
+
   // Net Merits is not shown on implementor dashboards
-  const visibleCards = user?.role === "IMPLEMENTOR"
-    ? cardConfig.filter((c) => c.key !== "merits")
-    : cardConfig
+  const visibleCards =
+    user?.role === "IMPLEMENTOR"
+      ? cardConfig.filter((c) => c.key !== "merits")
+      : cardConfig
 
   const values: Record<string, string> = {
     attendance: summary?.attendanceRate != null ? `${Math.round(summary.attendanceRate)}%` : "—",
@@ -73,10 +86,12 @@ export function SectionCards() {
   }
 
   return (
-    <div className={cn(
-      "grid grid-cols-1 gap-4 sm:grid-cols-2",
-      user?.role === "IMPLEMENTOR" ? "lg:grid-cols-3 xl:grid-cols-3" : "xl:grid-cols-4"
-    )}>
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-4 sm:grid-cols-2",
+        user?.role === "IMPLEMENTOR" ? "lg:grid-cols-3 xl:grid-cols-3" : "xl:grid-cols-4"
+      )}
+    >
       {visibleCards.map(({ key, label, description, icon: Icon, iconBg, iconColor, accent }, idx) => (
         <div
           key={key}

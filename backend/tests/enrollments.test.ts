@@ -142,4 +142,81 @@ describe("Enrollment Routes", () => {
     expect(body.success).toBe(false)
     expect(body.message).toContain("Program transfers are not allowed")
   })
+
+  it("enrollment writes — 403 for implementor (view only)", async () => {
+    const impl = await createTestUser(RoleType.IMPLEMENTOR)
+    emails.push(impl.email)
+    const implToken = makeToken(impl.id, impl.role)
+
+    const createRes = await app.request("/api/enrollments", {
+      method: "POST",
+      headers: authHeader(implToken),
+      body: json({ userId: studentUser.id }),
+    })
+    expect(createRes.status).toBe(403)
+
+    const approveRes = await app.request(`/api/enrollments/${enrollmentIds[0]}/status`, {
+      method: "PATCH",
+      headers: authHeader(implToken),
+      body: json({ status: "APPROVED" }),
+    })
+    expect(approveRes.status).toBe(403)
+  })
+
+  it("auto-sectioning — only section students whose program matches the course", async () => {
+    const cwtsCourse = await prisma.course.create({
+      data: { code: `CWTSA_${uniqueId()}`, name: "Auto CWTS Course", nstpType: NstpType.CWTS }
+    })
+    courseCodes.push(cwtsCourse.code)
+    const rotcCourse = await prisma.course.create({
+      data: { code: `ROTCA_${uniqueId()}`, name: "Auto ROTC Course", nstpType: NstpType.ROTC }
+    })
+    courseCodes.push(rotcCourse.code)
+
+    const cwtsStudent = await createTestUser(RoleType.STUDENT)
+    emails.push(cwtsStudent.email)
+    await prisma.user.update({ where: { id: cwtsStudent.id }, data: { program: NstpType.CWTS } })
+    const cwtsEnrollment = await prisma.enrollment.create({
+      data: { userId: cwtsStudent.id, status: "APPROVED" }
+    })
+    enrollmentIds.push(cwtsEnrollment.id)
+
+    const rotcStudent = await createTestUser(RoleType.STUDENT)
+    emails.push(rotcStudent.email)
+    await prisma.user.update({ where: { id: rotcStudent.id }, data: { program: NstpType.ROTC } })
+    const rotcEnrollment = await prisma.enrollment.create({
+      data: { userId: rotcStudent.id, status: "APPROVED" }
+    })
+    enrollmentIds.push(rotcEnrollment.id)
+
+    const res = await app.request("/api/auto-sectioning", {
+      method: "POST",
+      headers: authHeader(adminToken),
+      body: json({ courseId: cwtsCourse.id }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.data.assigned).toBe(1)
+
+    const rotcCheck = await prisma.enrollment.findUnique({ where: { id: rotcEnrollment.id } })
+    expect(rotcCheck?.sectionId).toBeNull()
+  })
+
+  it("auto-sectioning — 403 for implementor", async () => {
+    const impl = await createTestUser(RoleType.IMPLEMENTOR)
+    emails.push(impl.email)
+    const implToken = makeToken(impl.id, impl.role)
+
+    const course = await prisma.course.create({
+      data: { code: `RSTC_${uniqueId()}`, name: "Restricted Course", nstpType: NstpType.CWTS }
+    })
+    courseCodes.push(course.code)
+
+    const res = await app.request("/api/auto-sectioning", {
+      method: "POST",
+      headers: authHeader(implToken),
+      body: json({ courseId: course.id }),
+    })
+    expect(res.status).toBe(403)
+  })
 })

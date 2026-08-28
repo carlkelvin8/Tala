@@ -63,6 +63,22 @@ export function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/dashboard/cwts"
+        element={
+          <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
+            <DashboardPage program="CWTS" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/rotc"
+        element={
+          <ProtectedRoute roles={["ADMIN"]}>
+            <DashboardPage program="ROTC" />
+          </ProtectedRoute>
+        }
+      />
       
       <Route
         element={
@@ -73,7 +89,9 @@ export function App() {
       >
         <Route path="/enrollment" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><EnrollmentPage /></ProtectedRoute>} />
         <Route path="/students" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><StudentsPage /></ProtectedRoute>} />
-        <Route path="/courses" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage /></ProtectedRoute>} />
+        <Route path="/courses/cwts" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="CWTS" /></ProtectedRoute>} />
+        <Route path="/courses/rotc" element={<ProtectedRoute roles={["ADMIN"]}><CoursesPage program="ROTC" /></ProtectedRoute>} />
+        <Route path="/courses" element={<Navigate to="/courses/cwts" replace />} />
         <Route path="/sections" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><SectionsPage /></ProtectedRoute>} />
         <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
         <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><MaterialsPage /></ProtectedRoute>} />
@@ -82,7 +100,7 @@ export function App() {
         <Route path="/training" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TrainingPage /></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TermsPage /></ProtectedRoute>} />
         <Route path="/grades" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><GradesPage /></ProtectedRoute>} />
-        <Route path="/merits" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><MeritsPage /></ProtectedRoute>} />
+        <Route path="/merits" element={<ProtectedRoute roles={["ADMIN", "STUDENT"]}><MeritsPage /></ProtectedRoute>} />
         <Route path="/exams" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><ExamsPage /></ProtectedRoute>} />
         <Route path="/medical-certificates" element={<ProtectedRoute roles={["IMPLEMENTOR", "STUDENT"]}><MedicalCertificatesPage /></ProtectedRoute>} />
         <Route path="/submissions" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><SubmissionsPage /></ProtectedRoute>} />

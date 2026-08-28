@@ -23,7 +23,8 @@ import { MandatoryCourses } from "../components/mandatory-courses"
 import { BookOpen, Plus, Edit, Trash2, Search, Save, X, Hash } from "lucide-react"
 import { useState } from "react"
 import { cn } from "../lib/utils"
-import { programLabels, getEffectiveProgram } from "../lib/programs"
+import { ProgramType } from "../types"
+import { programLabels, programFullLabels } from "../lib/programs"
 
 const schema = z.object({
   code: z.string().min(1, "Code is required"),
@@ -35,17 +36,15 @@ type FormValues = z.infer<typeof schema>
 
 const MAX_SECTIONS_PER_COURSE = 50
 
-export function CoursesPage() {
+export function CoursesPage({ program }: { program: ProgramType }) {
   const user = getStoredUser()
   const canManage = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
-  const isImplementor = user?.role === "IMPLEMENTOR"
-  const effectiveProgram = getEffectiveProgram(user)
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { nstpType: "CWTS" } })
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { nstpType: program } })
   const [editingCourse, setEditingCourse] = useState<any | null>(null)
   const [deletingCourse, setDeletingCourse] = useState<any | null>(null)
   const [editCode, setEditCode] = useState("")
   const [editName, setEditName] = useState("")
-  const [editNstpType, setEditNstpType] = useState<"CWTS" | "ROTC">("CWTS")
+  const [editNstpType, setEditNstpType] = useState<"CWTS" | "ROTC">(program)
 
   const coursesQuery = useQuery({
     queryKey: ["courses"],
@@ -103,7 +102,7 @@ export function CoursesPage() {
     setEditingCourse(course)
     setEditCode(course.code)
     setEditName(course.name)
-    setEditNstpType(isImplementor ? "CWTS" : (course.nstpType ?? "CWTS"))
+    setEditNstpType(program)
   }
 
   const handleSaveEdit = () => {
@@ -133,7 +132,8 @@ export function CoursesPage() {
     form.reset()
   })
 
-  const courses = coursesQuery.data?.data ?? []
+  const allCourses = coursesQuery.data?.data ?? []
+  const courses = allCourses.filter((course: any) => (course.nstpType ?? "CWTS") === program)
   const columns = [
     {
       header: "Code",
@@ -238,8 +238,12 @@ export function CoursesPage() {
               <Search className="h-3.5 w-3.5" />
               <span>Course Catalog</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Courses</h1>
-            <p className="mt-1 text-sm text-silver max-w-2xl">Manage courses and their sections (max 50 sections per course).</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {program === "ROTC" ? "ROTC Courses" : "CWTS Courses"}
+            </h1>
+            <p className="mt-1 text-sm text-silver max-w-2xl">
+              Manage {programFullLabels[program]} courses and their sections (max 50 sections per course).
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 text-white border-white/20">
@@ -266,11 +270,10 @@ export function CoursesPage() {
               </div>
             </FormField>
             <FormField label="Program" required>
-              <Select {...form.register("nstpType")} className="h-11" disabled={isImplementor}>
+              <Select {...form.register("nstpType")} className="h-11" disabled>
                 <option value="CWTS">Civic Welfare Training Service (CWTS)</option>
-                {!isImplementor && <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>}
+                {program === "ROTC" && <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>}
               </Select>
-              {isImplementor && <p className="mt-1 text-xs text-darksilver">Implementors are locked to CWTS.</p>}
             </FormField>
             {mutation.isError && (
               <Alert variant="danger" className="md:col-span-2">
@@ -357,9 +360,9 @@ export function CoursesPage() {
             </div>
           </FormField>
           <FormField label="Program" required>
-            <Select value={editNstpType} onChange={(e) => setEditNstpType(e.target.value as "CWTS" | "ROTC")} className="h-11" disabled={isImplementor}>
+            <Select value={editNstpType} onChange={(e) => setEditNstpType(e.target.value as "CWTS" | "ROTC")} className="h-11" disabled>
               <option value="CWTS">Civic Welfare Training Service (CWTS)</option>
-              {!isImplementor && <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>}
+              {program === "ROTC" && <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>}
             </Select>
           </FormField>
           {updateMutation.isError && (
@@ -395,7 +398,7 @@ export function CoursesPage() {
         onConfirm={confirmDelete}
       />
 
-      <MandatoryCourses program={effectiveProgram ?? undefined} />
+      <MandatoryCourses program={program} />
     </div>
   )
 }

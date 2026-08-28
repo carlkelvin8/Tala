@@ -64,6 +64,19 @@ describe("Merit Routes", () => {
     expect(res.status).toBe(403)
   })
 
+  it("POST /api/merits — 403 for implementor", async () => {
+    const impl = await createTestUser(RoleType.IMPLEMENTOR)
+    emails.push(impl.email)
+    const implToken = makeToken(impl.id, impl.role)
+
+    const res = await app.request("/api/merits", {
+      method: "POST",
+      headers: authHeader(implToken),
+      body: json({ studentId: studentUser.id, type: "MERIT", points: 5, reason: "Should be denied" }),
+    })
+    expect(res.status).toBe(403)
+  })
+
   it("POST /api/merits — validation: negative points rejected", async () => {
     const res = await app.request("/api/merits", {
       method: "POST",

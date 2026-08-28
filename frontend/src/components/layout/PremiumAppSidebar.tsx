@@ -27,10 +27,13 @@ import { type ProgramType } from "../../types"
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
+  "/dashboard/cwts": LayoutDashboard,
+  "/dashboard/rotc": LayoutDashboard,
   "/enrollment": UserPlus,
   "/students": Users,
   "/sections": Grid,
-  "/courses": BookOpen,
+  "/courses/cwts": BookOpen,
+  "/courses/rotc": BookOpen,
   "/flights": Plane,
   "/materials": BookMarked,
   "/attendance": CalendarCheck,

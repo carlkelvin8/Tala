@@ -19,6 +19,7 @@ import { FormField } from "../components/ui/form-field"
 import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
 import { getAccessToken } from "../lib/auth"
+import { getStoredUser } from "../lib/auth"
 import { toast } from "sonner"
 import { cn } from "../lib/utils"
 import { parseCsv, exportPdf, exportExcel } from "../lib/export"
@@ -27,7 +28,7 @@ const baseUrl = import.meta.env.VITE_API_URL ?? ""
 
 type ReportType = "enrollment" | "attendance" | "grades" | "merits"
 
-const reportTypes: { key: ReportType; label: string; icon: typeof FileSpreadsheet; endpoint: string; description: string }[] = [
+const allReportTypes: { key: ReportType; label: string; icon: typeof FileSpreadsheet; endpoint: string; description: string }[] = [
   { key: "enrollment", label: "Enrollment Report", icon: Users, endpoint: "/api/reports/enrollments.csv", description: "Student enrollment summaries" },
   { key: "attendance", label: "Attendance Report", icon: BarChart3, endpoint: "/api/reports/attendance.csv", description: "Attendance records by date range" },
   { key: "grades", label: "Grades Report", icon: GraduationCap, endpoint: "/api/reports/grades.csv", description: "Student grade summaries" },
@@ -35,6 +36,10 @@ const reportTypes: { key: ReportType; label: string; icon: typeof FileSpreadshee
 ]
 
 export function ReportsPage() {
+  const user = getStoredUser()
+  // Merits report is not available to implementors
+  const reportTypes = allReportTypes.filter((r) => !(user?.role === "IMPLEMENTOR" && r.key === "merits"))
+
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
   const [isDownloading, setIsDownloading] = useState(false)

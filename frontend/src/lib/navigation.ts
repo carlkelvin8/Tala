@@ -7,11 +7,14 @@ export type NavItem = {
 }
 
 export const navItems: NavItem[] = [
-  { label: "Dashboard", path: "/dashboard", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] },
+  { label: "CWTS Dashboard", path: "/dashboard/cwts", roles: ["ADMIN", "IMPLEMENTOR"] },
+  { label: "ROTC Dashboard", path: "/dashboard/rotc", roles: ["ADMIN"] },
+  { label: "Dashboard", path: "/dashboard", roles: ["CADET_OFFICER", "STUDENT"] },
   { label: "Enrollment", path: "/enrollment", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Students", path: "/students", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Sections", path: "/sections", roles: ["ADMIN", "IMPLEMENTOR"] },
-  { label: "Courses", path: "/courses", roles: ["ADMIN", "IMPLEMENTOR"] },
+  { label: "Mandatory CWTS Courses", path: "/courses/cwts", roles: ["ADMIN", "IMPLEMENTOR"] },
+  { label: "Mandatory ROTC Courses", path: "/courses/rotc", roles: ["ADMIN"] },
   { label: "Flights", path: "/flights", roles: ["ADMIN", "CADET_OFFICER"] },
   { label: "Learning Materials", path: "/materials", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Attendance", path: "/attendance", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
@@ -20,7 +23,7 @@ export const navItems: NavItem[] = [
   { label: "Training Monitoring", path: "/training", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Terms", path: "/terms", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Grades", path: "/grades", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
-  { label: "Merits/Demerits", path: "/merits", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
+  { label: "Merits/Demerits", path: "/merits", roles: ["ADMIN", "STUDENT"] },
   { label: "Exams", path: "/exams", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Medical Certificates", path: "/medical-certificates", roles: ["IMPLEMENTOR", "STUDENT"] },
   { label: "Submission Box", path: "/submissions", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },

@@ -9,14 +9,34 @@ import { prisma } from "../lib/prisma.js"
 // Import the authenticated user helper
 import { getAuthUser } from "../middlewares/auth.js"
 
+/* Count attendance records since a given date for a filter and return the
+   attendance rate as a percentage, or null when no records exist. */
+async function attendanceRateFor(since: Date, filter: object): Promise<number | null> {
+  const [total, present] = await Promise.all([
+    prisma.attendanceRecord.count({ where: { date: { gte: since }, ...filter } }),
+    prisma.attendanceRecord.count({
+      where: {
+        date: { gte: since },
+        ...filter,
+        status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.LATE] }
+      }
+    })
+  ])
+  return total > 0 ? (present / total) * 100 : null
+}
+
 /* Determine which NSTP program the dashboard should be scoped to.
-   Admins always see the aggregate; everyone else is scoped to their
-   account-level program, falling back to their section's course program. */
+   Admins can target a specific program via ?program=; everyone else is
+   scoped to their account-level program, falling back to their section's course program. */
 async function resolveProgram(c: Context): Promise<NstpType | null> {
   const authUser = getAuthUser(c)
   if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.CWTS
+  if (authUser.role === RoleType.ADMIN) {
+    const raw = c.req.query("program")
+    const program = raw?.toUpperCase() === "ROTC" || raw?.toUpperCase() === "CWTS" ? (raw.toUpperCase() as NstpType) : null
+    return program
+  }
   if (authUser.program) return authUser.program
-  if (authUser.role === RoleType.ADMIN) return null
   if (authUser.sectionId && (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER)) {
     const section = await prisma.section.findUnique({
       where: { id: authUser.sectionId },
@@ -100,6 +120,16 @@ export async function summary(c: Context) {
   const attendanceRate =
     attendanceTotal > 0 ? (attendancePresent / attendanceTotal) * 100 : null
 
+  // For admins, also compute a per-program attendance rate so the dashboard
+  // can show CWTS and ROTC attendance separately
+  const attendanceByProgram =
+    program === null
+      ? {
+          CWTS: await attendanceRateFor(since, { user: { program: NstpType.CWTS } }),
+          ROTC: await attendanceRateFor(since, { user: { program: NstpType.ROTC } })
+        }
+      : null
+
   // Extract the average grade score; use null if no grades have been recorded
   const gradeAverage = gradeAgg._avg?.score ?? null
 
@@ -113,6 +143,7 @@ export async function summary(c: Context) {
         ? { type: program, label: program === NstpType.ROTC ? "Reserved Officers' Training Corps" : "Civic Welfare Training Service" }
         : null,
       attendanceRate,                      // Percentage of attended sessions in the last 30 days
+      attendanceByProgram,                 // Per-program attendance rates (admins only)
       gradeAverage,                        // Average student grade score across all items
       netMerits,                           // Net merit points (merits minus demerits)
       enrollmentCount: enrollmentsApproved // Total number of approved enrollments

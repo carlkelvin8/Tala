@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { apiRequest } from "../lib/api"
-import { ApiResponse } from "../types"
+import { ApiResponse, ProgramType } from "../types"
 import { cn } from "../lib/utils"
 
 const ranges = [
@@ -36,12 +36,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-export function ChartAreaInteractive() {
+export function ChartAreaInteractive({ program }: { program?: ProgramType }) {
   const [range, setRange] = useState<Range>("30d")
 
   const { data: attendanceData, isLoading } = useQuery({
-    queryKey: ["dashboard-attendance"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/attendance?pageSize=100"),
+    queryKey: ["dashboard-attendance", program ?? "all"],
+    queryFn: () =>
+      apiRequest<ApiResponse<any[]>>(
+        `/api/attendance?pageSize=100${program ? `&program=${program}` : ""}`
+      ),
   })
 
   const attendanceRecords = attendanceData?.data ?? []

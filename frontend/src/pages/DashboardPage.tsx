@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react"
+import { Navigate } from "react-router-dom"
 import { getStoredUser, getUserDisplayName } from "../lib/auth"
 import { PremiumAppSidebar } from "../components/layout/PremiumAppSidebar"
 import { DataTable } from "../components/data-table"
@@ -19,13 +20,19 @@ const ChartAreaInteractive = lazy(() =>
   import("../components/chart-area-interactive").then((module) => ({ default: module.ChartAreaInteractive }))
 )
 
-export default function DashboardPage() {
+export default function DashboardPage({ program: programProp }: { program?: ProgramType }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const user = getStoredUser()
   const isImplementor = user?.role === "IMPLEMENTOR"
   const isStudent = user?.role === "STUDENT"
   const displayName = user ? getUserDisplayName(user) : null
-  const program = getEffectiveProgram(user) as ProgramType | null
+
+  // Admins use program-scoped dashboards (/dashboard/cwts, /dashboard/rotc)
+  if (user?.role === "ADMIN" && !programProp) {
+    return <Navigate to="/dashboard/cwts" replace />
+  }
+
+  const program = programProp ?? (getEffectiveProgram(user) as ProgramType | null)
   const programLabel = program ? programFullLabels[program] : null
 
   return (
@@ -120,7 +127,7 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
           >
-            <SectionCards />
+            <SectionCards program={program ?? undefined} />
           </motion.div>
 
           {isStudent ? (
@@ -157,7 +164,7 @@ export default function DashboardPage() {
                 transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] as const }}
               >
                 <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-slate-100" aria-label="Loading attendance chart" />}>
-                  <ChartAreaInteractive />
+                  <ChartAreaInteractive program={program ?? undefined} />
                 </Suspense>
               </motion.div>
 
@@ -166,7 +173,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] as const }}
               >
-                <DataTable />
+                <DataTable program={program ?? undefined} />
               </motion.div>
             </>
           )}

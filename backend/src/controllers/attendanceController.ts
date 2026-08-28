@@ -12,9 +12,15 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
   return querySectionId
 }
 
-/* Implementors are locked to CWTS — their scanner and attendance views are CWTS-scoped */
-function resolveScopeProgram(authUser: { role: RoleType; program?: NstpType | null }): NstpType | null {
-  return authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (authUser.program ?? null)
+/* Implementors are locked to CWTS. Admins may target a program via ?program=.
+   Everyone else is scoped to their account-level program. */
+function resolveScopeProgram(authUser: { role: RoleType; program?: NstpType | null }, rawProgram?: string): NstpType | null {
+  if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.CWTS
+  if (authUser.role === RoleType.ADMIN) {
+    const program = rawProgram?.toUpperCase()
+    return program === "ROTC" || program === "CWTS" ? (program as NstpType) : null
+  }
+  return authUser.program ?? null
 }
 
 export async function getQRTokenHandler(c: Context) {
@@ -50,7 +56,7 @@ export async function list(c: Context) {
       userId: query.userId,
       sectionId,
       flightId: query.flightId,
-      program: resolveScopeProgram(authUser) ?? undefined
+      program: resolveScopeProgram(authUser, query.program) ?? undefined
     },
     skip,
     take

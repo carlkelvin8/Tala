@@ -9,7 +9,7 @@ import { RoleType } from "@prisma/client"
 export const meritRoutes = new Hono()
 
 meritRoutes.use(authMiddleware)
-meritRoutes.get("/", validateQuery(meritQuerySchema), list)
-meritRoutes.post("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(meritSchema), create)
-meritRoutes.patch("/:id", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(meritUpdateSchema), update)
+meritRoutes.get("/", roleGuard([RoleType.ADMIN, RoleType.STUDENT]), validateQuery(meritQuerySchema), list)
+meritRoutes.post("/", roleGuard([RoleType.ADMIN]), validateBody(meritSchema), create)
+meritRoutes.patch("/:id", roleGuard([RoleType.ADMIN]), validateBody(meritUpdateSchema), update)
 meritRoutes.delete("/:id", roleGuard([RoleType.ADMIN]), remove)

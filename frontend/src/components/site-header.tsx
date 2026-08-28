@@ -6,10 +6,13 @@ import * as React from "react"
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/dashboard/cwts": "CWTS Dashboard",
+  "/dashboard/rotc": "ROTC Dashboard",
   "/enrollment": "Enrollment Management",
   "/students": "Student Directory",
   "/sections": "Section Management",
-  "/courses": "Course Management",
+  "/courses/cwts": "CWTS Course Management",
+  "/courses/rotc": "ROTC Course Management",
   "/flights": "Flight Management",
   "/materials": "Learning Materials",
   "/attendance": "Attendance Tracking",
