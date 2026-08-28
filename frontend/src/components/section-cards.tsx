@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
+import { getStoredUser } from "../lib/auth"
 import { CalendarCheck, GraduationCap, Award, Users } from "lucide-react"
 import { cn } from "../lib/utils"
 
@@ -58,6 +59,11 @@ export function SectionCards() {
   })
 
   const summary = summaryData?.data
+  const user = getStoredUser()
+  // Net Merits is not shown on implementor dashboards
+  const visibleCards = user?.role === "IMPLEMENTOR"
+    ? cardConfig.filter((c) => c.key !== "merits")
+    : cardConfig
 
   const values: Record<string, string> = {
     attendance: summary?.attendanceRate != null ? `${Math.round(summary.attendanceRate)}%` : "—",
@@ -67,8 +73,11 @@ export function SectionCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cardConfig.map(({ key, label, description, icon: Icon, iconBg, iconColor, accent }, idx) => (
+    <div className={cn(
+      "grid grid-cols-1 gap-4 sm:grid-cols-2",
+      user?.role === "IMPLEMENTOR" ? "lg:grid-cols-3 xl:grid-cols-3" : "xl:grid-cols-4"
+    )}>
+      {visibleCards.map(({ key, label, description, icon: Icon, iconBg, iconColor, accent }, idx) => (
         <div
           key={key}
           className={cn(

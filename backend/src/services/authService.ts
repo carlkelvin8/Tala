@@ -1,4 +1,4 @@
-import { RoleType } from "@prisma/client"
+import { NstpType, RoleType } from "@prisma/client"
 import { userRepository } from "../repositories/userRepository.js"
 import { hashPassword, verifyPassword } from "../lib/password.js"
 import { signAccessToken, signRefreshToken } from "../lib/jwt.js"
@@ -12,7 +12,7 @@ import { env } from "../lib/env.js"
 export async function registerUser(data: {
   email: string
   password: string
-  role: RoleType
+  program: NstpType
   firstName: string
   lastName: string
   studentNo?: string
@@ -22,7 +22,7 @@ export async function registerUser(data: {
     throw new Error("Email already in use")
   }
 
-  if (data.role === RoleType.STUDENT && data.studentNo) {
+  if (data.studentNo) {
     const existingStudent = await prisma.studentProfile.findUnique({
       where: { studentNo: data.studentNo }
     })
@@ -33,33 +33,27 @@ export async function registerUser(data: {
 
   const passwordHash = await hashPassword(data.password)
 
+  // Public registration always creates a STUDENT account; role and program are
+  // never client-controlled beyond the schema's program/STUDENT literals.
+  const role = RoleType.STUDENT
+
   // Use a transaction to ensure atomicity of user + profile creation
   const user = await prisma.$transaction(async (tx) => {
     const newUser = await tx.user.create({
-      data: { email: data.email, passwordHash, role: data.role }
+      data: { email: data.email, passwordHash, role, program: data.program }
     })
 
-    if (data.role === RoleType.STUDENT) {
-      await tx.studentProfile.create({
-        data: {
-          userId: newUser.id,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          studentNo: data.studentNo
-        }
-      })
-      await tx.enrollment.create({
-        data: { userId: newUser.id, status: "PENDING" }
-      })
-    } else if (data.role === RoleType.IMPLEMENTOR) {
-      await tx.implementorProfile.create({
-        data: { userId: newUser.id, firstName: data.firstName, lastName: data.lastName }
-      })
-    } else if (data.role === RoleType.CADET_OFFICER) {
-      await tx.cadetOfficerProfile.create({
-        data: { userId: newUser.id, firstName: data.firstName, lastName: data.lastName }
-      })
-    }
+    await tx.studentProfile.create({
+      data: {
+        userId: newUser.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        studentNo: data.studentNo
+      }
+    })
+    await tx.enrollment.create({
+      data: { userId: newUser.id, status: "PENDING" }
+    })
 
     return newUser
   })

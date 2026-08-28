@@ -18,10 +18,12 @@ import { cn } from "../../lib/utils"
 import {
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
   FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine, FileHeart,
-  Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower
+  Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower, Inbox
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
 import { roleTextColors, roleBgColors, roleLabels } from "../../lib/roles"
+import { programTextColors, programBgColors, getEffectiveProgram } from "../../lib/programs"
+import { type ProgramType } from "../../types"
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -36,6 +38,7 @@ const iconMap = {
   "/merits": Award,
   "/exams": ClipboardCheck,
   "/medical-certificates": FileHeart,
+  "/submissions": Inbox,
   "/reports": FileBarChart,
   "/certificates": Medal,
   "/leaderboard": Trophy,
@@ -90,6 +93,15 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
                   roleBgColors[user.role] // Role-specific background color
                 )}>
                   {roleLabels[user.role]} {/* Human-readable role label */}
+                </span>
+              )}
+              {getEffectiveProgram(user) && ( // Show the user's NSTP program badge (implementors are locked to CWTS)
+                <span className={cn(
+                  "inline-block mt-1 ml-1 text-[10px] font-semibold px-2 py-0.5 rounded tracking-wide",
+                  programTextColors[getEffectiveProgram(user) as ProgramType],
+                  programBgColors[getEffectiveProgram(user) as ProgramType]
+                )}>
+                  {getEffectiveProgram(user)}
                 </span>
               )}
             </div>

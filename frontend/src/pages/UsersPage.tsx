@@ -25,6 +25,7 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]),
+  program: z.enum(["CWTS", "ROTC"]).optional(),
   firstName: z.string().min(1),
   lastName: z.string().min(1)
 })
@@ -41,7 +42,10 @@ const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> =
 export function UsersPage() {
   const [search, setSearch] = useState("")
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { role: "STUDENT" } })
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { role: "STUDENT", program: "CWTS" } })
+  const selectedRole = form.watch("role")
+  // Implementor accounts are locked to the CWTS program
+  const isImplementorRole = selectedRole === "IMPLEMENTOR"
   const usersQuery = useQuery({
     queryKey: ["users", search],
     queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/users?search=${encodeURIComponent(search)}`),
@@ -62,7 +66,7 @@ export function UsersPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values)
-    form.reset({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT" })
+    form.reset({ email: "", password: "", firstName: "", lastName: "", role: "STUDENT", program: "CWTS" })
   })
 
   const rows = usersQuery.data?.data ?? []
@@ -95,6 +99,23 @@ export function UsersPage() {
           <span className={cn("inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold", badge.bg, badge.color)}>
             <Shield className="h-3 w-3" />
             {badge.label}
+          </span>
+        )
+      }
+    },
+    {
+      header: "Program",
+      cell: (user: any) => {
+        // Implementors are locked to CWTS regardless of the stored value
+        const program = user.role === "IMPLEMENTOR" ? "CWTS" : (user.program ?? null)
+        if (!program) return <span className="text-xs text-silver">—</span>
+        const isROTC = program === "ROTC"
+        return (
+          <span className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold",
+            isROTC ? "bg-amber-50 text-amber-700" : "bg-teal-50 text-teal-700"
+          )}>
+            {program}
           </span>
         )
       }
@@ -209,6 +230,13 @@ export function UsersPage() {
               <option value="CADET_OFFICER">Cadet Officer</option>
               <option value="ADMIN">Admin</option>
             </Select>
+          </FormField>
+          <FormField label="Program">
+            <Select {...form.register("program")} disabled={isImplementorRole}>
+              <option value="CWTS">CWTS</option>
+              <option value="ROTC">ROTC</option>
+            </Select>
+            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementors are locked to CWTS.</p>}
           </FormField>
           {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>}
           <div className="md:col-span-2">

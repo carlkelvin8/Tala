@@ -1,11 +1,13 @@
+import { NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 
 export const courseRepository = {
-  create(data: { code: string; name: string }) {
+  create(data: { code: string; name: string; nstpType?: NstpType }) {
     return prisma.course.create({ data })
   },
-  list() {
+  list(nstpType?: NstpType) {
     return prisma.course.findMany({
+      where: nstpType ? { nstpType } : undefined,
       orderBy: { name: "asc" },
       include: { _count: { select: { sections: true } } }
     })
@@ -16,7 +18,7 @@ export const courseRepository = {
       include: { sections: { orderBy: { name: "asc" } } }
     })
   },
-  update(id: string, data: { code: string; name: string }) {
+  update(id: string, data: { code: string; name: string; nstpType?: NstpType }) {
     return prisma.course.update({ where: { id }, data })
   },
   delete(id: string) {

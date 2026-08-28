@@ -39,6 +39,7 @@ export function ModernLoginPage() {
           id: string;
           email: string;
           role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT";
+          program?: "CWTS" | "ROTC" | null;
           firstName?: string;
           lastName?: string;
           avatarUrl?: string;

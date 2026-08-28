@@ -15,7 +15,7 @@ export async function create(c: Context) {
     // Delegate to the user service to hash the password, create the user, and create the role profile
     const user = await createUser(body)
     // Return only the safe fields (no password hash) in the response
-    return c.json(ok("User created", { id: user.id, email: user.email, role: user.role }))
+    return c.json(ok("User created", { id: user.id, email: user.email, role: user.role, program: user.program }))
   } catch (error) {
     // Return 400 with the error message if creation fails (e.g. duplicate email)
     return c.json(fail(error instanceof Error ? error.message : "Create user failed"), 400)
@@ -49,7 +49,7 @@ export async function update(c: Context) {
     // Delegate to the user service to update the user record and log the audit event
     const user = await updateUser(id, body)
     // Return only the safe fields in the response
-    return c.json(ok("User updated", { id: user.id, role: user.role, isActive: user.isActive }))
+    return c.json(ok("User updated", { id: user.id, role: user.role, program: user.program, isActive: user.isActive }))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)
   }

@@ -14,8 +14,8 @@ export async function register(c: Context) {
     const body = await c.req.json()
     // Delegate to the auth service to validate, hash password, and create the user
     const user = await registerUser(body)
-    // Return a success response with the new user's ID, email, and role
-    return c.json(ok("User registered", { id: user.id, email: user.email, role: user.role }))
+    // Return a success response with the new user's ID, email, role, and program
+    return c.json(ok("User registered", { id: user.id, email: user.email, role: user.role, program: user.program }))
   } catch (error) {
     // Return 400 with the error message if registration fails (e.g. duplicate email)
     return c.json(fail(error instanceof Error ? error.message : "Registration failed"), 400)
@@ -50,6 +50,7 @@ export async function login(c: Context) {
           id: result.user.id,
           email: result.user.email,
           role: result.user.role,
+          program: result.user.program ?? null,
           avatarUrl: result.user.avatarUrl ?? null,
           avatarFrame: result.user.avatarFrame ?? "gradient",
           sectionId
@@ -127,6 +128,7 @@ export async function profile(c: Context) {
         id: user.id,
         email: user.email,
         role: user.role,
+        program: user.program ?? null,
         isActive: user.isActive,
         avatarUrl: user.avatarUrl ?? null,
         avatarFrame: user.avatarFrame ?? "gradient",

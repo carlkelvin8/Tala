@@ -23,6 +23,7 @@ export const navItems: NavItem[] = [
   { label: "Merits/Demerits", path: "/merits", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Exams", path: "/exams", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Medical Certificates", path: "/medical-certificates", roles: ["IMPLEMENTOR", "STUDENT"] },
+  { label: "Submission Box", path: "/submissions", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Reports", path: "/reports", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
   { label: "Certificates", path: "/certificates", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Leaderboard", path: "/leaderboard", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] },

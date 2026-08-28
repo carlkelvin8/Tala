@@ -1,11 +1,16 @@
 import { Context } from "hono"
+import { NstpType, RoleType } from "@prisma/client"
 import { ok, fail } from "../lib/response.js"
-import { createCourse, listCourses, getCourseById, updateCourse, deleteCourse } from "../services/courseService.js"
+import { getAuthUser } from "../middlewares/auth.js"
+import { createCourse, listCourses, getCourseById, updateCourse, deleteCourse, listMandatoryCourses } from "../services/courseService.js"
 
 export async function create(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const body = await c.req.json()
-    const course = await createCourse(body.code, body.name)
+    // Implementors are locked to CWTS — always create CWTS courses
+    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (body.nstpType ?? undefined)
+    const course = await createCourse(body.code, body.name, nstpType)
     return c.json(ok("Course created", course))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Create failed"), 400)
@@ -13,8 +18,18 @@ export async function create(c: Context) {
 }
 
 export async function list(c: Context) {
-  const courses = await listCourses()
+  const authUser = getAuthUser(c)
+  // Implementors only see CWTS content
+  const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : undefined
+  const courses = await listCourses(nstpType)
   return c.json(ok("Courses fetched", courses))
+}
+
+export async function mandatory(c: Context) {
+  const raw = c.req.query("program")
+  const program = raw?.toUpperCase() === "ROTC" || raw?.toUpperCase() === "CWTS" ? (raw.toUpperCase() as NstpType) : undefined
+  const result = await listMandatoryCourses(program)
+  return c.json(ok("Mandatory courses fetched", result))
 }
 
 export async function getById(c: Context) {
@@ -30,9 +45,12 @@ export async function getById(c: Context) {
 
 export async function update(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const id = c.req.param("id")
     const body = await c.req.json()
-    const course = await updateCourse(id, body.code, body.name)
+    // Implementors are locked to CWTS and cannot change a course's program to ROTC
+    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (body.nstpType ?? undefined)
+    const course = await updateCourse(id, body.code, body.name, nstpType)
     return c.json(ok("Course updated", course))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)

@@ -6,12 +6,13 @@ import { useMutation } from "@tanstack/react-query"
 import { apiRequest } from "../../lib/api"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
+import { Select } from "../ui/select"
 import { Alert } from "../ui/alert"
 import { ModernAuthLayout } from "../layout/ModernAuthLayout"
 import { Link, useNavigate } from "react-router-dom"
 import { ApiResponse } from "../../types"
 import { toast } from "sonner"
-import { Mail, Lock, Eye, EyeOff, User, Shield, ArrowRight, CheckCircle2 } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, User, Shield, ArrowRight, CheckCircle2, GraduationCap } from "lucide-react"
 import { PasswordStrength } from "./PasswordStrength"
 import { useUnsavedChanges } from "../../hooks/useUnsavedChanges"
 
@@ -19,6 +20,7 @@ const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   studentNo: z.string().min(1, "Student number is required"),
+  program: z.enum(["CWTS", "ROTC"], { errorMap: () => ({ message: "Select your NSTP program" }) }),
   email: z.string().email("Please enter a valid email address"),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
@@ -43,6 +45,7 @@ export function ModernRegisterPage() {
       firstName: "",
       lastName: "",
       studentNo: "",
+      program: "CWTS",
       email: "",
       password: ""
     }
@@ -143,6 +146,26 @@ export function ModernRegisterPage() {
           </div>
           {form.formState.errors.studentNo && (
             <p className="text-xs text-red-600">{form.formState.errors.studentNo.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="program" className="text-sm font-medium text-black/80">
+            NSTP Program
+          </label>
+          <div className="relative">
+            <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-darksilver" />
+            <Select
+              id="program"
+              className="h-11 pl-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50"
+              {...form.register("program")}
+            >
+              <option value="CWTS">Civic Welfare Training Service (CWTS)</option>
+              <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>
+            </Select>
+          </div>
+          {form.formState.errors.program && (
+            <p className="text-xs text-red-600">{form.formState.errors.program.message}</p>
           )}
         </div>
 

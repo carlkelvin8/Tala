@@ -18,11 +18,12 @@ export const userRepository = {
     email: string                                                    // Unique email address
     passwordHash: string                                             // bcrypt-hashed password
     role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT"    // Assigned role
+    program?: "CWTS" | "ROTC" | null                               // NSTP program for the account
   }) {
     return prisma.user.create({ data })
   },
-  /* Update a user's role and/or active status by their ID */
-  update(id: string, data: { role?: RoleType; isActive?: boolean }) {
+  /* Update a user's role, program, and/or active status by their ID */
+  update(id: string, data: { role?: RoleType; program?: "CWTS" | "ROTC" | null; isActive?: boolean }) {
     return prisma.user.update({ where: { id }, data })
   },
   /* Return a paginated, filtered list of users ordered by creation date descending */

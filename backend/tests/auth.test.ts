@@ -17,13 +17,33 @@ describe("Auth Routes", () => {
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", firstName: "Juan", lastName: "Dela Cruz", studentNo: `sno_${uniqueId()}` }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "Juan", lastName: "Dela Cruz", studentNo: `sno_${uniqueId()}` }),
     })
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.data.email).toBe(email)
+    expect(body.data.role).toBe("STUDENT")
+    expect(body.data.program).toBe("CWTS")
     userId = body.data.id
+  })
+
+  it("POST /api/auth/register — rejects non-STUDENT roles", async () => {
+    const res = await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json({ email: `admin_${uniqueId()}@test.com`, password: "password123", role: "ADMIN", program: "CWTS", firstName: "A", lastName: "B" }),
+    })
+    expect(res.status).toBe(422)
+  })
+
+  it("POST /api/auth/register — requires program", async () => {
+    const res = await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json({ email: `noprogram_${uniqueId()}@test.com`, password: "password123", role: "STUDENT", firstName: "A", lastName: "B" }),
+    })
+    expect(res.status).toBe(422)
   })
 
   it("POST /api/auth/register — rejects duplicate email", async () => {
@@ -32,12 +52,12 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", firstName: "A", lastName: "B" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "A", lastName: "B" }),
     })
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", firstName: "A", lastName: "B" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "A", lastName: "B" }),
     })
     const body = await res.json()
     expect(body.success).toBe(false)
@@ -47,7 +67,7 @@ describe("Auth Routes", () => {
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email: "not-an-email", password: "password123", role: "STUDENT", firstName: "A", lastName: "B" }),
+      body: json({ email: "not-an-email", password: "password123", role: "STUDENT", program: "CWTS", firstName: "A", lastName: "B" }),
     })
     expect(res.status).toBe(422)
   })
@@ -58,7 +78,7 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "ADMIN", firstName: "Admin", lastName: "User" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "Admin", lastName: "User" }),
     })
     const res = await app.request("/api/auth/login", {
       method: "POST",
@@ -120,7 +140,7 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "ADMIN", firstName: "PW", lastName: "Test" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "ROTC", firstName: "PW", lastName: "Test" }),
     })
     const loginRes = await app.request("/api/auth/login", {
       method: "POST",
@@ -146,7 +166,7 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "ADMIN", firstName: "R", lastName: "T" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "R", lastName: "T" }),
     })
     const loginRes = await app.request("/api/auth/login", {
       method: "POST",

@@ -61,6 +61,7 @@ model User {
   email        String                 @unique
   passwordHash String
   role         RoleType
+  program      NstpType?
   isActive     Boolean                @default(true)
   avatarUrl    String?
   avatarFrame  String?                @default("gradient")
@@ -89,6 +90,8 @@ model User {
   notifications      Notification[]
   medicalCertificates       MedicalCertificate[] @relation("MedicalCertificateOwner")
   reviewedMedicalCerts      MedicalCertificate[] @relation("MedicalCertificateReviewer")
+  documentSubmissions       DocumentSubmission[] @relation("DocumentSubmissionOwner")
+  reviewedDocumentSubmissions DocumentSubmission[] @relation("DocumentSubmissionReviewer")
 
   @@index([role])
   @@index([email])
@@ -504,4 +507,41 @@ model MedicalCertificate {
 
   @@index([userId])
   @@index([status])
+}
+
+enum DocumentType {
+  EXCUSE_LETTER
+  MEDICAL_CERTIFICATE
+  OTHER_OFFICIAL_DOCUMENT
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model DocumentSubmission {
+  id           String         @id @default(uuid())
+  userId       String
+  docType      DocumentType
+  title        String
+  description  String?
+  fileName     String
+  fileUrl      String
+  dateFrom     DateTime?
+  dateTo       DateTime?
+  status       DocumentStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  remarks      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user        User  @relation("DocumentSubmissionOwner", fields: [userId], references: [id])
+  reviewedBy  User? @relation("DocumentSubmissionReviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([docType])
 }

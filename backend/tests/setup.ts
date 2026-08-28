@@ -53,6 +53,7 @@ export async function cleanupTestUsers(emails: string[]) {
   await prisma.studentGrade.deleteMany({ where: { studentId: { in: ids } } })
   await prisma.studentGrade.deleteMany({ where: { encodedById: { in: ids } } })
   await prisma.attendanceRecord.deleteMany({ where: { userId: { in: ids } } })
+  await prisma.documentSubmission.deleteMany({ where: { userId: { in: ids } } })
   await prisma.learningMaterial.deleteMany({ where: { createdById: { in: ids } } })
   await prisma.instructorRemark.deleteMany({ where: { userId: { in: ids } } })
   await prisma.instructorRemark.deleteMany({ where: { createdBy: { in: ids } } })

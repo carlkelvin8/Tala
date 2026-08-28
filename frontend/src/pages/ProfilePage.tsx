@@ -16,13 +16,14 @@ import { toast } from "sonner"
 import { useRef, useState, useMemo } from "react"
 import * as React from "react"
 import {
-  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Globe, Key, LogOut, RefreshCw, Circle
+  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Globe, Key, LogOut, RefreshCw, Circle, GraduationCap
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth"
 import { AvatarFrameType } from "../lib/avatar"
 import { cn } from "../lib/utils"
 import { relativeTime } from "../lib/display"
+import { getEffectiveProgram } from "../lib/programs"
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(8, "At least 8 characters required"),
@@ -45,6 +46,7 @@ type ProfileResponse = {
   id: string
   email: string
   role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT"
+  program?: "CWTS" | "ROTC" | null
   isActive: boolean
   avatarUrl?: string | null
   avatarFrame?: string | null
@@ -227,6 +229,7 @@ export function ProfilePage() {
   const roleProfile = profile?.profile
   const email = profile?.email ?? storedUser?.email ?? "—"
   const role = profile?.role ?? storedUser?.role ?? "STUDENT"
+  const program = getEffectiveProgram(storedUser) ?? (profile?.program ?? null)
   const isActive = profile?.isActive ?? true
   const createdAt = profile?.createdAt ? new Date(profile.createdAt) : null
   const formattedCreatedAt = createdAt ? createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : null
@@ -572,6 +575,14 @@ export function ProfilePage() {
                         <div className="grid gap-3 sm:grid-cols-2">
                           <FieldCard icon={Mail} label="Email address" value={email} note="Cannot be changed" />
                           <FieldCard icon={Shield} label="Account role" value={roleLabels[role] ?? role} note="Assigned by administrator" />
+                          {program && (
+                            <FieldCard
+                              icon={GraduationCap}
+                              label="NSTP program"
+                              value={program === "ROTC" ? "Reserved Officers' Training Corps (ROTC)" : "Civic Welfare Training Service (CWTS)"}
+                              note={`${program} program account`}
+                            />
+                          )}
                           {roleProfile?.studentNo && (
                             <FieldCard icon={Hash} label="Student ID No." value={roleProfile.studentNo} note="Cannot be changed" />
                           )}

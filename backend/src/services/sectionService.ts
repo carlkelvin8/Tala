@@ -1,3 +1,4 @@
+import { NstpType } from "@prisma/client"
 import { sectionRepository } from "../repositories/sectionRepository.js"
 import { logAudit } from "./auditService.js"
 import { countSectionsInCourse, MAX_SECTIONS_PER_COURSE } from "./courseService.js"
@@ -40,8 +41,8 @@ export async function generateSections(
   return created
 }
 
-export async function listSections() {
-  return sectionRepository.list()
+export async function listSections(nstpType?: NstpType) {
+  return sectionRepository.list(nstpType)
 }
 
 export async function updateSection(id: string, code: string, name: string, courseId?: string | null) {

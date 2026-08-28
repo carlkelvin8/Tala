@@ -1,4 +1,4 @@
-import { AttendanceStatus } from "@prisma/client"
+import { AttendanceStatus, NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { checkAndMarkAbsences } from "./absenceService.js"
@@ -36,7 +36,7 @@ export async function generateQRToken(userId: string) {
   return { token, expiresIn, bucket }
 }
 
-export async function scanQR(token: string, scannerId: string) {
+export async function scanQR(token: string, scannerId: string, scannerProgram?: NstpType | null) {
   const parts = token.split(":")
   if (parts.length !== 3) {
     throw new Error("Invalid QR token format")
@@ -64,6 +64,12 @@ export async function scanQR(token: string, scannerId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) {
     throw new Error("Student not found")
+  }
+
+  // A program-scoped scanner (e.g. a CWTS-locked implementor) may only record the
+  // attendance of students who belong to that program.
+  if (scannerProgram && user.program && user.program !== scannerProgram) {
+    throw new Error(`${user.email} belongs to the ${user.program} program. This scanner can only record ${scannerProgram} students.`)
   }
 
   const today = new Date()
@@ -108,20 +114,30 @@ export async function scanQR(token: string, scannerId: string) {
 }
 
 export async function listAttendance(
-  filters: { date?: Date; userId?: string; sectionId?: string; flightId?: string },
+  filters: { date?: Date; userId?: string; sectionId?: string; flightId?: string; program?: NstpType },
   skip: number,
   take: number
 ) {
   const where: Record<string, unknown> = {}
   if (filters.date) where.date = filters.date
   if (filters.userId) where.userId = filters.userId
+  const userWhere: Record<string, unknown> = {}
   if (filters.sectionId || filters.flightId) {
-    where.user = {
-      studentProfile: {
-        sectionId: filters.sectionId,
-        flightId: filters.flightId,
-      },
+    userWhere.studentProfile = {
+      sectionId: filters.sectionId,
+      flightId: filters.flightId,
     }
+  }
+  // Scope attendance to a program: match students carrying the program on their
+  // account, or enrolled in a section of that program (covers legacy students).
+  if (filters.program) {
+    userWhere.OR = [
+      { program: filters.program },
+      { studentProfile: { section: { course: { nstpType: filters.program } } } }
+    ]
+  }
+  if (Object.keys(userWhere).length > 0) {
+    where.user = userWhere
   }
 
   const [items, total] = await Promise.all([

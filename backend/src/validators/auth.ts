@@ -3,7 +3,8 @@ import { z } from "zod"
 export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]),
+  role: z.enum(["STUDENT"]).optional(),
+  program: z.enum(["CWTS", "ROTC"]),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   studentNo: z.string().optional()

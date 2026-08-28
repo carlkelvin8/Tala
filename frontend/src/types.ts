@@ -1,6 +1,9 @@
 // Define a union type for all possible user roles in the system
 export type RoleType = "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT"
 
+// Define a union type for the NSTP programs a user can belong to
+export type ProgramType = "CWTS" | "ROTC"
+
 // Define a generic wrapper type for all API responses from the backend
 export type ApiResponse<T> = {
   success: boolean // Whether the request succeeded (true) or failed (false)

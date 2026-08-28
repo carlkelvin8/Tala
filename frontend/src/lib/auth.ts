@@ -6,6 +6,7 @@ export type AuthUser = {
   id: string
   email: string
   role: "ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT"
+  program?: "CWTS" | "ROTC" | null
   avatarUrl?: string
   avatarFrame?: string
   firstName?: string

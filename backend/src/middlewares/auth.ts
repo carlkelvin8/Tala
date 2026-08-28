@@ -47,7 +47,7 @@ export async function authMiddleware(c: Context, next: Next) {
     sectionId = enrollment?.sectionId ?? undefined
   }
 
-  const authUser: AuthUser = { id: user.id, role: user.role, email: user.email, sectionId }
+  const authUser: AuthUser = { id: user.id, role: user.role, email: user.email, program: user.program, sectionId }
   c.set("user", authUser)
   await next()
 }

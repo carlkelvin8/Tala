@@ -1,6 +1,24 @@
-import { EnrollmentStatus } from "@prisma/client"
+import { EnrollmentStatus, NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
+
+/* Reject enrollments that would move a student onto the other NSTP program.
+   ROTC -> CWTS (or CWTS -> ROTC) exchanges are not allowed. */
+async function assertProgramMatch(userId: string, sectionId?: string | null) {
+  if (!sectionId) return
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+    select: { course: { select: { nstpType: true } } }
+  })
+  const sectionProgram = section?.course?.nstpType ?? null
+  if (!sectionProgram) return
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { program: true } })
+  if (user?.program && user.program !== sectionProgram) {
+    throw new Error(
+      `Cannot enroll: the student belongs to the ${user.program} program, but this section is under ${sectionProgram}. Program transfers are not allowed.`
+    )
+  }
+}
 
 export async function createEnrollment(data: { userId: string; sectionId?: string; flightId?: string }) {
   const existing = await prisma.enrollment.findFirst({
@@ -9,6 +27,7 @@ export async function createEnrollment(data: { userId: string; sectionId?: strin
   if (existing) {
     throw new Error("Student already has an active enrollment")
   }
+  await assertProgramMatch(data.userId, data.sectionId)
   const enrollment = await prisma.enrollment.create({
     data: {
       userId: data.userId,
@@ -50,12 +69,33 @@ export async function bulkCreateEnrollments(data: { enrollments: { userId: strin
 }
 
 export async function updateEnrollmentStatus(id: string, status: EnrollmentStatus) {
-  const enrollment = await prisma.enrollment.update({
+  const enrollment = await prisma.enrollment.findFirst({
+    where: { id },
+    include: {
+      user: { select: { program: true } },
+      section: { include: { course: { select: { nstpType: true } } } }
+    }
+  })
+  if (!enrollment) {
+    throw new Error("Enrollment not found")
+  }
+  // Neither an ROTC student into a CWTS section nor a CWTS student into an ROTC
+  // section may be approved — approving one would complete a prohibited program swap.
+  if (status === EnrollmentStatus.APPROVED) {
+    const sectionProgram = enrollment.section?.course?.nstpType ?? null
+    const userProgram = enrollment.user?.program ?? null
+    if (sectionProgram && userProgram && sectionProgram !== userProgram) {
+      throw new Error(
+        `Cannot approve: the student belongs to ${userProgram}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
+      )
+    }
+  }
+  const updated = await prisma.enrollment.update({
     where: { id },
     data: { status }
   })
   await logAudit("UPDATE", "Enrollment", id)
-  return enrollment
+  return updated
 }
 
 export async function listEnrollments(filters: {
@@ -63,11 +103,22 @@ export async function listEnrollments(filters: {
   sectionId?: string
   flightId?: string
   search?: string
+  program?: NstpType
 }, skip: number, take: number) {
   const where: Record<string, unknown> = {}
   if (filters.status) where.status = filters.status
   if (filters.sectionId) where.sectionId = filters.sectionId
   if (filters.flightId) where.flightId = filters.flightId
+  // Scope to a program: match students carrying the program on their account, or
+  // enrolled in a section of that program (covers legacy students without a program).
+  if (filters.program) {
+    where.user = {
+      OR: [
+        { program: filters.program },
+        { studentProfile: { section: { course: { nstpType: filters.program } } } }
+      ]
+    }
+  }
   if (filters.search && filters.search.trim()) {
     where.OR = [
       {
@@ -136,8 +187,10 @@ export async function importStudents(data: {
   const bcryptModule = await import("bcryptjs")
   const results = { created: 0, skipped: 0, failed: 0, errors: [] as string[] }
 
-  const sections = await prisma.section.findMany({ select: { id: true, code: true } })
-  const sectionMap = new Map(sections.map((s) => [s.code.toUpperCase(), s.id]))
+  const sections = await prisma.section.findMany({
+    select: { id: true, code: true, course: { select: { nstpType: true } } }
+  })
+  const sectionMap = new Map(sections.map((s) => [s.code.toUpperCase(), { id: s.id, program: s.course?.nstpType ?? null }]))
 
   for (const row of data.rows) {
     try {
@@ -155,11 +208,14 @@ export async function importStudents(data: {
       }
 
       const passwordHash = await bcryptModule.hash(data.defaultPassword ?? "Password123!", 10)
+      const sectionInfo = row.sectionCode ? sectionMap.get(row.sectionCode.trim().toUpperCase()) : undefined
       const user = await prisma.user.create({
         data: {
           email: row.email.trim().toLowerCase(),
           passwordHash,
           role: "STUDENT",
+          // Imported students inherit the program of their assigned section
+          ...(sectionInfo?.program ? { program: sectionInfo.program } : {}),
         },
       })
 
@@ -172,18 +228,14 @@ export async function importStudents(data: {
           ...(row.gender?.trim() ? { gender: row.gender.trim() } : {}),
           ...(row.birthDate && !Number.isNaN(new Date(row.birthDate).getTime()) ? { birthDate: new Date(row.birthDate) } : {}),
           ...(row.contactNo?.trim() ? { contactNo: row.contactNo.trim() } : {}),
-          ...(row.sectionCode ? (() => {
-            const sectionId = sectionMap.get(row.sectionCode.trim().toUpperCase())
-            return sectionId ? { sectionId } : {}
-          })() : {}),
+          ...(sectionInfo ? { sectionId: sectionInfo.id } : {}),
         },
       })
 
-      const sectionId = row.sectionCode ? sectionMap.get(row.sectionCode.trim().toUpperCase()) : undefined
       await prisma.enrollment.create({
         data: {
           userId: user.id,
-          ...(sectionId ? { sectionId } : {}),
+          ...(sectionInfo ? { sectionId: sectionInfo.id } : {}),
           status: data.enrollmentStatus ?? "APPROVED",
         },
       })

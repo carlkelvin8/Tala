@@ -1,5 +1,5 @@
 // Import the RoleType enum from Prisma for role-based branching logic
-import { RoleType } from "@prisma/client"
+import { NstpType, RoleType } from "@prisma/client"
 // Import the user repository for database access to user records
 import { userRepository } from "../repositories/userRepository.js"
 // Import the password hashing utility
@@ -14,6 +14,7 @@ export async function createUser(data: {
   email: string     // The user's email address (must be unique)
   password: string  // Plain-text password (will be hashed before storage)
   role: RoleType    // The role to assign to the new user
+  program?: NstpType | null // The NSTP program to assign to the new user
   firstName: string // First name for the role profile
   lastName: string  // Last name for the role profile
 }) {
@@ -24,11 +25,14 @@ export async function createUser(data: {
   }
   // Hash the plain-text password using bcrypt before storing it
   const passwordHash = await hashPassword(data.password)
+  // Implementor accounts are locked to the CWTS program; all other roles may carry any program
+  const program = data.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (data.program ?? null)
   // Create the base user record with email, hashed password, and role
   const user = await userRepository.create({
     email: data.email,
     passwordHash,
-    role: data.role
+    role: data.role,
+    program
   })
 
   // Create the role-specific profile record based on the assigned role
@@ -80,10 +84,22 @@ export async function listUsers(filters: { role?: RoleType; search?: string }, s
   return { items, total }
 }
 
-/* Update a user's role and/or active status */
-export async function updateUser(id: string, data: { role?: RoleType; isActive?: boolean }) {
+/* Update a user's role, program, and/or active status */
+export async function updateUser(id: string, data: { role?: RoleType; program?: NstpType | null; isActive?: boolean }) {
+  // Read the current role so implementor accounts stay locked to CWTS even on role changes
+  const existing = await prisma.user.findUnique({ where: { id }, select: { role: true, program: true } })
+  if (!existing) {
+    throw new Error("User not found")
+  }
+  const role = data.role ?? existing.role
+  // Implementor accounts are locked to the CWTS program regardless of the submitted program
+  const program = role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (data.program !== undefined ? data.program : existing.program)
   // Delegate to the repository to update the user record
-  const user = await userRepository.update(id, data)
+  const user = await userRepository.update(id, {
+    ...(data.role !== undefined ? { role: data.role } : {}),
+    program,
+    ...(data.isActive !== undefined ? { isActive: data.isActive } : {})
+  })
   // Log the user update event to the audit trail
   await logAudit("UPDATE", "User", id)
   // Return the updated user object

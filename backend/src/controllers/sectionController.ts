@@ -1,10 +1,25 @@
 import { Context } from "hono"
+import { NstpType, RoleType } from "@prisma/client"
 import { ok, fail } from "../lib/response.js"
+import { prisma } from "../lib/prisma.js"
+import { getAuthUser } from "../middlewares/auth.js"
 import { createSection, listSections, updateSection, deleteSection, generateSections } from "../services/sectionService.js"
+
+/* Implementors are locked to CWTS — a section can only be tied to a CWTS course */
+async function assertCwtsCourse(c: Context, courseId?: string | null) {
+  if (!courseId) return
+  const authUser = getAuthUser(c)
+  if (authUser.role !== RoleType.IMPLEMENTOR) return
+  const course = await prisma.course.findUnique({ where: { id: courseId }, select: { nstpType: true } })
+  if (course && course.nstpType && course.nstpType !== NstpType.CWTS) {
+    throw new Error(`Implementors can only create sections under CWTS courses (${course.nstpType} is locked to another program)`)
+  }
+}
 
 export async function create(c: Context) {
   try {
     const body = await c.req.json()
+    await assertCwtsCourse(c, body.courseId)
     const section = await createSection(body.code, body.name, body.courseId)
     return c.json(ok("Section created", section))
   } catch (error) {
@@ -15,6 +30,7 @@ export async function create(c: Context) {
 export async function generate(c: Context) {
   try {
     const body = await c.req.json()
+    await assertCwtsCourse(c, body.courseId)
     const sections = await generateSections(
       body.prefix,
       body.start,
@@ -29,7 +45,10 @@ export async function generate(c: Context) {
 }
 
 export async function list(c: Context) {
-  const sections = await listSections()
+  const authUser = getAuthUser(c)
+  // Implementors only see CWTS sections
+  const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : undefined
+  const sections = await listSections(nstpType)
   return c.json(ok("Sections fetched", sections))
 }
 
@@ -37,6 +56,7 @@ export async function update(c: Context) {
   try {
     const id = c.req.param("id")
     const body = await c.req.json()
+    await assertCwtsCourse(c, body.courseId)
     const section = await updateSection(id, body.code, body.name, body.courseId)
     return c.json(ok("Section updated", section))
   } catch (error) {

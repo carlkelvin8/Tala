@@ -6,6 +6,7 @@ export const userCreateSchema = z.object({
   email: z.string().email(),                                                   // Must be a valid email address
   password: z.string().min(8),                                                 // Password must be at least 8 characters
   role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]),         // Must be one of the four valid roles
+  program: z.enum(["CWTS", "ROTC"]).optional(),                                // NSTP program for program-scoped accounts
   firstName: z.string().min(1),                                                // First name must not be empty
   lastName: z.string().min(1)                                                  // Last name must not be empty
 })
@@ -13,6 +14,7 @@ export const userCreateSchema = z.object({
 /* Schema for updating an existing user's role and/or active status */
 export const userUpdateSchema = z.object({
   role: z.enum(["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]).optional(), // Optional new role
+  program: z.enum(["CWTS", "ROTC"]).optional(),                                  // Optional NSTP program
   isActive: z.boolean().optional()                                                // Optional flag to activate or deactivate the account
 })
 

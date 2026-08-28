@@ -3,9 +3,15 @@ import { getStoredUser, getUserDisplayName } from "../lib/auth"
 import { PremiumAppSidebar } from "../components/layout/PremiumAppSidebar"
 import { DataTable } from "../components/data-table"
 import { SectionCards } from "../components/section-cards"
+import { StudentDashboard } from "../components/student-dashboard"
+import { MandatoryCourses } from "../components/mandatory-courses"
+import { ImplementorShortcuts } from "../components/implementor-shortcuts"
 import { SiteHeader } from "../components/site-header"
 import { SidebarInset, SidebarProvider } from "../components/ui/sidebar"
 import { Drawer } from "../components/ui/drawer"
+import { Badge } from "../components/ui/badge"
+import { type ProgramType } from "../types"
+import { programFullLabels, programLabels, getEffectiveProgram } from "../lib/programs"
 import { Sparkles } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -16,7 +22,11 @@ const ChartAreaInteractive = lazy(() =>
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const user = getStoredUser()
+  const isImplementor = user?.role === "IMPLEMENTOR"
+  const isStudent = user?.role === "STUDENT"
   const displayName = user ? getUserDisplayName(user) : null
+  const program = getEffectiveProgram(user) as ProgramType | null
+  const programLabel = program ? programFullLabels[program] : null
 
   return (
     <SidebarProvider
@@ -82,13 +92,25 @@ export default function DashboardPage() {
               >
                 {displayName ? `Welcome back, ${displayName}` : "Dashboard"}
               </motion.h1>
+              {program && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-white/10 text-gold border-white/20"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    {programLabels[program]}
+                  </Badge>
+                  <span className="text-xs text-silver">{programLabel}</span>
+                </div>
+              )}
               <motion.p
                 className="mt-1.5 text-sm text-silver max-w-xl"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
               >
-                Real-time summary of your NSTP program. Monitor attendance, grades, merits, and enrollment at a glance.
+                Real-time summary of your NSTP program{program ? ` (${programLabel})` : ""}. Monitor attendance, grades, merits, and enrollment at a glance.
               </motion.p>
             </div>
           </motion.div>
@@ -101,23 +123,53 @@ export default function DashboardPage() {
             <SectionCards />
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] as const }}
-          >
-            <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-slate-100" aria-label="Loading attendance chart" />}>
-              <ChartAreaInteractive />
-            </Suspense>
-          </motion.div>
+          {isStudent ? (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
+            >
+              <StudentDashboard />
+            </motion.div>
+          ) : (
+            <>
+              {isImplementor && (
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.18, ease: [0.16, 1, 0.3, 1] as const }}
+                >
+                  <ImplementorShortcuts />
+                </motion.div>
+              )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] as const }}
-          >
-            <DataTable />
-          </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+              >
+                <MandatoryCourses program={program ?? undefined} />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] as const }}
+              >
+                <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-slate-100" aria-label="Loading attendance chart" />}>
+                  <ChartAreaInteractive />
+                </Suspense>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] as const }}
+              >
+                <DataTable />
+              </motion.div>
+            </>
+          )}
         </motion.div>
       </SidebarInset>
       <Drawer open={sidebarOpen} onOpenChange={setSidebarOpen} title="Navigation">

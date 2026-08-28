@@ -2,7 +2,7 @@ import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
 import { createEnrollment, listEnrollments, updateEnrollmentStatus, bulkCreateEnrollments, importStudents as importStudentsService } from "../services/enrollmentService.js"
 import { getPagination } from "../lib/pagination.js"
-import { EnrollmentStatus, RoleType } from "@prisma/client"
+import { EnrollmentStatus, NstpType, RoleType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "../services/auditService.js"
 import { getAuthUser } from "../middlewares/auth.js"
@@ -12,6 +12,28 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
     return authUser.sectionId
   }
   return querySectionId
+}
+
+/* Implementors are locked to CWTS — their directory only shows CWTS students */
+function resolveScopeProgram(authUser: { role: RoleType }): NstpType | undefined {
+  return authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : undefined
+}
+
+/* Reject section reassignments that would move a student onto the other program */
+async function assertProgramMatch(userId: string, sectionId?: string | null) {
+  if (!sectionId) return
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+    select: { course: { select: { nstpType: true } } }
+  })
+  const sectionProgram = section?.course?.nstpType ?? null
+  if (!sectionProgram) return
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { program: true } })
+  if (user?.program && user.program !== sectionProgram) {
+    throw new Error(
+      `Cannot reassign: the student belongs to ${user.program}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
+    )
+  }
 }
 
 /* POST /api/enrollments/ — create a new enrollment record */
@@ -40,7 +62,8 @@ export async function list(c: Context) {
         status: query.status as EnrollmentStatus | undefined,
         sectionId,
         flightId: query.flightId,
-        search: query.search
+        search: query.search,
+        program: resolveScopeProgram(authUser)
       },
       skip,
       take
@@ -72,7 +95,14 @@ export async function update(c: Context) {
   try {
     const id = c.req.param("id")
     const body = await c.req.json()
-    const enrollment = await prisma.enrollment.update({
+    const enrollment = await prisma.enrollment.findUnique({ where: { id }, select: { userId: true } })
+    if (!enrollment) {
+      return c.json(fail("Enrollment not found"), 404)
+    }
+    if (body.sectionId) {
+      await assertProgramMatch(enrollment.userId, body.sectionId)
+    }
+    const updated = await prisma.enrollment.update({
       where: { id },
       data: {
         sectionId: body.sectionId || null,
@@ -84,7 +114,7 @@ export async function update(c: Context) {
         flight: true
       }
     })
-    return c.json(ok("Enrollment updated", enrollment))
+    return c.json(ok("Enrollment updated", updated))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)
   }

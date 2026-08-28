@@ -18,13 +18,17 @@ import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Badge } from "../components/ui/badge"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { Select } from "../components/ui/select"
+import { MandatoryCourses } from "../components/mandatory-courses"
 import { BookOpen, Plus, Edit, Trash2, Search, Save, X, Hash } from "lucide-react"
 import { useState } from "react"
 import { cn } from "../lib/utils"
+import { programLabels, getEffectiveProgram } from "../lib/programs"
 
 const schema = z.object({
   code: z.string().min(1, "Code is required"),
-  name: z.string().min(1, "Name is required")
+  name: z.string().min(1, "Name is required"),
+  nstpType: z.enum(["CWTS", "ROTC"])
 })
 
 type FormValues = z.infer<typeof schema>
@@ -34,11 +38,14 @@ const MAX_SECTIONS_PER_COURSE = 50
 export function CoursesPage() {
   const user = getStoredUser()
   const canManage = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
-  const form = useForm<FormValues>({ resolver: zodResolver(schema) })
+  const isImplementor = user?.role === "IMPLEMENTOR"
+  const effectiveProgram = getEffectiveProgram(user)
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { nstpType: "CWTS" } })
   const [editingCourse, setEditingCourse] = useState<any | null>(null)
   const [deletingCourse, setDeletingCourse] = useState<any | null>(null)
   const [editCode, setEditCode] = useState("")
   const [editName, setEditName] = useState("")
+  const [editNstpType, setEditNstpType] = useState<"CWTS" | "ROTC">("CWTS")
 
   const coursesQuery = useQuery({
     queryKey: ["courses"],
@@ -63,10 +70,10 @@ export function CoursesPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, code, name }: { id: string; code: string; name: string }) =>
+    mutationFn: ({ id, code, name, nstpType }: { id: string; code: string; name: string; nstpType: "CWTS" | "ROTC" }) =>
       apiRequest<ApiResponse<any>>(`/api/courses/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ code, name })
+        body: JSON.stringify({ code, name, nstpType })
       }),
     onSuccess: () => {
       coursesQuery.refetch()
@@ -96,6 +103,7 @@ export function CoursesPage() {
     setEditingCourse(course)
     setEditCode(course.code)
     setEditName(course.name)
+    setEditNstpType(isImplementor ? "CWTS" : (course.nstpType ?? "CWTS"))
   }
 
   const handleSaveEdit = () => {
@@ -103,7 +111,8 @@ export function CoursesPage() {
       updateMutation.mutate({
         id: editingCourse.id,
         code: editCode,
-        name: editName
+        name: editName,
+        nstpType: editNstpType
       })
     }
   }
@@ -142,6 +151,23 @@ export function CoursesPage() {
       cell: (course: any) => (
         <span className="text-darksilver">{course.name}</span>
       )
+    },
+    {
+      header: "Program",
+      cell: (course: any) => {
+        const prog = course.nstpType ?? "CWTS"
+        return (
+          <Badge
+            variant={prog === "ROTC" ? "outline" : "outline"}
+            className={cn(
+              "text-xs font-semibold",
+              prog === "ROTC" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-teal-50 text-teal-700 border-teal-200"
+            )}
+          >
+            {programLabels[prog as "CWTS" | "ROTC"]}
+          </Badge>
+        )
+      }
     },
     {
       header: "Sections",
@@ -239,6 +265,13 @@ export function CoursesPage() {
                 <Input placeholder="e.g. National Service Training Program" {...form.register("name")} className="h-11 pl-10" />
               </div>
             </FormField>
+            <FormField label="Program" required>
+              <Select {...form.register("nstpType")} className="h-11" disabled={isImplementor}>
+                <option value="CWTS">Civic Welfare Training Service (CWTS)</option>
+                {!isImplementor && <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>}
+              </Select>
+              {isImplementor && <p className="mt-1 text-xs text-darksilver">Implementors are locked to CWTS.</p>}
+            </FormField>
             {mutation.isError && (
               <Alert variant="danger" className="md:col-span-2">
                 {(mutation.error as Error).message}
@@ -323,6 +356,12 @@ export function CoursesPage() {
               />
             </div>
           </FormField>
+          <FormField label="Program" required>
+            <Select value={editNstpType} onChange={(e) => setEditNstpType(e.target.value as "CWTS" | "ROTC")} className="h-11" disabled={isImplementor}>
+              <option value="CWTS">Civic Welfare Training Service (CWTS)</option>
+              {!isImplementor && <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>}
+            </Select>
+          </FormField>
           {updateMutation.isError && (
             <Alert variant="danger">
               {(updateMutation.error as Error).message}
@@ -355,6 +394,8 @@ export function CoursesPage() {
         destructive
         onConfirm={confirmDelete}
       />
+
+      <MandatoryCourses program={effectiveProgram ?? undefined} />
     </div>
   )
 }

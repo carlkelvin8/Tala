@@ -24,6 +24,7 @@ import { remarkRoutes } from "./routes/remarkRoutes.js"
 import { trainingDayRoutes } from "./routes/trainingDayRoutes.js"
 import { auditRoutes } from "./routes/auditRoutes.js"
 import { medicalCertificateRoutes } from "./routes/medicalCertificateRoutes.js"
+import { submissionRoutes } from "./routes/submissionRoutes.js"
 import { notificationRoutes } from "./routes/notificationRoutes.js"
 import { autoSectioningRoutes } from "./routes/autoSectioningRoutes.js"
 import { leaderboardRoutes } from "./routes/leaderboardRoutes.js"
@@ -100,6 +101,7 @@ app.route("/api/remarks", remarkRoutes)
 app.route("/api/training", trainingDayRoutes)
 app.route("/api/audit-logs", auditRoutes)
 app.route("/api/medical-certificates", medicalCertificateRoutes)
+app.route("/api/submissions", submissionRoutes)
 app.route("/api/notifications", notificationRoutes)
 app.route("/api/auto-sectioning", autoSectioningRoutes)
 app.route("/api/leaderboard", leaderboardRoutes)

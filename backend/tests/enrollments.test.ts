@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { app } from "../src/app.js"
-import { createTestUser, cleanupTestUsers, cleanupTestEnrollments, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
-import { RoleType } from "@prisma/client"
+import { createTestUser, cleanupTestUsers, cleanupTestEnrollments, cleanupTestCourses, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
+import { RoleType, NstpType } from "@prisma/client"
 
 describe("Enrollment Routes", () => {
   const emails: string[] = []
   const enrollmentIds: string[] = []
+  const courseCodes: string[] = []
   let adminToken = ""
   let studentUser: Awaited<ReturnType<typeof createTestUser>>
   let studentToken = ""
@@ -25,6 +26,7 @@ describe("Enrollment Routes", () => {
 
   afterAll(async () => {
     await cleanupTestEnrollments(enrollmentIds)
+    await cleanupTestCourses(courseCodes)
     await cleanupTestUsers(emails)
   })
 
@@ -88,5 +90,56 @@ describe("Enrollment Routes", () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.data).toBeInstanceOf(Array)
+  })
+
+  it("POST /api/enrollments — rejects a CWTS student enrolling into an ROTC section", async () => {
+    const course = await prisma.course.create({
+      data: { code: `ROTCC_${uniqueId()}`, name: "Test ROTC Course", nstpType: NstpType.ROTC }
+    })
+    courseCodes.push(course.code)
+    const section = await prisma.section.create({
+      data: { code: `SEC_${uniqueId()}`, name: "ROTC Section", courseId: course.id }
+    })
+    const student = await createTestUser(RoleType.STUDENT)
+    emails.push(student.email)
+    await prisma.user.update({ where: { id: student.id }, data: { program: NstpType.CWTS } })
+
+    const res = await app.request("/api/enrollments", {
+      method: "POST",
+      headers: authHeader(adminToken),
+      body: json({ userId: student.id, sectionId: section.id }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(body.message).toContain("Program transfers are not allowed")
+  })
+
+  it("PATCH status — rejects approving an enrollment whose section program mismatches the student's program", async () => {
+    const course = await prisma.course.create({
+      data: { code: `CWTSC_${uniqueId()}`, name: "Test CWTS Course", nstpType: NstpType.CWTS }
+    })
+    courseCodes.push(course.code)
+    const section = await prisma.section.create({
+      data: { code: `SEC_${uniqueId()}`, name: "CWTS Section", courseId: course.id }
+    })
+    const student = await createTestUser(RoleType.STUDENT)
+    emails.push(student.email)
+    await prisma.user.update({ where: { id: student.id }, data: { program: NstpType.ROTC } })
+    // Insert the mismatched enrollment directly to simulate legacy data bypassing the create guard
+    const enrollment = await prisma.enrollment.create({
+      data: { userId: student.id, sectionId: section.id }
+    })
+    enrollmentIds.push(enrollment.id)
+
+    const res = await app.request(`/api/enrollments/${enrollment.id}/status`, {
+      method: "PATCH",
+      headers: authHeader(adminToken),
+      body: json({ status: "APPROVED" }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(body.message).toContain("Program transfers are not allowed")
   })
 })

@@ -1,9 +1,12 @@
 // Import the Hono router class to create a modular sub-router for dashboard endpoints
 import { Hono } from "hono"
 // Import the summary controller function that aggregates dashboard statistics
-import { summary } from "../controllers/dashboardController.js"
+import { summary, studentSummary } from "../controllers/dashboardController.js"
 // Import the authentication middleware to protect the dashboard route
 import { authMiddleware } from "../middlewares/auth.js"
+// Import the role guard so only students can read their personalized summary
+import { roleGuard } from "../middlewares/roleGuard.js"
+import { RoleType } from "@prisma/client"
 
 // Create a new Hono sub-router for all /api/dashboard/* routes
 export const dashboardRoutes = new Hono()
@@ -12,3 +15,5 @@ export const dashboardRoutes = new Hono()
 dashboardRoutes.use(authMiddleware)
 // GET /api/dashboard/ — returns aggregated statistics (attendance rate, grade average, merits, enrollments)
 dashboardRoutes.get("/", summary)
+// GET /api/dashboard/my — returns the logged-in student's enrollment status, total grade, and attendance
+dashboardRoutes.get("/my", roleGuard([RoleType.STUDENT]), studentSummary)

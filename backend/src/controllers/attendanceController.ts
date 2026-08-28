@@ -3,13 +3,18 @@ import { ok, fail } from "../lib/response.js"
 import { generateQRToken, scanQR, listAttendance } from "../services/attendanceService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { getPagination } from "../lib/pagination.js"
-import { RoleType } from "@prisma/client"
+import { NstpType, RoleType } from "@prisma/client"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
   if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
     return authUser.sectionId
   }
   return querySectionId
+}
+
+/* Implementors are locked to CWTS — their scanner and attendance views are CWTS-scoped */
+function resolveScopeProgram(authUser: { role: RoleType; program?: NstpType | null }): NstpType | null {
+  return authUser.role === RoleType.IMPLEMENTOR ? NstpType.CWTS : (authUser.program ?? null)
 }
 
 export async function getQRTokenHandler(c: Context) {
@@ -26,7 +31,7 @@ export async function scanQRHandler(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const body = await c.req.json()
-    const result = await scanQR(body.token, authUser.id)
+    const result = await scanQR(body.token, authUser.id, resolveScopeProgram(authUser))
     return c.json(ok("Attendance recorded", result))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Scan failed"), 400)
@@ -44,7 +49,8 @@ export async function list(c: Context) {
       date,
       userId: query.userId,
       sectionId,
-      flightId: query.flightId
+      flightId: query.flightId,
+      program: resolveScopeProgram(authUser) ?? undefined
     },
     skip,
     take
