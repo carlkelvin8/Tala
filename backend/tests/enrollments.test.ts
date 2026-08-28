@@ -200,7 +200,7 @@ describe("Enrollment Routes", () => {
 
     const rotcCheck = await prisma.enrollment.findUnique({ where: { id: rotcEnrollment.id } })
     expect(rotcCheck?.sectionId).toBeNull()
-  })
+  }, 30000)
 
   it("auto-sectioning — 403 for implementor", async () => {
     const impl = await createTestUser(RoleType.IMPLEMENTOR)

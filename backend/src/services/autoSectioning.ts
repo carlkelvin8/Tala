@@ -20,8 +20,9 @@ export async function autoSectionEnrollees(courseId: string) {
       user: {
         role: "STUDENT",
         studentProfile: { isNot: null },
-        // Only students whose program matches the course (or have no program set)
-        OR: [{ program: course.nstpType }, { program: null }],
+        // Only students whose program matches the course — a student without a
+        // program must never be auto-placed into the wrong NSTP component.
+        program: course.nstpType,
       },
     },
     include: {
