@@ -121,7 +121,7 @@ async function main() {
   await prisma.implementorProfile.upsert({
     where: { userId: implCoordinator.id },
     update: {},
-    create: { userId: implCoordinator.id, firstName: "Emilio", lastName: "Jacinto",   contactNo: "09175556666" },
+    create: { userId: implCoordinator.id, firstName: "Instructor", lastName: "",   contactNo: "09175556666" },
   })
 
   await prisma.cadetOfficerProfile.upsert({
@@ -615,7 +615,7 @@ async function main() {
   console.log("  🔑  All passwords: Password123!")
   console.log("  📧  Admin:         admin@nstp.local")
   console.log("  📧  Implementor:   implementor@nstp.local")
-  console.log("  📧  Coordinator:   coordinator@nstp.local")
+  console.log("  📧  Coordinator:   coordinator@nstp.local (Instructor)")
   console.log("  📧  Cadet:         cadet@nstp.local")
   console.log("  📧  Student:       student@nstp.local  (through student10@nstp.local)")
 }

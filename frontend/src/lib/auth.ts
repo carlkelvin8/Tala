@@ -71,13 +71,18 @@ export function getUserDisplayName(user: AuthUser): string {
   if (user.firstName && user.lastName) { // If both first and last name are available
     return `${user.firstName} ${user.lastName}` // Return the full name as "First Last"
   }
+  if (user.firstName) { // Some accounts have a single display name (e.g. "Instructor")
+    return user.firstName
+  }
   return user.email // Fall back to the email address if name is not set
 }
 
 // Generate a short initials string from the user's name or email for use in avatar placeholders
 export function getUserInitials(user: AuthUser): string {
-  if (user.firstName && user.lastName) { // If both first and last name are available
-    return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase() // Take first character of each name and uppercase them
+  if (user.firstName) { // If a first name is available, derive initials from it (and last name when present)
+    const first = user.firstName.charAt(0)
+    const second = user.lastName ? user.lastName.charAt(0) : first
+    return `${first}${second}`.toUpperCase()
   }
   return user.email.substring(0, 2).toUpperCase() // Fall back to the first two characters of the email, uppercased
 }
