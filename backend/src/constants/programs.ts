@@ -5,21 +5,20 @@ export type MandatoryCourse = {
   name: string
 }
 
-// Fixed, read-only lists of mandatory courses per NSTP program.
-// These are placeholders — adjust the codes/names to match the actual curriculum.
+// Fixed, read-only lists of degree programs that are mandatory per NSTP component.
 export const MANDATORY_COURSES: Record<NstpType, MandatoryCourse[]> = {
   CWTS: [
-    { code: "NSTP-101", name: "National Service Training Program Common Module (RA 9163 Orientation)" },
-    { code: "CWTS-101", name: "Civic Welfare Training Service I" },
-    { code: "CWTS-102", name: "Civic Welfare Training Service II" },
-    { code: "LTS-101", name: "Literacy Training Service I" },
-    { code: "LTS-102", name: "Literacy Training Service II" },
+    { code: "BSAIS", name: "Bachelor of Science in Aviation Information System" },
+    { code: "BSAIT", name: "Bachelor of Science in Aviation Information Technology" },
+    { code: "BSATM", name: "Bachelor of Science in Aviation Tourism Major in Travel Management" },
+    { code: "BSSM", name: "Bachelor of Science in Supply Management with Specialization in Aviation Logistics" },
+    { code: "BSAC", name: "Bachelor of Science in Aviation Communication Major in Flight Operations" },
   ],
   ROTC: [
-    { code: "NSTP-101", name: "National Service Training Program Common Module (RA 9163 Orientation)" },
-    { code: "ROTC-101", name: "Reserved Officers' Training Corps I" },
-    { code: "ROTC-102", name: "Reserved Officers' Training Corps II" },
-    { code: "ROTC-201", name: "Leadership and Drill Training I" },
-    { code: "ROTC-202", name: "Leadership and Drill Training II" },
+    { code: "BSAT", name: "Bachelor of Science in Air Transportation" },
+    { code: "BSAE", name: "Bachelor of Science in Aeronautical Engineering" },
+    { code: "AMT/BSAMT", name: "Associate in Aviation Maintenance Technology / Bachelor of Science in Aviation Maintenance Technology" },
+    { code: "AET/BSAET", name: "Associate in Aviation Electronics Technology / Bachelor of Science in Aviation Electronics Technology" },
+    { code: "BSASM", name: "Bachelor of Science in Aviation Safety and Security Management" },
   ],
 }
