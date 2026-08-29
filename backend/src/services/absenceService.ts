@@ -51,11 +51,40 @@ export async function bulkCheckAbsences() {
     where: { status: "ACTIVE" },
     select: { userId: true }
   })
+  if (students.length === 0) {
+    return { checked: 0, failed: [] }
+  }
+
+  const absentCounts = await prisma.attendanceRecord.groupBy({
+    by: ["userId"],
+    where: { userId: { in: students.map((s) => s.userId) }, status: "ABSENT" },
+    _count: { _all: true },
+  })
+  const counts = new Map(absentCounts.map((g) => [g.userId, g._count._all]))
 
   const failed: string[] = []
   for (const student of students) {
-    const result = await checkAndMarkAbsences(student.userId)
-    if (result?.status === "FAILED_ABSENCES") {
+    const absenceCount = counts.get(student.userId) ?? 0
+    if (absenceCount === MAX_ABSENCES) {
+      await createNotification(
+        student.userId,
+        "THREE_ABSENCES",
+        "3 Consecutive Absences Warning",
+        `You have reached ${MAX_ABSENCES} absences. One more absence will result in failing due to attendance requirements.`
+      )
+    }
+    if (absenceCount > MAX_ABSENCES) {
+      await prisma.studentProfile.update({
+        where: { userId: student.userId },
+        data: { status: "FAILED_ABSENCES" }
+      })
+      await createNotification(
+        student.userId,
+        "FAILED_ABSENCES",
+        "Failed Due to Absences",
+        `You have been marked as FAILED due to exceeding ${MAX_ABSENCES} absences. Please contact your instructor.`
+      )
+      await logAudit("UPDATE", "StudentProfile", student.userId, student.userId)
       failed.push(student.userId)
     }
   }

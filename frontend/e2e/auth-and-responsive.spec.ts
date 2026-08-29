@@ -20,7 +20,7 @@ test("student can sign in and reach a responsive dashboard", async ({ page, requ
   const email = `e2e_${suffix}@test.local`
   const password = "StrongPassword123!"
   const registration = await request.post("http://127.0.0.1:4000/api/auth/register", {
-    data: { email, password, role: "STUDENT", firstName: "E2E", lastName: "Student", studentNo: `E2E-${suffix}` },
+    data: { email, password, role: "STUDENT", program: "CWTS", firstName: "E2E", lastName: "Student", studentNo: `E2E-${suffix}` },
   })
   expect(registration.ok()).toBe(true)
 

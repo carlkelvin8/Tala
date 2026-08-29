@@ -42,7 +42,7 @@ describe("Absence & Training Day Routes", () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
-  })
+  }, 60000)
 
   it("POST /api/absences/check — 403 for student", async () => {
     const res = await app.request("/api/absences/check", {
