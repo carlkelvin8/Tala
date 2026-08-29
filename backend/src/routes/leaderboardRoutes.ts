@@ -6,6 +6,7 @@ import { ok, fail } from "../lib/response.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { getLeaderboard } from "../services/leaderboardService.js"
 import { prisma } from "../lib/prisma.js"
+import { resolveScopeProgram } from "../services/programScope.js"
 
 export const leaderboardRoutes = new Hono()
 
@@ -18,7 +19,8 @@ leaderboardRoutes.get("/", async (c) => {
     const authUser = getAuthUser(c)
     let sectionId = c.req.query("sectionId") || undefined
 
-    if (!sectionId && authUser.role === RoleType.STUDENT) {
+    if (authUser.role === RoleType.STUDENT) {
+      // Students are always pinned to their own section's leaderboard
       const profile = await prisma.studentProfile.findUnique({
         where: { userId: authUser.id },
         select: { sectionId: true },
@@ -26,7 +28,7 @@ leaderboardRoutes.get("/", async (c) => {
       sectionId = profile?.sectionId ?? undefined
     }
 
-    const entries = await getLeaderboard({ sectionId })
+    const entries = await getLeaderboard({ sectionId }, resolveScopeProgram(authUser))
     return c.json(ok("Leaderboard fetched", entries))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to fetch leaderboard"), 400)

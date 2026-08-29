@@ -4,6 +4,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { getPagination } from "../lib/pagination.js"
 import { uploadCertificate, reviewCertificate, listCertificates, getUserCertificates } from "../services/medicalCertificateService.js"
 import { MedicalCertificateStatus } from "@prisma/client"
+import { resolveScopeProgram } from "../services/programScope.js"
 
 export async function uploadHandler(c: Context) {
   try {
@@ -27,7 +28,7 @@ export async function reviewHandler(c: Context) {
     const user = getAuthUser(c)
     const id = c.req.param("id")
     const body = await c.req.json()
-    const certificate = await reviewCertificate(id, user.id, body.status as MedicalCertificateStatus, body.remarks)
+    const certificate = await reviewCertificate(id, user.id, body.status as MedicalCertificateStatus, body.remarks, resolveScopeProgram(user))
     return c.json(ok("Certificate reviewed", certificate))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Review failed"), 400)
@@ -36,6 +37,7 @@ export async function reviewHandler(c: Context) {
 
 export async function listHandler(c: Context) {
   try {
+    const user = getAuthUser(c)
     const query = c.req.query()
     const { page, pageSize, skip, take } = getPagination(query)
     const result = await listCertificates(
@@ -45,7 +47,8 @@ export async function listHandler(c: Context) {
         search: query.search,
       },
       skip,
-      take
+      take,
+      resolveScopeProgram(user)
     )
     return c.json(ok("Certificates fetched", result.items, { page, pageSize, total: result.total }))
   } catch (error) {

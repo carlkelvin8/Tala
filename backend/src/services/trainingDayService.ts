@@ -6,19 +6,45 @@ export const REQUIRED_TRAINING_DAYS: Record<string, number> = {
   CWTS: 0
 }
 
-export async function getTrainingDaySummary(termId: string, sectionId?: string) {
+/* Resolve which program a training-day aggregate refers to.
+   Order: explicit ?program= param, then the section's course program when a
+   section is targeted, then (best-effort) the term name. Never silently
+   defaults an unknown term to CWTS. */
+async function resolveProgram(term: { name: string } | null, sectionId?: string, program?: string | null): Promise<string | null> {
+  if (program === "ROTC" || program === "CWTS") return program
+  if (sectionId) {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      select: { course: { select: { nstpType: true } } }
+    })
+    if (section?.course?.nstpType) return section.course.nstpType
+  }
+  const name = term?.name?.toUpperCase() ?? ""
+  if (name.includes("ROTC")) return "ROTC"
+  if (name.includes("CWTS")) return "CWTS"
+  return null
+}
+
+export async function getTrainingDaySummary(termId: string, sectionId?: string, program?: string | null) {
   const where: Record<string, unknown> = { termId }
   if (sectionId) where.sectionId = sectionId
 
+  const term = await prisma.academicTerm.findUnique({ where: { id: termId } })
+
+  // Only count sessions from the resolved program when one is known (flight
+  // sessions have no section/course, so they always count toward the term).
+  const nstpType = await resolveProgram(term, sectionId, program)
+  if (nstpType) {
+    where.section = { course: { nstpType } }
+  }
+
   const totalSessions = await prisma.attendanceSession.count({ where })
 
-  const term = await prisma.academicTerm.findUnique({ where: { id: termId } })
-  const nstpType = term?.name.toUpperCase().includes("ROTC") ? "ROTC" : "CWTS"
-  const required = REQUIRED_TRAINING_DAYS[nstpType] || 0
+  const required = nstpType ? (REQUIRED_TRAINING_DAYS[nstpType] || 0) : 0
 
   return {
     termId,
-    termName: term?.name,
+    termName: term?.name ?? null,
     nstpType,
     totalSessions,
     requiredDays: required,
@@ -26,7 +52,7 @@ export async function getTrainingDaySummary(termId: string, sectionId?: string) 
   }
 }
 
-export async function getStudentTrainingDays(userId: string, termId: string) {
+export async function getStudentTrainingDays(userId: string, termId: string, program?: string | null) {
   const records = await prisma.attendanceRecord.findMany({
     where: {
       userId,
@@ -40,13 +66,13 @@ export async function getStudentTrainingDays(userId: string, termId: string) {
   const totalAttended = records.length
 
   const term = await prisma.academicTerm.findUnique({ where: { id: termId } })
-  const nstpType = term?.name.toUpperCase().includes("ROTC") ? "ROTC" : "CWTS"
-  const required = REQUIRED_TRAINING_DAYS[nstpType] || 0
+  const nstpType = await resolveProgram(term, undefined, program)
+  const required = nstpType ? (REQUIRED_TRAINING_DAYS[nstpType] || 0) : 0
 
   return {
     userId,
     termId,
-    termName: term?.name,
+    termName: term?.name ?? null,
     nstpType,
     totalAttended,
     requiredDays: required,
@@ -61,9 +87,13 @@ export async function getStudentTrainingDays(userId: string, termId: string) {
   }
 }
 
-export async function getTermAttendanceOverview(termId: string) {
+export async function getTermAttendanceOverview(termId: string, program?: string | null) {
+  const where: Record<string, unknown> = { termId }
+  if (program === "ROTC" || program === "CWTS") {
+    where.section = { course: { nstpType: program } }
+  }
   const sessions = await prisma.attendanceSession.findMany({
-    where: { termId },
+    where,
     include: {
       records: {
         select: { userId: true, status: true }

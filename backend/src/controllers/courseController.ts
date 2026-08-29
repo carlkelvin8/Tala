@@ -34,9 +34,14 @@ export async function mandatory(c: Context) {
 
 export async function getById(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const id = c.req.param("id")
     const course = await getCourseById(id)
     if (!course) return c.json(fail("Course not found"), 404)
+    // Implementors cannot view courses outside ROTC
+    if (authUser.role === RoleType.IMPLEMENTOR && course.nstpType !== NstpType.ROTC) {
+      return c.json(fail("Course not found"), 404)
+    }
     return c.json(ok("Course fetched", course))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Fetch failed"), 400)
@@ -48,6 +53,14 @@ export async function update(c: Context) {
     const authUser = getAuthUser(c)
     const id = c.req.param("id")
     const body = await c.req.json()
+    // An implementor may only update courses that already belong to ROTC —
+    // editing a CWTS course (or any non-ROTC course) would force a program swap.
+    if (authUser.role === RoleType.IMPLEMENTOR) {
+      const existing = await getCourseById(id)
+      if (!existing || existing.nstpType !== NstpType.ROTC) {
+        return c.json(fail("Course not found"), 404)
+      }
+    }
     // Implementors are locked to ROTC and cannot change a course's program to CWTS
     const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (body.nstpType ?? undefined)
     const course = await updateCourse(id, body.code, body.name, nstpType)
@@ -59,7 +72,15 @@ export async function update(c: Context) {
 
 export async function remove(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const id = c.req.param("id")
+    // Implementors may only delete ROTC courses
+    if (authUser.role === RoleType.IMPLEMENTOR) {
+      const existing = await getCourseById(id)
+      if (!existing || existing.nstpType !== NstpType.ROTC) {
+        return c.json(fail("Course not found"), 404)
+      }
+    }
     await deleteCourse(id)
     return c.json(ok("Course deleted"))
   } catch (error) {

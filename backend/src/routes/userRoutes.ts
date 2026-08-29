@@ -21,8 +21,8 @@ userRoutes.use(authMiddleware)
 
 // GET /api/users/ — admin only; validate query params then return a paginated list of users
 userRoutes.get("/", roleGuard([RoleType.ADMIN]), validateQuery(userQuerySchema), list)
-// GET /api/users/:id — Allow all authenticated users to view any user's profile
-userRoutes.get("/:id", getById)
+// GET /api/users/:id — staff roles only (student PII is not public data)
+userRoutes.get("/:id", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.CADET_OFFICER]), getById)
 // POST /api/users/ — admin only; validate body then create a new user account
 userRoutes.post("/", roleGuard([RoleType.ADMIN]), validateBody(userCreateSchema), create)
 // PATCH /api/users/:id — admin only; validate body then update a user's role or active status

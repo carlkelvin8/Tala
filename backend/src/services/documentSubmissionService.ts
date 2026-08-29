@@ -2,6 +2,7 @@ import { DocumentStatus, DocumentType, NstpType, Prisma } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { checkAndMarkAbsences } from "./absenceService.js"
+import { assertUserInProgram } from "./programGuard.js"
 
 export type CreateSubmissionData = {
   docType: DocumentType
@@ -25,7 +26,8 @@ export async function reviewSubmission(
   id: string,
   reviewedById: string,
   status: DocumentStatus,
-  remarks?: string
+  remarks?: string,
+  scopeProgram?: NstpType | null
 ) {
   const existing = await prisma.documentSubmission.findUnique({ where: { id } })
   if (!existing) {
@@ -34,6 +36,9 @@ export async function reviewSubmission(
   if (existing.status !== "PENDING") {
     throw new Error("Submission has already been reviewed")
   }
+  // Scoped staff may only review their own program's students — approving a
+  // submission converts absences to present, so this must stay in-program
+  await assertUserInProgram(existing.userId, scopeProgram)
 
   const updated = await prisma.documentSubmission.update({
     where: { id },

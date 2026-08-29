@@ -20,6 +20,28 @@ async function assertProgramMatch(userId: string, sectionId?: string | null) {
   }
 }
 
+/* Reject duplicate enrollments to the same target (section or flight).
+   The per-user active-enrollment check is not enough: a PENDING/APPROVED
+   enrollment for the same section (or flight) should not be re-created. */
+async function assertNoDuplicateTarget(userId: string, sectionId?: string | null, flightId?: string | null) {
+  if (sectionId) {
+    const dup = await prisma.enrollment.findFirst({
+      where: { userId, sectionId, status: { in: ["PENDING", "APPROVED"] } }
+    })
+    if (dup) {
+      throw new Error("This student is already enrolled in that section")
+    }
+  }
+  if (flightId) {
+    const dup = await prisma.enrollment.findFirst({
+      where: { userId, flightId, status: { in: ["PENDING", "APPROVED"] } }
+    })
+    if (dup) {
+      throw new Error("This student is already enrolled in that flight")
+    }
+  }
+}
+
 export async function createEnrollment(data: { userId: string; sectionId?: string; flightId?: string }) {
   const existing = await prisma.enrollment.findFirst({
     where: { userId: data.userId, status: { not: "REJECTED" } }
@@ -28,6 +50,7 @@ export async function createEnrollment(data: { userId: string; sectionId?: strin
     throw new Error("Student already has an active enrollment")
   }
   await assertProgramMatch(data.userId, data.sectionId)
+  await assertNoDuplicateTarget(data.userId, data.sectionId, data.flightId)
   const enrollment = await prisma.enrollment.create({
     data: {
       userId: data.userId,
@@ -51,6 +74,8 @@ export async function bulkCreateEnrollments(data: { enrollments: { userId: strin
         results.skipped++
         continue
       }
+      await assertProgramMatch(enrollment.userId, enrollment.sectionId)
+      await assertNoDuplicateTarget(enrollment.userId, enrollment.sectionId, enrollment.flightId)
       await prisma.enrollment.create({
         data: {
           userId: enrollment.userId,

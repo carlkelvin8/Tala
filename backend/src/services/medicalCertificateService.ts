@@ -1,7 +1,8 @@
-import { MedicalCertificateStatus, Prisma } from "@prisma/client"
+import { MedicalCertificateStatus, NstpType, Prisma } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { checkAndMarkAbsences } from "./absenceService.js"
+import { assertUserInProgram } from "./programGuard.js"
 
 export async function uploadCertificate(userId: string, data: {
   fileName: string
@@ -24,7 +25,8 @@ export async function reviewCertificate(
   id: string,
   reviewedById: string,
   status: MedicalCertificateStatus,
-  remarks?: string
+  remarks?: string,
+  scopeProgram?: NstpType | null
 ) {
   const existing = await prisma.medicalCertificate.findUnique({ where: { id } })
   if (!existing) {
@@ -33,6 +35,9 @@ export async function reviewCertificate(
   if (existing.status !== "PENDING") {
     throw new Error("Certificate has already been reviewed")
   }
+  // Scoped staff may only review their own program's students — approving a
+  // certificate converts absences to present, so this must stay in-program
+  await assertUserInProgram(existing.userId, scopeProgram)
 
   const updated = await prisma.medicalCertificate.update({
     where: { id },
@@ -101,7 +106,8 @@ export async function listCertificates(
     search?: string
   },
   skip: number,
-  take: number
+  take: number,
+  scopeProgram?: NstpType | null
 ) {
   const where: Prisma.MedicalCertificateWhereInput = {}
 
@@ -113,6 +119,15 @@ export async function listCertificates(
       { reason: { contains: filters.search, mode: "insensitive" } },
       { fileName: { contains: filters.search, mode: "insensitive" } },
     ]
+  }
+  // Scoped staff only see their own program's students
+  if (scopeProgram) {
+    const scope = { OR: [{ program: scopeProgram }, { studentProfile: { section: { course: { nstpType: scopeProgram } } } }] }
+    if (where.OR) {
+      where.OR = [{ AND: [where.OR, { user: scope }] as Prisma.MedicalCertificateWhereInput[] }]
+    } else {
+      where.user = scope
+    }
   }
 
   const [items, total] = await Promise.all([

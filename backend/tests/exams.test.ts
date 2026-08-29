@@ -46,7 +46,8 @@ describe("Exam Routes", () => {
         title: `Exam-${uniqueId()}`,
         description: "Test exam",
         durationMin: 60,
-        scheduledAt: new Date(Date.now() + 86400000).toISOString(),
+        // Scheduled 35 minutes back so the 60-minute take-window is still open
+        scheduledAt: new Date(Date.now() - 35 * 60000).toISOString(),
       }),
     })
     const body = await res.json()
@@ -82,6 +83,26 @@ describe("Exam Routes", () => {
     expect(body.data).toBeInstanceOf(Array)
   })
 
+  it("PATCH /api/exams/:id/status — opens the session for taking (admin)", async () => {
+    const res = await app.request(`/api/exams/${sessionId}/status`, {
+      method: "PATCH",
+      headers: authHeader(adminToken),
+      body: json({ status: "ACTIVE" }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.data.status).toBe("ACTIVE")
+  })
+
+  it("POST /api/exams/attempts — 403 for non-student", async () => {
+    const res = await app.request("/api/exams/attempts", {
+      method: "POST",
+      headers: authHeader(implementorToken),
+      body: json({ examSessionId: sessionId }),
+    })
+    expect(res.status).toBe(403)
+  })
+
   it("POST /api/exams/attempts — starts an attempt (student)", async () => {
     const res = await app.request("/api/exams/attempts", {
       method: "POST",
@@ -92,6 +113,39 @@ describe("Exam Routes", () => {
     expect(res.status).toBe(200)
     expect(body.data.startedAt).toBeDefined()
     attemptId = body.data.id
+  })
+
+  it("POST /api/exams/attempts — rejects a second attempt (single-attempt rule)", async () => {
+    const res = await app.request("/api/exams/attempts", {
+      method: "POST",
+      headers: authHeader(studentToken),
+      body: json({ examSessionId: sessionId }),
+    })
+    const body = await res.json()
+    expect(body.success).toBe(false)
+    expect(body.message).toMatch(/already attempted/)
+  })
+
+  it("POST /api/exams/logs — logs a monitoring event during an active attempt", async () => {
+    const res = await app.request("/api/exams/logs", {
+      method: "POST",
+      headers: authHeader(studentToken),
+      body: json({ examAttemptId: attemptId, event: "tab switch detected" }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.data.event).toBe("tab switch detected")
+  })
+
+  it("POST /api/exams/logs — rejects logging to another student's attempt", async () => {
+    const res = await app.request("/api/exams/logs", {
+      method: "POST",
+      headers: authHeader(implementorToken),
+      body: json({ examAttemptId: attemptId, event: "sabotage" }),
+    })
+    const body = await res.json()
+    expect(body.success).toBe(false)
+    expect(body.message).toMatch(/Forbidden|another student|Unauthorized/i)
   })
 
   it("POST /api/exams/attempts/:id/finish — ends the attempt", async () => {
@@ -111,17 +165,6 @@ describe("Exam Routes", () => {
     })
     const body = await res.json()
     expect(body.success).toBe(false)
-  })
-
-  it("POST /api/exams/logs — logs a monitoring event", async () => {
-    const res = await app.request("/api/exams/logs", {
-      method: "POST",
-      headers: authHeader(studentToken),
-      body: json({ examAttemptId: attemptId, event: "tab switch detected" }),
-    })
-    const body = await res.json()
-    expect(res.status).toBe(200)
-    expect(body.data.event).toBe("tab switch detected")
   })
 
   it("POST /api/exams/:id/questions — creates an identification question (implementor)", async () => {
@@ -202,8 +245,15 @@ describe("Exam Routes", () => {
     expect(body.data.map((q: any) => q.id)).toContain(mcqId)
   })
 
-  it("GET /api/exams — includes question counts", async () => {
-    const res = await app.request("/api/exams", { headers: authHeader(implementorToken) })
+  it("GET /api/exams/:id/questions — 403 for student (answer keys are staff-only)", async () => {
+    const res = await app.request(`/api/exams/${sessionId}/questions`, {
+      headers: authHeader(studentToken),
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it("GET /api/exams — includes question counts (admin, program-agnostic)", async () => {
+    const res = await app.request("/api/exams", { headers: authHeader(adminToken) })
     const body = await res.json()
     expect(res.status).toBe(200)
     const created = body.data.find((s: any) => s.id === sessionId)

@@ -3,7 +3,8 @@ import { ok, fail } from "../lib/response.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { getPagination } from "../lib/pagination.js"
 import { createSubmission, reviewSubmission, listSubmissions, getUserSubmissions } from "../services/documentSubmissionService.js"
-import { DocumentStatus, DocumentType, NstpType, RoleType } from "@prisma/client"
+import { DocumentStatus, DocumentType } from "@prisma/client"
+import { resolveScopeProgram } from "../services/programScope.js"
 
 const DOC_TYPES = Object.values(DocumentType) as string[]
 const STATUSES = Object.values(DocumentStatus) as string[]
@@ -60,7 +61,7 @@ export async function listHandler(c: Context) {
         userId: query.userId,
         status: query.status && STATUSES.includes(query.status) ? (query.status as DocumentStatus) : undefined,
         docType: query.docType && DOC_TYPES.includes(query.docType) ? (query.docType as DocumentType) : undefined,
-        program: authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : undefined,
+        program: resolveScopeProgram(authUser) ?? undefined,
         search: query.search,
       },
       skip,
@@ -84,7 +85,7 @@ export async function reviewHandler(c: Context) {
       return c.json(fail("Invalid status"), 400)
     }
 
-    const submission = await reviewSubmission(id, user.id, status, body.remarks)
+    const submission = await reviewSubmission(id, user.id, status, body.remarks, resolveScopeProgram(user))
     return c.json(ok("Submission reviewed", submission))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Review failed"), 400)

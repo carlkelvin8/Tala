@@ -13,6 +13,8 @@ import {
   listSessionsInRange,
 } from "../services/attendanceSessionService.js"
 import { RoleType } from "@prisma/client"
+import { resolveScopeProgram } from "../services/programScope.js"
+import { prisma } from "../lib/prisma.js"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
   if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
@@ -40,6 +42,7 @@ export async function createSessionHandler(c: Context) {
       requireVerifier: body.requireVerifier, // Whether a verifier must also be in range
       sectionId: body.sectionId,            // Optional section to scope the session
       flightId: body.flightId,              // Optional flight to scope the session
+      scopeProgram: resolveScopeProgram(authUser), // Keep scoped staff inside their program
     })
 
     // Return the created session object
@@ -87,7 +90,8 @@ export async function setVerifierHandler(c: Context) {
       sessionId,        // ID of the session to update
       body.verifierId,  // UUID of the user being assigned as verifier
       body.latitude,    // Verifier's initial GPS latitude
-      body.longitude    // Verifier's initial GPS longitude
+      body.longitude,   // Verifier's initial GPS longitude
+      resolveScopeProgram(getAuthUser(c)) // Prevent cross-program verifier assignment
     )
 
     // Return the updated session object
@@ -156,7 +160,7 @@ export async function getActiveSessionsHandler(c: Context) {
     const sessions = await getActiveSessions({
       sectionId,
       flightId: query.flightId,
-    })
+    }, resolveScopeProgram(authUser))
     return c.json(ok("Active sessions fetched", sessions))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to fetch sessions"), 400)
@@ -181,7 +185,19 @@ export async function endSessionHandler(c: Context) {
 /* GET /api/attendance-sessions/:sessionId/live — live feed for the monitor page */
 export async function getSessionLiveFeedHandler(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const sessionId = c.req.param("sessionId")
+    // Scoped staff may only view sessions of their own program
+    const scopeProgram = resolveScopeProgram(authUser)
+    if (scopeProgram) {
+      const check = await prisma.attendanceSession.findUnique({
+        where: { id: sessionId },
+        select: { section: { select: { course: { select: { nstpType: true } } } } },
+      })
+      if (!check?.section?.course || check.section.course.nstpType !== scopeProgram) {
+        return c.json(fail("Session not found"), 404)
+      }
+    }
     const feed = await getSessionLiveFeed(sessionId)
     return c.json(ok("Live feed fetched", feed))
   } catch (error) {
@@ -192,9 +208,10 @@ export async function getSessionLiveFeedHandler(c: Context) {
 /* GET /api/attendance-sessions/calendar?from&to — sessions in a date range for the calendar */
 export async function listCalendarHandler(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const from = c.req.query("from") ? new Date(c.req.query("from")!) : undefined
     const to = c.req.query("to") ? new Date(c.req.query("to")!) : undefined
-    const items = await listSessionsInRange({ from, to })
+    const items = await listSessionsInRange({ from, to }, resolveScopeProgram(authUser))
     return c.json(ok("Calendar sessions fetched", items))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to fetch calendar"), 400)

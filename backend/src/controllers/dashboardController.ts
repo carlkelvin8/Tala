@@ -8,6 +8,8 @@ import { ok, fail } from "../lib/response.js"
 import { prisma } from "../lib/prisma.js"
 // Import the authenticated user helper
 import { getAuthUser } from "../middlewares/auth.js"
+// Import the program scope helper (OR-filter that also catches legacy null-program students)
+import { programUserScope } from "../services/programScope.js"
 
 /* Count attendance records since a given date for a filter and return the
    attendance rate as a percentage, or null when no records exist. */
@@ -47,14 +49,21 @@ async function resolveProgram(c: Context): Promise<NstpType | null> {
   return null
 }
 
+// Build a Prisma user-where fragment that includes both account-level program and
+// the section-derived program so legacy null-program students are counted too.
+function userProgramFilter(program: NstpType): Record<string, unknown> {
+  const scope = programUserScope(program)
+  return (scope ?? {}) as Record<string, unknown>
+}
+
 /* GET /api/dashboard/ — return aggregated statistics for the dashboard */
 export async function summary(c: Context) {
   // Scope every aggregation to the authenticated user's program (null for admins)
   const program = await resolveProgram(c)
-  const attendanceFilter = program ? { user: { program } } : {}
-  const enrollmentFilter = program ? { user: { program } } : {}
-  const gradeFilter = program ? { student: { program } } : {}
-  const meritFilter = program ? { student: { program } } : {}
+  const attendanceFilter = program ? { user: userProgramFilter(program) } : {}
+  const enrollmentFilter = program ? { user: userProgramFilter(program) } : {}
+  const gradeFilter = program ? { student: userProgramFilter(program) } : {}
+  const meritFilter = program ? { student: userProgramFilter(program) } : {}
 
   // Calculate the date 30 days ago to scope attendance statistics to the last month
   const since = new Date()
@@ -174,10 +183,13 @@ function computeWeightedTotalGrade(
     return { name: category.name, weight: category.weight, score, max }
   })
 
-  const weighted = breakdown.filter((c) => c.weight && c.weight > 0 && c.max > 0)
-  if (weighted.length > 0) {
+  // Weighted roll-up must stay relative to the FULL configured weight, otherwise
+  // categories that have no graded items yet would silently inflate the total.
+  const weighted = breakdown.filter((c) => c.weight && c.weight > 0)
+  const graded = weighted.filter((c) => c.max > 0)
+  if (graded.length > 0) {
     const weightSum = weighted.reduce((sum, c) => sum + (c.weight ?? 0), 0)
-    let total = weighted.reduce((sum, c) => sum + (c.score / c.max) * (c.weight ?? 0), 0)
+    let total = graded.reduce((sum, c) => sum + (c.score / c.max) * (c.weight ?? 0), 0)
     if (weightSum > 0 && weightSum <= 2) total *= 100
     return { breakdown, totalPercent: Math.min(100, Math.max(0, total)) }
   }

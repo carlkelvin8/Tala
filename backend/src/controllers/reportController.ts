@@ -3,6 +3,7 @@ import { ok } from "../lib/response.js"
 import { enrollmentReport, attendanceReport, gradesReport, meritsReport, toCsv } from "../services/reportService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { RoleType } from "@prisma/client"
+import { resolveScopeProgram } from "../services/programScope.js"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
   if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
@@ -12,9 +13,12 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
 }
 
 function parseDateFilters(query: Record<string, string>) {
+  // Ignore malformed date filters instead of crashing the report query
+  const from = query.from ? new Date(query.from) : undefined
+  const to = query.to ? new Date(query.to) : undefined
   return {
-    from: query.from ? new Date(query.from) : undefined,
-    to: query.to ? new Date(query.to) : undefined,
+    from: from && !Number.isNaN(from.getTime()) ? from : undefined,
+    to: to && !Number.isNaN(to.getTime()) ? to : undefined,
   }
 }
 
@@ -22,7 +26,7 @@ export async function enrollmentReportJson(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const data = await enrollmentReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId })
+  const data = await enrollmentReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId }, resolveScopeProgram(authUser))
   return c.json(ok("Enrollment report fetched", data))
 }
 
@@ -30,7 +34,7 @@ export async function enrollmentReportCsv(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const data = await enrollmentReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId })
+  const data = await enrollmentReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId }, resolveScopeProgram(authUser))
   
   const headers = ["ID", "Student Email", "Status", "Section", "Flight", "Created At"]
   
@@ -60,7 +64,7 @@ export async function attendanceReportCsv(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const data = await attendanceReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId })
+  const data = await attendanceReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
     const csv = "Student Email,Date,Status,Check-In Time,Latitude,Longitude"
@@ -88,7 +92,7 @@ export async function gradesReportCsv(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const data = await gradesReport({ sectionId })
+  const data = await gradesReport({ sectionId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
     const csv = "Student Email,Category,Item,Score,Max Score"
@@ -115,7 +119,7 @@ export async function meritsReportCsv(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const data = await meritsReport({ ...parseDateFilters(query), sectionId })
+  const data = await meritsReport({ ...parseDateFilters(query), sectionId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
     const csv = "Student Email,Type,Points,Reason,Created At"

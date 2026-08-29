@@ -2,6 +2,7 @@ import { AttendanceStatus, NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { checkAndMarkAbsences } from "./absenceService.js"
+import { userProgram } from "./programGuard.js"
 import { env } from "../lib/env.js"
 import { createHmac, timingSafeEqual } from "crypto"
 
@@ -67,9 +68,17 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
   }
 
   // A program-scoped scanner (e.g. an ROTC-locked implementor) may only record the
-  // attendance of students who belong to that program.
-  if (scannerProgram && user.program && user.program !== scannerProgram) {
-    throw new Error(`${user.email} belongs to the ${user.program} program. This scanner can only record ${scannerProgram} students.`)
+  // attendance of students who belong to that program. Program is resolved from the
+  // account OR the student's section — legacy null-program students are attributed
+  // through their section rather than silently skipped.
+  if (scannerProgram) {
+    const targetProgram = await userProgram(userId)
+    if (!targetProgram) {
+      throw new Error("Cannot determine this student's program. Contact the administrator.")
+    }
+    if (targetProgram !== scannerProgram) {
+      throw new Error(`${user.email} belongs to the ${targetProgram} program. This scanner can only record ${scannerProgram} students.`)
+    }
   }
 
   const today = new Date()

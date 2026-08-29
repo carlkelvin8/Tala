@@ -23,7 +23,7 @@ export async function checkAndMarkAbsences(userId: string) {
     await createNotification(
       userId,
       "THREE_ABSENCES",
-      "3 Consecutive Absences Warning",
+      "Attendance Warning",
       `You have reached ${MAX_ABSENCES} absences. One more absence will result in failing due to attendance requirements.`
     )
   }
@@ -69,7 +69,7 @@ export async function bulkCheckAbsences() {
       await createNotification(
         student.userId,
         "THREE_ABSENCES",
-        "3 Consecutive Absences Warning",
+        "Attendance Warning",
         `You have reached ${MAX_ABSENCES} absences. One more absence will result in failing due to attendance requirements.`
       )
     }

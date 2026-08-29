@@ -14,7 +14,9 @@ import {
   type Coordinates,     // TypeScript interface for a lat/lon pair
 } from "../lib/geolocation.js"
 // Import the AttendanceStatus enum from Prisma for type-safe status values
-import { AttendanceStatus } from "@prisma/client"
+import { AttendanceStatus, NstpType } from "@prisma/client"
+// Import program guards so scoped staff (implementors) stay inside their program
+import { assertSectionProgram, resolveSectionProgram } from "./programGuard.js"
 
 /* Shape of the result returned by the location verification function */
 interface LocationVerificationResult {
@@ -40,11 +42,20 @@ export async function createSession(data: {
   flightId?: string;
   termId?: string;
   remarks?: string;
+  scopeProgram?: NstpType | null; // Program the caller is locked to (ROTC for implementors)
 }) {
   if (data.hostLatitude !== undefined && data.hostLongitude !== undefined) {
     if (!isValidCoordinates({ latitude: data.hostLatitude, longitude: data.hostLongitude })) {
       throw new Error("Invalid host coordinates");
     }
+  }
+  // Scoped staff must target a section of their own program. Flight-only and
+  // general sessions cannot be attributed to a program and are admin-managed.
+  if (data.scopeProgram) {
+    if (!data.sectionId) {
+      throw new Error("You must scope the session to a section of your program");
+    }
+    await assertSectionProgram(data.sectionId, data.scopeProgram);
   }
 
   const session = await prisma.attendanceSession.create({
@@ -119,11 +130,28 @@ export async function setVerifier(
   sessionId: string,  // UUID of the session to update
   verifierId: string, // UUID of the user being assigned as verifier
   latitude: number,   // Verifier's initial GPS latitude
-  longitude: number   // Verifier's initial GPS longitude
+  longitude: number,   // Verifier's initial GPS longitude
+  scopeProgram?: NstpType | null // Program the caller is locked to
 ) {
   // Validate the verifier's coordinates before persisting them
   if (!isValidCoordinates({ latitude, longitude })) {
     throw new Error("Invalid coordinates");
+  }
+
+  // Scoped staff may only assign a verifier to a session of their own program
+  if (scopeProgram) {
+    const session = await prisma.attendanceSession.findUnique({
+      where: { id: sessionId },
+      select: { sectionId: true },
+    });
+    if (!session) throw new Error("Session not found");
+    if (!session.sectionId) {
+      throw new Error("This session is not scoped to a section and cannot be managed by you");
+    }
+    const targetProgram = await resolveSectionProgram(session.sectionId);
+    if (targetProgram !== scopeProgram) {
+      throw new Error("This session does not belong to your program");
+    }
   }
 
   // Update the session with the verifier's ID and initial location
@@ -351,6 +379,8 @@ export async function markAttendanceWithLocation(
 
   // Use server timestamp as the source of truth for check-in time
   const serverNow = new Date()
+  // A check-in more than 15 minutes after the session started counts as late
+  const isLate = serverNow.getTime() - session.startTime.getTime() > 15 * 60_000
   const record = await prisma.attendanceRecord.create({
     data: {
       userId,
@@ -358,7 +388,7 @@ export async function markAttendanceWithLocation(
       checkInAt: serverNow,
       latitude,
       longitude,
-      status: AttendanceStatus.PRESENT,
+      status: isLate ? AttendanceStatus.LATE : AttendanceStatus.PRESENT,
       sessionId,
       verifiedBy: session.verifierId || undefined,
     },
@@ -378,13 +408,15 @@ export async function markAttendanceWithLocation(
 export async function getActiveSessions(filters?: {
   sectionId?: string; // Optional section ID to filter sessions
   flightId?: string;  // Optional flight ID to filter sessions
-}) {
+}, scopeProgram?: NstpType | null) {
   // Build the where clause — always filter for active sessions
   const where: Record<string, unknown> = { isActive: true };
   // Add optional section filter if provided
   if (filters?.sectionId) where.sectionId = filters.sectionId;
   // Add optional flight filter if provided
   if (filters?.flightId) where.flightId = filters.flightId;
+  // Scoped staff only see their own program's sessions
+  if (scopeProgram) where.OR = [{ section: { course: { nstpType: scopeProgram } } }];
 
   // Fetch active sessions with host, verifier, section, and flight data included
   return prisma.attendanceSession.findMany({
@@ -430,6 +462,11 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
     throw new Error("Only the host can end the session");
   }
 
+  // Idempotency: ending an already-ended session is a no-op error, never a double-write
+  if (!session.isActive) {
+    throw new Error("Session has already been ended");
+  }
+
   // Auto-mark ABSENT for enrolled students who did not check in
   const enrolledStudents = await prisma.studentProfile.findMany({
     where: {
@@ -447,6 +484,14 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
   })
 
   const markedSet = new Set(markedUserIds.map(r => r.userId))
+  // Also skip students who already have an attendance record for this date —
+  // protects against partial failures and the userId+date unique constraint
+  const alreadyRecorded = await prisma.attendanceRecord.findMany({
+    where: { date: session.date, userId: { in: enrolledStudents.map((s) => s.userId) } },
+    select: { userId: true },
+  })
+  for (const rec of alreadyRecorded) markedSet.add(rec.userId)
+
   const absentStudents = enrolledStudents.filter(s => !markedSet.has(s.userId))
 
   if (absentStudents.length > 0) {
@@ -458,6 +503,10 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
         sessionId
       }))
     })
+    // Auto-fail any student whose (new) absence total now exceeds the limit
+    for (const student of absentStudents) {
+      await checkAndMarkAbsences(student.userId)
+    }
   }
 
   // Mark the session as inactive, record end time, and save remarks
@@ -501,12 +550,20 @@ export async function getSessionLiveFeed(sessionId: string) {
     },
   });
 
-  const roster = await prisma.enrollment.count({
-    where: {
-      status: "APPROVED",
-      ...(session.sectionId ? { sectionId: session.sectionId } : {}),
-    },
-  });
+  // Roster = approved enrollments in the session's section AND/OR flight (union).
+  // Sessions with no section/flight have no roster.
+  const roster =
+    session.sectionId || session.flightId
+      ? await prisma.enrollment.count({
+          where: {
+            status: "APPROVED",
+            OR: [
+              ...(session.sectionId ? [{ sectionId: session.sectionId }] : []),
+              ...(session.flightId ? [{ flightId: session.flightId }] : []),
+            ],
+          },
+        })
+      : 0;
 
   const present = records.filter((r) => r.status === "PRESENT").length;
   const late = records.filter((r) => r.status === "LATE").length;
@@ -547,15 +604,22 @@ export async function getSessionLiveFeed(sessionId: string) {
 
 /**
  * Calendar view — attendance sessions within a date range (any role).
+ * Scoped staff only see their own program's sessions.
  */
-export async function listSessionsInRange(filters: { from?: Date; to?: Date }) {
-  const where: Record<string, unknown> = {};
+export async function listSessionsInRange(filters: { from?: Date; to?: Date }, scopeProgram?: NstpType | null) {
+  const ands: Record<string, unknown>[] = [];
   if (filters.from || filters.to) {
-    where.date = {
-      ...(filters.from ? { gte: filters.from } : {}),
-      ...(filters.to ? { lte: filters.to } : {}),
-    };
+    ands.push({
+      date: {
+        ...(filters.from ? { gte: filters.from } : {}),
+        ...(filters.to ? { lte: filters.to } : {}),
+      },
+    });
   }
+  if (scopeProgram) {
+    ands.push({ OR: [{ section: { course: { nstpType: scopeProgram } } }] });
+  }
+  const where = ands.length ? { AND: ands } : {};
   return prisma.attendanceSession.findMany({
     where,
     select: {

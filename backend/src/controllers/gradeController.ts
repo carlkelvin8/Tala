@@ -16,6 +16,7 @@ import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { prisma } from "../lib/prisma.js"
 import { RoleType } from "@prisma/client"
+import { resolveScopeProgram } from "../services/programScope.js"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
   if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
@@ -60,7 +61,7 @@ export async function encode(c: Context) {
     // Parse the JSON body containing studentId, gradeItemId, and score
     const body = await c.req.json()
     // Delegate to the grade service to create the student grade record
-    const grade = await encodeStudentGrade(body.studentId, body.gradeItemId, body.score, authUser.id)
+    const grade = await encodeStudentGrade(body.studentId, body.gradeItemId, body.score, authUser.id, resolveScopeProgram(authUser))
     // Return the created student grade object
     return c.json(ok("Grade encoded", grade))
   } catch (error) {
@@ -73,7 +74,7 @@ export async function list(c: Context) {
   const query = c.req.query()
   const { page, pageSize, skip, take } = getPagination(query)
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const result = await listGrades({ studentId: query.studentId, sectionId }, skip, take)
+  const result = await listGrades({ studentId: query.studentId, sectionId }, skip, take, resolveScopeProgram(authUser))
   return c.json(ok("Grades fetched", result.items, { page, pageSize, total: result.total }))
 }
 
@@ -115,7 +116,7 @@ export async function updateGrade(c: Context) {
     // Parse the JSON body containing the new score
     const body = await c.req.json()
     // Delegate to the grade service to update the score and log the audit event
-    const grade = await updateGradeRecord(id, body.score, authUser.id)
+    const grade = await updateGradeRecord(id, body.score, authUser.id, resolveScopeProgram(authUser))
     // Return the updated grade object
     return c.json(ok("Grade updated", grade))
   } catch (error) {
@@ -131,7 +132,7 @@ export async function deleteGrade(c: Context) {
     // Extract the grade record ID from the URL path parameter
     const id = c.req.param("id")
     // Delegate to the grade service to delete the record and log the audit event
-    await deleteGradeRecord(id, authUser.id)
+    await deleteGradeRecord(id, authUser.id, resolveScopeProgram(authUser))
     // Return a success message with no data payload
     return c.json(ok("Grade deleted"))
   } catch (error) {

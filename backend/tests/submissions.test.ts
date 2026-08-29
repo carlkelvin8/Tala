@@ -84,7 +84,8 @@ describe("Document Submission Routes", () => {
     expect(body.data.every((s: any) => s.user?.program === "CWTS")).toBe(true)
   })
 
-  it("PATCH /api/submissions/:id — approving marks matching absences as present", async () => {
+  it("PATCH /api/submissions/:id — implementor cannot approve another program's student", async () => {
+    // Student is CWTS (set earlier); implantor is locked to ROTC → must be blocked
     await prisma.attendanceRecord.create({
       data: {
         userId: studentUser.id,
@@ -92,7 +93,37 @@ describe("Document Submission Routes", () => {
         status: AttendanceStatus.ABSENT,
       },
     })
+    const attendance = await prisma.attendanceRecord.findFirst({ where: { userId: studentUser.id, date: new Date("2026-08-20") } })
+    attendanceIds.push(attendance!.id)
 
+    const submission = await prisma.documentSubmission.create({
+      data: {
+        userId: studentUser.id,
+        docType: DocumentType.EXCUSE_LETTER,
+        title: "Cross-program submission",
+        fileName: "x.pdf",
+        fileUrl: "data:application/pdf;base64,DDDD",
+        dateFrom: new Date("2026-08-19"),
+        dateTo: new Date("2026-08-21"),
+      },
+    })
+    submissionIds.push(submission.id)
+
+    const res = await app.request(`/api/submissions/${submission.id}`, {
+      method: "PATCH",
+      headers: authHeader(implementorToken),
+      body: json({ status: "APPROVED" }),
+    })
+    const body = await res.json()
+    expect(body.success).toBe(false)
+    const record = await prisma.attendanceRecord.findFirst({
+      where: { userId: studentUser.id, date: new Date("2026-08-20") },
+    })
+    attendanceIds.push(record!.id)
+    expect(record?.status).toBe("ABSENT")
+  })
+
+  it("PATCH /api/submissions/:id — approving marks matching absences as present (admin)", async () => {
     const submission = await prisma.documentSubmission.create({
       data: {
         userId: studentUser.id,
@@ -108,7 +139,7 @@ describe("Document Submission Routes", () => {
 
     const res = await app.request(`/api/submissions/${submission.id}`, {
       method: "PATCH",
-      headers: authHeader(implementorToken),
+      headers: authHeader(adminToken),
       body: json({ status: "APPROVED" }),
     })
     const body = await res.json()

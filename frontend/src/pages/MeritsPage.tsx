@@ -40,6 +40,8 @@ export function MeritsPage() {
   const perms = usePermissions()
   const currentUser = getStoredUser()
   const isStudent = currentUser?.role === "STUDENT"
+  // Merit write operations are ADMIN-only on the backend
+  const canManageMerits = perms.canDelete
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { type: "MERIT" } })
   const [studentSearch, setStudentSearch] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -171,7 +173,7 @@ export function MeritsPage() {
     },
   ]
 
-  const actionsColumn = perms.canCreate ? {
+  const actionsColumn = canManageMerits ? {
     header: "Actions",
     cell: (item: any) => (
       <div className="flex items-center gap-1">
@@ -322,7 +324,7 @@ export function MeritsPage() {
         </FormSection>
       )}
 
-      {perms.canCreate && (
+      {canManageMerits && (
         <FormSection title="Assign Merit/Demerit" description="Track point-based performance changes" className="shadow-card">
           <form className="grid gap-4 md:grid-cols-4" onSubmit={onSubmit}>
             <FormField label="Student" required error={form.formState.errors.studentId?.message}>

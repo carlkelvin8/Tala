@@ -238,7 +238,9 @@ export function TermsPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 w-8 p-0 text-darksilver hover:text-red-600 hover:bg-red-50"
+                  disabled={term.isActive}
+                  title={term.isActive ? "The active term cannot be deleted" : "Delete term"}
+                  className="h-8 w-8 p-0 text-darksilver hover:text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={() => setDeletingTerm(term)}
                 >
                   <Trash2 className="h-4 w-4" />

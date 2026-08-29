@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js"
-import { AttendanceStatus } from "@prisma/client"
+import { AttendanceStatus, NstpType } from "@prisma/client"
+import { programUserScope } from "./programScope.js"
 
 type Badge = { key: string; label: string; icon: string }
 
@@ -21,14 +22,35 @@ export type LeaderboardEntry = {
 
 /**
  * Gamified leaderboard — ranks students by attendance performance,
- * computes streaks, points and badges. Optionally scoped to a section.
+ * computes streaks, points and badges. Optionally scoped to a section,
+ * and always scoped to the caller's program when one is provided.
+ * Aggregation is limited to the current active term when one exists.
  */
-export async function getLeaderboard(filters?: { sectionId?: string }) {
+export async function getLeaderboard(filters?: { sectionId?: string }, scopeProgram?: NstpType | null) {
+  const where: Record<string, unknown> = { status: "ACTIVE" }
+  if (filters?.sectionId) {
+    where.sectionId = filters.sectionId
+    if (scopeProgram) {
+      // A section filter from scoped staff must belong to their program
+      const section = await prisma.section.findUnique({
+        where: { id: filters.sectionId },
+        select: { course: { select: { nstpType: true } } },
+      })
+      if (!section?.course || section.course.nstpType !== scopeProgram) {
+        throw new Error("Section does not belong to your program")
+      }
+    }
+  } else if (scopeProgram) {
+    const scope = programUserScope(scopeProgram)
+    if (scope) where.user = scope
+  }
+
+  // Current active term bounds the aggregation window
+  const term = await prisma.academicTerm.findFirst({ where: { isActive: true } })
+  const recordWindow = { ...(term ? { date: { gte: term.startDate, lte: term.endDate } } : {}) }
+
   const students = await prisma.studentProfile.findMany({
-    where: {
-      status: "ACTIVE",
-      ...(filters?.sectionId ? { sectionId: filters.sectionId } : {}),
-    },
+    where,
     select: {
       userId: true,
       firstName: true,
@@ -42,7 +64,7 @@ export async function getLeaderboard(filters?: { sectionId?: string }) {
 
   for (const student of students) {
     const records = await prisma.attendanceRecord.findMany({
-      where: { userId: student.userId },
+      where: { userId: student.userId, ...recordWindow },
       orderBy: { date: "desc" },
       select: { status: true, checkInAt: true },
     })
@@ -91,7 +113,8 @@ export async function getLeaderboard(filters?: { sectionId?: string }) {
     })
   }
 
-  entries.sort((a, b) => b.points - a.points || b.attendanceRate - a.attendanceRate)
+  // Rank by points, then attendance rate, then name for a stable order
+  entries.sort((a, b) => b.points - a.points || b.attendanceRate - a.attendanceRate || a.name.localeCompare(b.name))
   entries.forEach((entry, index) => {
     entry.rank = index + 1
   })

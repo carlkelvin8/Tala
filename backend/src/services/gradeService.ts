@@ -2,6 +2,10 @@
 import { prisma } from "../lib/prisma.js"
 // Import the audit logging helper to record grade management events
 import { logAudit } from "./auditService.js"
+// Import program scoping helpers to keep program-locked accounts inside their program
+import { assertUserInProgram } from "./programGuard.js"
+import { programUserScope } from "./programScope.js"
+import { NstpType } from "@prisma/client"
 
 /* Create a new grade category */
 export async function createGradeCategory(name: string, weight?: number) {
@@ -24,7 +28,9 @@ export async function createGradeItem(title: string, maxScore: number, categoryI
 }
 
 /* Record a student's score for a specific grade item */
-export async function encodeStudentGrade(studentId: string, gradeItemId: string, score: number, encodedById: string) {
+export async function encodeStudentGrade(studentId: string, gradeItemId: string, score: number, encodedById: string, scopeProgram?: NstpType | null) {
+  // A score can never be negative
+  if (score < 0) throw new Error("Score cannot be negative")
   // Check for existing grade for this student and grade item
   const existing = await prisma.studentGrade.findFirst({
     where: { studentId, gradeItemId }
@@ -40,6 +46,8 @@ export async function encodeStudentGrade(studentId: string, gradeItemId: string,
   if (score > gradeItem.maxScore) {
     throw new Error(`Score cannot exceed maximum score of ${gradeItem.maxScore}`)
   }
+  // Scoped staff may only grade students of their own program
+  await assertUserInProgram(studentId, scopeProgram)
   // Insert a new student grade record with the score and the encoder's ID
   const grade = await prisma.studentGrade.create({
     data: { studentId, gradeItemId, score, encodedById } // Link to student, item, and encoder
@@ -51,12 +59,23 @@ export async function encodeStudentGrade(studentId: string, gradeItemId: string,
 }
 
 /* Return a paginated list of student grades with optional filters */
-export async function listGrades(filters: { studentId?: string; sectionId?: string }, skip: number, take: number) {
+export async function listGrades(filters: { studentId?: string; sectionId?: string }, skip: number, take: number, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
   if (filters.studentId) where.studentId = filters.studentId
   if (filters.sectionId) {
     where.student = {
       studentProfile: { sectionId: filters.sectionId }
+    }
+  }
+  // Scoped staff only see grades of students belonging to their program
+  if (scopeProgram && !filters.studentId) {
+    const scope = programUserScope(scopeProgram)
+    if (scope) {
+      if (where.student) {
+        where.student = { AND: [where.student as Record<string, unknown>, scope as Record<string, unknown>] }
+      } else {
+        where.student = scope
+      }
     }
   }
   const [items, total] = await Promise.all([
@@ -87,13 +106,17 @@ export async function listGrades(filters: { studentId?: string; sectionId?: stri
 }
 
 /* Update a student's score for a grade record */
-export async function updateGrade(id: string, score: number, userId: string) {
+export async function updateGrade(id: string, score: number, userId: string, scopeProgram?: NstpType | null) {
+  // A score can never be negative
+  if (score < 0) throw new Error("Score cannot be negative")
   // Fetch the grade record to validate score against max
-  const existing = await prisma.studentGrade.findUnique({ where: { id }, include: { gradeItem: true } })
+  const existing = await prisma.studentGrade.findUnique({ where: { id }, include: { gradeItem: true, student: { select: { id: true } } } })
   if (!existing) throw new Error("Grade not found")
   if (score > existing.gradeItem.maxScore) {
     throw new Error(`Score cannot exceed maximum score of ${existing.gradeItem.maxScore}`)
   }
+  // Scoped staff may only update grades of their own program
+  await assertUserInProgram(existing.student.id, scopeProgram)
   // Update the student grade record with the new score
   const grade = await prisma.studentGrade.update({
     where: { id }, // Target the specific grade record by ID
@@ -106,7 +129,11 @@ export async function updateGrade(id: string, score: number, userId: string) {
 }
 
 /* Permanently delete a student grade record */
-export async function deleteGrade(id: string, userId: string) {
+export async function deleteGrade(id: string, userId: string, scopeProgram?: NstpType | null) {
+  // Scoped staff may only delete grades of their own program
+  const existing = await prisma.studentGrade.findUnique({ where: { id }, select: { student: { select: { id: true } } } })
+  if (!existing) throw new Error("Grade not found")
+  await assertUserInProgram(existing.student.id, scopeProgram)
   // Delete the student grade record from the database
   await prisma.studentGrade.delete({ where: { id } })
   // Log the grade deletion event to the audit trail

@@ -8,6 +8,8 @@ import { hashPassword } from "../lib/password.js"
 import { prisma } from "../lib/prisma.js"
 // Import the audit logging helper to record user management events
 import { logAudit } from "./auditService.js"
+// Import the program scope helper for filtering users by the caller's program
+import { programUserScope } from "./programScope.js"
 
 /* Create a new user account and the appropriate role-specific profile (admin use) */
 export async function createUser(data: {
@@ -100,28 +102,55 @@ export async function updateUser(id: string, data: { role?: RoleType; program?: 
     program,
     ...(data.isActive !== undefined ? { isActive: data.isActive } : {})
   })
+  // Keep the role-specific profile in sync so a role change never leaves the user
+  // without the profile their new role expects (otherwise profile updates P2025).
+  await syncProfileForRole(id, role)
   // Log the user update event to the audit trail
   await logAudit("UPDATE", "User", id)
   // Return the updated user object
   return user
 }
 
-/* Fetch a single user by ID with all role-specific profile relations included */
-export async function getUserById(id: string) {
-  // Fetch the user with all possible profile relations included
-  const user = await prisma.user.findUnique({
-    where: { id }, // Target the specific user by ID
-    include: {
+/* Ensure the user owns the profile row their role requires; create it if missing. */
+async function syncProfileForRole(userId: string, role: RoleType) {
+  if (role === RoleType.STUDENT && !(await prisma.studentProfile.findUnique({ where: { userId } }))) {
+    await prisma.studentProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+  }
+  if (role === RoleType.IMPLEMENTOR && !(await prisma.implementorProfile.findUnique({ where: { userId } }))) {
+    await prisma.implementorProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+  }
+  if (role === RoleType.CADET_OFFICER && !(await prisma.cadetOfficerProfile.findUnique({ where: { userId } }))) {
+    await prisma.cadetOfficerProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+  }
+}
+
+/* Fetch a single user by ID with all role-specific profile relations included.
+     Never returns the password hash. When a program is provided (e.g. an
+     implementor), the user must belong to that program or it resolves to null. */
+export async function getUserById(id: string, program?: NstpType | null) {
+  const scope = programUserScope(program)
+  const user = await prisma.user.findFirst({
+    where: scope ? { id, OR: scope.OR as never } : { id },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      program: true,
+      isActive: true,
+      avatarUrl: true,
+      avatarFrame: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
       studentProfile: {
         include: {
-          section: true, // Include the student's assigned section
-          flight: true   // Include the student's assigned flight
+          section: true,
+          flight: true
         }
       },
-      implementorProfile: true,   // Include the implementor profile if applicable
-      cadetOfficerProfile: true   // Include the cadet officer profile if applicable
+      implementorProfile: true,
+      cadetOfficerProfile: true
     }
   })
-  // Return the user object (or null if not found)
   return user
 }

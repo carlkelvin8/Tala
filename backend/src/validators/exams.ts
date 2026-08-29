@@ -33,3 +33,8 @@ export const examQuestionSchema = z.object({
 })
 
 export const examQuestionUpdateSchema = examQuestionSchema.partial()
+
+/* Schema for transitioning an exam session's lifecycle status */
+export const examStatusSchema = z.object({
+  status: z.enum(["SCHEDULED", "ACTIVE", "CLOSED"]) // Publish, open, or close an exam
+})

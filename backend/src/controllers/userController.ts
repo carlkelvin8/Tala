@@ -4,8 +4,11 @@ import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
 // Import the user service functions for business logic
 import { createUser, listUsers, updateUser, getUserById } from "../services/userService.js"
+// Import the program scope helper to lock implementors to ROTC
+import { resolveScopeProgram } from "../services/programScope.js"
 // Import the pagination helper to parse and bound page/pageSize query params
 import { getPagination } from "../lib/pagination.js"
+import { getAuthUser } from "../middlewares/auth.js"
 
 /* POST /api/users/ — create a new user account (admin only) */
 export async function create(c: Context) {
@@ -55,14 +58,17 @@ export async function update(c: Context) {
   }
 }
 
-/* GET /api/users/:id — return a single user's full profile (any authenticated user) */
+/* GET /api/users/:id — return a staff-visible profile (staff roles only, program-scoped) */
 export async function getById(c: Context) {
   try {
     // Extract the user ID from the URL path parameter
     const id = c.req.param("id")
+    const authUser = getAuthUser(c)
+    // Implementors are locked to ROTC — they may only view users of that program
+    const program = resolveScopeProgram(authUser)
     // Delegate to the user service to fetch the user with all role-specific profile relations
-    const user = await getUserById(id)
-    // Return 404 if the user does not exist
+    const user = await getUserById(id, program)
+    // Return 404 if the user does not exist (or is outside the caller's program)
     if (!user) {
       return c.json(fail("User not found"), 404)
     }

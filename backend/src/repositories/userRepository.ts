@@ -26,9 +26,44 @@ export const userRepository = {
   update(id: string, data: { role?: RoleType; program?: "CWTS" | "ROTC" | null; isActive?: boolean }) {
     return prisma.user.update({ where: { id }, data })
   },
-  /* Return a paginated, filtered list of users ordered by creation date descending */
+  /* Return a paginated, filtered list of users ordered by creation date descending.
+     Explicitly selects only non-sensitive fields — never the password hash. */
   list(where: Record<string, unknown>, skip: number, take: number) {
-    return prisma.user.findMany({ where, skip, take, orderBy: { createdAt: "desc" } })
+    return prisma.user.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        program: true,
+        isActive: true,
+        avatarUrl: true,
+        avatarFrame: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        studentProfile: {
+          select: {
+            id: true,
+            studentNo: true,
+            firstName: true,
+            lastName: true,
+            middleName: true,
+            sectionId: true,
+            flightId: true,
+          },
+        },
+        implementorProfile: {
+          select: { id: true, firstName: true, lastName: true, contactNo: true },
+        },
+        cadetOfficerProfile: {
+          select: { id: true, firstName: true, lastName: true, contactNo: true },
+        },
+      },
+    })
   },
   /* Count the total number of users matching the given filter — used for pagination metadata */
   count(where: Record<string, unknown>) {

@@ -56,6 +56,11 @@ export async function updateTerm(id: string, data: { name?: string; startDate?: 
 }
 
 export async function deleteTerm(id: string) {
+  const term = await prisma.academicTerm.findUnique({ where: { id } })
+  if (!term) throw new Error("Term not found")
+  if (term.isActive) {
+    throw new Error("Cannot delete the active term. Activate another term first.")
+  }
   await prisma.academicTerm.delete({ where: { id } })
   await logAudit("DELETE", "AcademicTerm", id)
 }

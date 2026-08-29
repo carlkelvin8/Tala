@@ -1,10 +1,15 @@
 import { prisma } from "../lib/prisma.js"
+import { programUserScope } from "./programScope.js"
+import { NstpType } from "@prisma/client"
 
 /* Fetch enrollment records for reporting, with optional date range and scope filters */
-export async function enrollmentReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }) {
+export async function enrollmentReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
   if (filters.sectionId) where.sectionId = filters.sectionId
   if (filters.flightId) where.flightId = filters.flightId
+  // Scoped staff only export their own program's enrollments (via the student)
+  const scope = programUserScope(scopeProgram)
+  if (scope) where.user = scope
   
   if (filters.from || filters.to) {
     const dateFilter: Record<string, Date> = {}
@@ -31,16 +36,20 @@ export async function enrollmentReport(filters: { from?: Date; to?: Date; sectio
 }
 
 /* Fetch attendance records for reporting */
-export async function attendanceReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }) {
+export async function attendanceReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
-  
+
+  const userScope = programUserScope(scopeProgram)
   if (filters.sectionId || filters.flightId) {
     where.user = {
+      ...(userScope ? { AND: [userScope] as Record<string, unknown>[] } : {}),
       studentProfile: {
         ...(filters.sectionId && { sectionId: filters.sectionId }),
         ...(filters.flightId && { flightId: filters.flightId }),
-      }
+      },
     }
+  } else if (userScope) {
+    where.user = userScope
   }
 
   if (filters.from || filters.to) {
@@ -70,12 +79,21 @@ export async function attendanceReport(filters: { from?: Date; to?: Date; sectio
 }
 
 /* Fetch grade records for reporting */
-export async function gradesReport(filters: { sectionId?: string }) {
+export async function gradesReport(filters: { sectionId?: string }, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
   
   if (filters.sectionId) {
     where.student = {
       studentProfile: { sectionId: filters.sectionId }
+    }
+  }
+  // Scoped staff only export their own program's grades
+  const scope = programUserScope(scopeProgram)
+  if (scope) {
+    if (where.student) {
+      where.student = { AND: [where.student as Record<string, unknown>, scope as Record<string, unknown>] }
+    } else {
+      where.student = scope
     }
   }
 
@@ -98,12 +116,21 @@ export async function gradesReport(filters: { sectionId?: string }) {
 }
 
 /* Fetch merit/demerit records for reporting */
-export async function meritsReport(filters: { from?: Date; to?: Date; sectionId?: string }) {
+export async function meritsReport(filters: { from?: Date; to?: Date; sectionId?: string }, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
   
   if (filters.sectionId) {
     where.student = {
       studentProfile: { sectionId: filters.sectionId }
+    }
+  }
+  // Scoped staff only export their own program's merits
+  const scope = programUserScope(scopeProgram)
+  if (scope) {
+    if (where.student) {
+      where.student = { AND: [where.student as Record<string, unknown>, scope as Record<string, unknown>] }
+    } else {
+      where.student = scope
     }
   }
 

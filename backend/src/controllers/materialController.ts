@@ -4,6 +4,7 @@ import { createMaterial, listMaterials, updateMaterial, deleteMaterial } from ".
 import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { MaterialCategory, RoleType } from "@prisma/client"
+import { resolveScopeProgram } from "../services/programScope.js"
 import { writeFile, mkdir } from "node:fs/promises"
 import { join, extname } from "node:path"
 import { randomUUID } from "node:crypto"
@@ -65,7 +66,7 @@ export async function create(c: Context) {
     // Parse the JSON body containing the material metadata
     const body = await c.req.json()
     // Delegate to the material service, injecting the creator's ID for audit purposes
-    const material = await createMaterial({ ...body, createdById: authUser.id })
+    const material = await createMaterial({ ...body, createdById: authUser.id, scopeProgram: resolveScopeProgram(authUser) })
     // Return the created material object
     return c.json(ok("Material created", material))
   } catch (error) {
@@ -93,7 +94,8 @@ export async function list(c: Context) {
       flightId: query.flightId,
     },
     skip,
-    take
+    take,
+    resolveScopeProgram(authUser)
   )
   return c.json(ok("Materials fetched", result.items, { page, pageSize, total: result.total }))
 }
@@ -108,7 +110,7 @@ export async function update(c: Context) {
     // Parse the JSON body containing the updated fields
     const body = await c.req.json()
     // Delegate to the material service to update the record and log the audit event
-    const material = await updateMaterial(id, body, authUser.id)
+    const material = await updateMaterial(id, body, authUser.id, resolveScopeProgram(authUser))
     // Return the updated material object
     return c.json(ok("Material updated", material))
   } catch (error) {
@@ -124,7 +126,7 @@ export async function remove(c: Context) {
     // Extract the material ID from the URL path parameter
     const id = c.req.param("id")
     // Delegate to the material service to delete the record and log the audit event
-    await deleteMaterial(id, authUser.id)
+    await deleteMaterial(id, authUser.id, resolveScopeProgram(authUser))
     // Return a success message with no data payload
     return c.json(ok("Material deleted"))
   } catch (error) {

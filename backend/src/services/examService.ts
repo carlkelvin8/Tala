@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js"
 // Import the audit logging helper to record exam events
 import { logAudit } from "./auditService.js"
 // Import Prisma types and the question-type enum for type-safe question writes
-import { ExamQuestionType } from "@prisma/client"
+import { ExamQuestionType, NstpType } from "@prisma/client"
 import type { Prisma } from "@prisma/client"
 
 /* Create a new exam session */
@@ -23,9 +23,10 @@ export async function createExamSession(data: {
   return session
 }
 
-export async function listExamSessions(filters?: { sectionId?: string }) {
+export async function listExamSessions(filters?: { sectionId?: string; program?: NstpType }) {
   const where: Record<string, unknown> = {}
   if (filters?.sectionId) where.sectionId = filters.sectionId
+  if (filters?.program) where.OR = [{ section: { course: { nstpType: filters.program } } }]
   return prisma.examSession.findMany({
     where,
     orderBy: { scheduledAt: "desc" },
@@ -104,11 +105,54 @@ export async function deleteExamQuestion(questionId: string) {
   return { id: questionId }
 }
 
-/* Start a new exam attempt for a student */
+/* Transition an exam session's status (publish / open / close) */
+export async function updateExamSessionStatus(examSessionId: string, status: "SCHEDULED" | "ACTIVE" | "CLOSED") {
+  const existing = await prisma.examSession.findUnique({ where: { id: examSessionId } })
+  if (!existing) throw new Error("Exam session not found")
+  const session = await prisma.examSession.update({ where: { id: examSessionId }, data: { status } })
+  await logAudit("UPDATE", "ExamSession", session.id)
+  return session
+}
+
+/* Start a new exam attempt for a student — enforces exam state, membership, and single-attempt */
 export async function startExamAttempt(examSessionId: string, studentId: string) {
+  const session = await prisma.examSession.findUnique({ where: { id: examSessionId } })
+  if (!session) throw new Error("Exam session not found")
+  if (session.status !== "ACTIVE" && session.status !== "SCHEDULED") {
+    throw new Error(`Exam cannot be started while it is ${session.status.toLowerCase()}`)
+  }
+  const now = new Date()
+  if (session.scheduledAt > now) {
+    throw new Error("This exam has not started yet")
+  }
+  const latestStart = new Date(session.scheduledAt.getTime() + session.durationMin * 60_000)
+  if (now > latestStart) {
+    throw new Error("This exam window has already ended")
+  }
+  // Only allow students enrolled in the exam's section/flight to take it
+  if (session.sectionId || session.flightId) {
+    const membership = await prisma.enrollment.findFirst({
+      where: {
+        userId: studentId,
+        status: "APPROVED",
+        OR: [
+          ...(session.sectionId ? [{ sectionId: session.sectionId }] : []),
+          ...(session.flightId ? [{ flightId: session.flightId }] : []),
+        ],
+      },
+    })
+    if (!membership) {
+      throw new Error("You are not enrolled in the section or flight assigned to this exam")
+    }
+  }
+  // One attempt per student per exam — never retake
+  const prior = await prisma.examAttempt.findFirst({ where: { examSessionId, studentId } })
+  if (prior) {
+    throw new Error("You have already attempted this exam")
+  }
   // Create an exam attempt record with the current time as the start time
   const attempt = await prisma.examAttempt.create({
-    data: { examSessionId, studentId, startedAt: new Date() } // Record when the attempt began
+    data: { examSessionId, studentId, startedAt: now } // Record when the attempt began
   })
   // Log the attempt start event to the audit trail
   await logAudit("CREATE", "ExamAttempt", attempt.id, studentId)
@@ -138,8 +182,19 @@ export async function endExamAttempt(id: string, studentId: string) {
   return attempt
 }
 
-/* Log a monitoring event that occurred during an exam attempt */
-export async function logMonitoringEvent(examAttemptId: string, event: string) {
+/* Log a monitoring event for a student's own, in-progress exam attempt */
+export async function logMonitoringEvent(examAttemptId: string, event: string, studentId?: string) {
+  // Verify the attempt exists and (when the caller is a student) belongs to them
+  const attempt = await prisma.examAttempt.findUnique({ where: { id: examAttemptId } })
+  if (!attempt) {
+    throw new Error("Exam attempt not found")
+  }
+  if (studentId !== undefined && attempt.studentId !== studentId) {
+    throw new Error("Unauthorized: this attempt belongs to another student")
+  }
+  if (attempt.endedAt) {
+    throw new Error("Exam attempt already submitted")
+  }
   // Create a monitoring log record linking the event to the exam attempt
   const log = await prisma.monitoringLog.create({ data: { examAttemptId, event } })
   // Log the monitoring event creation to the audit trail

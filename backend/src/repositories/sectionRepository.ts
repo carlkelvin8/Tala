@@ -12,10 +12,13 @@ export const sectionRepository = {
       include: { course: true }
     })
   },
-  update(id: string, data: { code: string; name: string; courseId?: string | null }) {
+  update(id: string, data: { code?: string; name?: string; courseId?: string | null }) {
     return prisma.section.update({ where: { id }, data })
   },
   delete(id: string) {
     return prisma.section.delete({ where: { id } })
+  },
+  getById(id: string) {
+    return prisma.section.findUnique({ where: { id }, include: { course: true } })
   }
 }
