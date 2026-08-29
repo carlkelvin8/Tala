@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { app } from "../src/app.js"
-import { createTestUser, cleanupTestUsers, cleanupTestCourses, cleanupTestSections, cleanupTestTerms, cleanupTestEnrollments, cleanupTestGradeCategories, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
+import { createTestUser, cleanupTestUsers, cleanupTestCourses, cleanupTestSections, cleanupTestTerms, cleanupTestEnrollments, cleanupTestGradeCategories, cleanupTestFlights, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
 import { EnrollmentStatus, RoleType } from "@prisma/client"
 
 describe("Regression guards for Batch 2 fixes", () => {
@@ -9,6 +9,7 @@ describe("Regression guards for Batch 2 fixes", () => {
   const sectionCodes: string[] = []
   const termNames: string[] = []
   const enrollmentIds: string[] = []
+  const flightCodes: string[] = []
   let adminToken = ""
   let implementorToken = ""
   let studentToken = ""
@@ -67,6 +68,7 @@ describe("Regression guards for Batch 2 fixes", () => {
 
   afterAll(async () => {
     await cleanupTestEnrollments(enrollmentIds)
+    await cleanupTestFlights(flightCodes)
     await cleanupTestSections(sectionCodes)
     await cleanupTestCourses(courseCodes)
     await cleanupTestTerms(termNames)
@@ -293,6 +295,111 @@ describe("Regression guards for Batch 2 fixes", () => {
 
     afterAll(async () => {
       await cleanupTestGradeCategories(gradeIds)
+    })
+  })
+
+  describe("Batch 3 audit fixes", () => {
+    it("GET /api/enrollments — a student is blocked from the directory", async () => {
+      const res = await app.request("/api/enrollments", { headers: authHeader(studentToken) })
+      expect(res.status).toBe(403)
+    })
+
+    it("POST /api/attendance/scan — a student cannot proxy-check-in", async () => {
+      const qr = await (await app.request("/api/attendance/qr-token", { headers: authHeader(studentToken) })).json()
+      const res = await app.request("/api/attendance/scan", {
+        method: "POST",
+        headers: authHeader(studentToken),
+        body: json({ token: qr.data.token }),
+      })
+      expect(res.status).toBe(403)
+    })
+
+    it("GET /api/attendance — a student cannot query another student's records", async () => {
+      const other = await createTestUser(RoleType.STUDENT)
+      emails.push(other.email)
+      const res = await app.request(`/api/attendance?userId=${other.id}`, { headers: authHeader(studentToken) })
+      expect(res.status).toBe(403)
+    })
+
+    it("enrollment PATCH — updating the section keeps the flight", async () => {
+      const stud = await createTestUser(RoleType.STUDENT)
+      emails.push(stud.email)
+      const flightCode = `FL-${uniqueId()}`
+      flightCodes.push(flightCode)
+      const flight = (await (await app.request("/api/flights", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ code: flightCode, name: "Preserve Flight" }),
+      })).json()).data
+
+      const enroll = (await (await app.request("/api/enrollments", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ userId: stud.id, flightId: flight.id }),
+      })).json()).data
+      enrollmentIds.push(enroll.id)
+
+      const res = await app.request(`/api/enrollments/${enroll.id}`, {
+        method: "PATCH",
+        headers: authHeader(adminToken),
+        body: json({ sectionId: rotcSectionId }),
+      })
+      const body = await res.json()
+      expect(res.status).toBe(200)
+      expect(body.data.sectionId).toBe(rotcSectionId)
+      expect(body.data.flightId).toBe(flight.id)
+    })
+
+    it("PATCH /api/remarks/record/:recordId — implementor cannot touch a CWTS student's record", async () => {
+      const cwtsStud = await createTestUser(RoleType.STUDENT)
+      emails.push(cwtsStud.email)
+      await prisma.studentProfile.update({ where: { userId: cwtsStud.id }, data: { sectionId: cwtsSectionId } })
+
+      const record = await prisma.attendanceRecord.create({
+        data: { userId: cwtsStud.id, date: new Date(), status: "ABSENT" },
+      })
+
+      const res = await app.request(`/api/remarks/record/${record.id}`, {
+        method: "PATCH",
+        headers: authHeader(implementorToken),
+        body: json({ remarks: "Not allowed" }),
+      })
+      expect(res.status).toBe(400)
+    })
+
+    it("student profile section follows the enrollment status", async () => {
+      const stud = await createTestUser(RoleType.STUDENT)
+      emails.push(stud.email)
+      const enroll = (await (await app.request("/api/enrollments", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ userId: stud.id, sectionId: cwtsSectionId }),
+      })).json()).data
+      enrollmentIds.push(enroll.id)
+
+      const approved = await app.request(`/api/enrollments/${enroll.id}/status`, {
+        method: "PATCH",
+        headers: authHeader(adminToken),
+        body: json({ status: "APPROVED" }),
+      })
+      expect(approved.status).toBe(200)
+      const profileAfterApprove = await prisma.studentProfile.findUnique({
+        where: { userId: stud.id },
+        select: { sectionId: true },
+      })
+      expect(profileAfterApprove?.sectionId).toBe(cwtsSectionId)
+
+      const rejected = await app.request(`/api/enrollments/${enroll.id}/status`, {
+        method: "PATCH",
+        headers: authHeader(adminToken),
+        body: json({ status: "REJECTED" }),
+      })
+      expect(rejected.status).toBe(200)
+      const profileAfterReject = await prisma.studentProfile.findUnique({
+        where: { userId: stud.id },
+        select: { sectionId: true },
+      })
+      expect(profileAfterReject?.sectionId).toBe(null)
     })
   })
 })

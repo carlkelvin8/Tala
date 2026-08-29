@@ -50,10 +50,21 @@ export async function list(c: Context) {
   const { page, pageSize, skip, take } = getPagination(query)
   const date = query.date ? new Date(query.date) : undefined
   const sectionId = resolveSectionId(authUser, query.sectionId)
+  // Fail closed: students may only ever browse attendance for themselves, and a
+  // cadet officer may not target someone else's records directly.
+  let userId = query.userId
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    if (userId && userId !== authUser.id) {
+      return c.json(fail("Forbidden"), 403)
+    }
+    if (authUser.role === RoleType.STUDENT) {
+      userId = authUser.id
+    }
+  }
   const result = await listAttendance(
     {
       date,
-      userId: query.userId,
+      userId,
       sectionId,
       flightId: query.flightId,
       program: resolveScopeProgram(authUser, query.program) ?? undefined

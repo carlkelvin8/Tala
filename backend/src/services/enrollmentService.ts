@@ -1,9 +1,21 @@
 import { EnrollmentStatus, NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
+import { userProgram as resolveUserProgram } from "./programGuard.js"
+
+/* Keep the student's profile section in sync with their active enrollment so
+   section-scoped list endpoints never collapse to the whole database. */
+export async function syncStudentSection(userId: string, sectionId: string | null | undefined) {
+  await prisma.studentProfile.updateMany({
+    where: { userId },
+    data: { sectionId: sectionId ?? null }
+  })
+}
 
 /* Reject enrollments that would move a student onto the other NSTP program.
-   ROTC -> CWTS (or CWTS -> ROTC) exchanges are not allowed. */
+   ROTC -> CWTS (or CWTS -> ROTC) exchanges are not allowed.
+   The student's program is whatever it resolves to — account field OR assigned
+   section — so legacy null-program students cannot be moved across programs. */
 async function assertProgramMatch(userId: string, sectionId?: string | null) {
   if (!sectionId) return
   const section = await prisma.section.findUnique({
@@ -12,10 +24,10 @@ async function assertProgramMatch(userId: string, sectionId?: string | null) {
   })
   const sectionProgram = section?.course?.nstpType ?? null
   if (!sectionProgram) return
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { program: true } })
-  if (user?.program && user.program !== sectionProgram) {
+  const program = await resolveUserProgram(userId)
+  if (program && program !== sectionProgram) {
     throw new Error(
-      `Cannot enroll: the student belongs to the ${user.program} program, but this section is under ${sectionProgram}. Program transfers are not allowed.`
+      `Cannot enroll: the student belongs to the ${program} program, but this section is under ${sectionProgram}. Program transfers are not allowed.`
     )
   }
 }
@@ -58,6 +70,7 @@ export async function createEnrollment(data: { userId: string; sectionId?: strin
       flightId: data.flightId
     }
   })
+  await syncStudentSection(data.userId, data.sectionId)
   await logAudit("CREATE", "Enrollment", enrollment.id)
   return enrollment
 }
@@ -83,6 +96,7 @@ export async function bulkCreateEnrollments(data: { enrollments: { userId: strin
           flightId: enrollment.flightId
         }
       })
+      await syncStudentSection(enrollment.userId, enrollment.sectionId)
       results.created++
     } catch (error) {
       results.errors.push(error instanceof Error ? error.message : "Unknown error")
@@ -97,7 +111,6 @@ export async function updateEnrollmentStatus(id: string, status: EnrollmentStatu
   const enrollment = await prisma.enrollment.findFirst({
     where: { id },
     include: {
-      user: { select: { program: true } },
       section: { include: { course: { select: { nstpType: true } } } }
     }
   })
@@ -108,10 +121,10 @@ export async function updateEnrollmentStatus(id: string, status: EnrollmentStatu
   // section may be approved — approving one would complete a prohibited program swap.
   if (status === EnrollmentStatus.APPROVED) {
     const sectionProgram = enrollment.section?.course?.nstpType ?? null
-    const userProgram = enrollment.user?.program ?? null
-    if (sectionProgram && userProgram && sectionProgram !== userProgram) {
+    const userProgramValue = await resolveUserProgram(enrollment.userId)
+    if (sectionProgram && userProgramValue && sectionProgram !== userProgramValue) {
       throw new Error(
-        `Cannot approve: the student belongs to ${userProgram}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
+        `Cannot approve: the student belongs to ${userProgramValue}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
       )
     }
   }
@@ -119,6 +132,12 @@ export async function updateEnrollmentStatus(id: string, status: EnrollmentStatu
     where: { id },
     data: { status }
   })
+  // Profile section follows the (only) active enrollment: PENDING/APPROVED keeps
+  // the section, REJECTED clears it so a rejected student drops out of rosters.
+  await syncStudentSection(
+    enrollment.userId,
+    status === EnrollmentStatus.REJECTED ? null : enrollment.sectionId
+  )
   await logAudit("UPDATE", "Enrollment", id)
   return updated
 }

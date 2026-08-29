@@ -1,11 +1,12 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { createEnrollment, listEnrollments, updateEnrollmentStatus, bulkCreateEnrollments, importStudents as importStudentsService } from "../services/enrollmentService.js"
+import { createEnrollment, listEnrollments, updateEnrollmentStatus, bulkCreateEnrollments, importStudents as importStudentsService, syncStudentSection } from "../services/enrollmentService.js"
 import { getPagination } from "../lib/pagination.js"
 import { EnrollmentStatus, NstpType, RoleType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "../services/auditService.js"
 import { getAuthUser } from "../middlewares/auth.js"
+import { userProgram as resolveUserProgram } from "../services/programGuard.js"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
   if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
@@ -19,7 +20,9 @@ function resolveScopeProgram(authUser: { role: RoleType }): NstpType | undefined
   return authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : undefined
 }
 
-/* Reject section reassignments that would move a student onto the other program */
+/* Reject section reassignments that would move a student onto the other program.
+   Uses the student's resolved program (account OR assigned section) so legacy
+   null-program students cannot be transferred across programs either. */
 async function assertProgramMatch(userId: string, sectionId?: string | null) {
   if (!sectionId) return
   const section = await prisma.section.findUnique({
@@ -28,10 +31,10 @@ async function assertProgramMatch(userId: string, sectionId?: string | null) {
   })
   const sectionProgram = section?.course?.nstpType ?? null
   if (!sectionProgram) return
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { program: true } })
-  if (user?.program && user.program !== sectionProgram) {
+  const program = await resolveUserProgram(userId)
+  if (program && program !== sectionProgram) {
     throw new Error(
-      `Cannot reassign: the student belongs to ${user.program}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
+      `Cannot reassign: the student belongs to ${program}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
     )
   }
 }
@@ -95,25 +98,30 @@ export async function update(c: Context) {
   try {
     const id = c.req.param("id")
     const body = await c.req.json()
-    const enrollment = await prisma.enrollment.findUnique({ where: { id }, select: { userId: true } })
+    const enrollment = await prisma.enrollment.findUnique({ where: { id }, select: { userId: true, sectionId: true, flightId: true } })
     if (!enrollment) {
       return c.json(fail("Enrollment not found"), 404)
     }
-    if (body.sectionId) {
+    // Partial update: only the fields explicitly present are changed, so a PATCH
+    // that moves a student to another section no longer wipes their flight (and vice versa).
+    const data: { sectionId?: string | null; flightId?: string | null } = {}
+    if (body.sectionId !== undefined) {
       await assertProgramMatch(enrollment.userId, body.sectionId)
+      data.sectionId = body.sectionId || null
+    }
+    if (body.flightId !== undefined) {
+      data.flightId = body.flightId || null
     }
     const updated = await prisma.enrollment.update({
       where: { id },
-      data: {
-        sectionId: body.sectionId || null,
-        flightId: body.flightId || null
-      },
+      data,
       include: {
         user: true,
         section: true,
         flight: true
       }
     })
+    await syncStudentSection(enrollment.userId, data.sectionId !== undefined ? data.sectionId : enrollment.sectionId)
     return c.json(ok("Enrollment updated", updated))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)

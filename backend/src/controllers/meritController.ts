@@ -5,13 +5,6 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { getPagination } from "../lib/pagination.js"
 import { MeritType, RoleType } from "@prisma/client"
 
-function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
-  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
-    return authUser.sectionId
-  }
-  return querySectionId
-}
-
 export async function create(c: Context) {
   try {
     const authUser = getAuthUser(c)
@@ -50,15 +43,18 @@ export async function list(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const { page, pageSize, skip, take } = getPagination(query)
-  const sectionId = resolveSectionId(authUser, query.sectionId)
-  const result = await listMerits(
-    {
-      studentId: query.studentId,
-      type: query.type as MeritType | undefined,
-      sectionId
-    },
-    skip,
-    take
-  )
+  const filters: { studentId?: string; type?: MeritType; sectionId?: string } = {
+    studentId: query.studentId,
+    type: query.type as MeritType | undefined
+  }
+  // Fail closed: a student only ever sees merits of their own section (or, when no
+  // section resolves, only their own merit history) — never the whole database.
+  if (authUser.role === RoleType.STUDENT) {
+    filters.sectionId = authUser.sectionId
+    if (!authUser.sectionId) filters.studentId = authUser.id
+  } else {
+    filters.sectionId = query.sectionId
+  }
+  const result = await listMerits(filters, skip, take)
   return c.json(ok("Merit/Demerit fetched", result.items, { page, pageSize, total: result.total }))
 }

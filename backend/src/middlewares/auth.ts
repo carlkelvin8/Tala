@@ -38,6 +38,17 @@ export async function authMiddleware(c: Context, next: Next) {
       select: { sectionId: true }
     })
     sectionId = profile?.sectionId ?? undefined
+    // Fall back to the student's latest APPROVED enrollment section so section
+    // scoping never silently collapses to "entire database" when the profile
+    // field is out of sync (e.g. legacy students or CSV import without a section).
+    if (!sectionId) {
+      const enrollment = await prisma.enrollment.findFirst({
+        where: { userId: user.id, status: "APPROVED" },
+        select: { sectionId: true },
+        orderBy: { createdAt: "desc" }
+      })
+      sectionId = enrollment?.sectionId ?? undefined
+    }
   } else if (user.role === RoleType.CADET_OFFICER) {
     const enrollment = await prisma.enrollment.findFirst({
       where: { userId: user.id, status: "APPROVED" },

@@ -10,7 +10,7 @@ export const enrollmentRoutes = new Hono()
 
 enrollmentRoutes.use(authMiddleware)
 
-enrollmentRoutes.get("/", validateQuery(enrollmentQuerySchema), list)
+enrollmentRoutes.get("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.CADET_OFFICER]), validateQuery(enrollmentQuerySchema), list)
 enrollmentRoutes.post("/", roleGuard([RoleType.ADMIN]), validateBody(enrollmentCreateSchema), create)
 enrollmentRoutes.post("/bulk", roleGuard([RoleType.ADMIN]), bulkCreate)
 enrollmentRoutes.post("/import", roleGuard([RoleType.ADMIN]), importStudentsHandler)

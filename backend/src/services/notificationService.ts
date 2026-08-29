@@ -40,6 +40,7 @@ export async function getUserNotifications(userId: string, unreadOnly = false) {
       ...(unreadOnly && { isRead: false }),
     },
     orderBy: { createdAt: "desc" },
+    take: 100,
   })
 }
 

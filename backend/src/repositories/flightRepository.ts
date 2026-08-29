@@ -15,8 +15,18 @@ export const flightRepository = {
   update(id: string, data: { code?: string; name?: string }) {
     return prisma.flight.update({ where: { id }, data })
   },
-  /* Permanently delete a flight record by its ID */
-  delete(id: string) {
-    return prisma.flight.delete({ where: { id } })
+  /* Permanently delete a flight record by its ID.
+     Flight is referenced by StudentProfile, Enrollment, LearningMaterial,
+     AttendanceSession and ExamSession with no cascade — detach them all in one
+     transaction so deletes never fail with a foreign-key error. */
+  async delete(id: string) {
+    await prisma.$transaction([
+      prisma.studentProfile.updateMany({ where: { flightId: id }, data: { flightId: null } }),
+      prisma.enrollment.updateMany({ where: { flightId: id }, data: { flightId: null } }),
+      prisma.learningMaterial.updateMany({ where: { flightId: id }, data: { flightId: null } }),
+      prisma.attendanceSession.updateMany({ where: { flightId: id }, data: { flightId: null } }),
+      prisma.examSession.updateMany({ where: { flightId: id }, data: { flightId: null } }),
+      prisma.flight.delete({ where: { id } }),
+    ])
   }
 }

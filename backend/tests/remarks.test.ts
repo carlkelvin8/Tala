@@ -77,7 +77,7 @@ describe("Remark Routes", () => {
     const res = await app.request(`/api/remarks/record/${attendanceRecordId}`, {
       method: "PATCH",
       headers: authHeader(adminToken),
-      body: json({ remark: "Arrived 5 minutes late but participated well" }),
+      body: json({ remarks: "Arrived 5 minutes late but participated well" }),
     })
     const body = await res.json()
     expect(res.status).toBe(200)

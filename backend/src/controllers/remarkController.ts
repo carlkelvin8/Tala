@@ -4,13 +4,21 @@ import { addRemark, getRemarksForStudent, addRecordRemark } from "../services/re
 import { getAuthUser } from "../middlewares/auth.js"
 import { getUserById } from "../services/userService.js"
 import { resolveScopeProgram } from "../services/programScope.js"
+import { assertUserInProgram } from "../services/programGuard.js"
 import { getPagination } from "../lib/pagination.js"
+import { prisma } from "../lib/prisma.js"
 import { RoleType } from "@prisma/client"
 
 export async function createRemark(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const body = await c.req.json()
+    // Implementors are locked to ROTC — they may not write remarks on other programs
+    const program = resolveScopeProgram(authUser)
+    if (program) {
+      const target = await getUserById(body.userId, program)
+      if (!target) return c.json(fail("User not found"), 404)
+    }
     const remark = await addRemark(body.userId, body.remark, authUser.id)
     return c.json(ok("Remark added", remark))
   } catch (error) {
@@ -46,10 +54,20 @@ export async function listRemarks(c: Context) {
 
 export async function updateRecordRemark(c: Context) {
   try {
+    const authUser = getAuthUser(c)
     const recordId = c.req.param("recordId")
     const body = await c.req.json()
-    const record = await addRecordRemark(recordId, body.remarks)
-    return c.json(ok("Remark updated", record))
+    // Scope the attendance record's owner to the caller's program before writing
+    const record = await prisma.attendanceRecord.findUnique({
+      where: { id: recordId },
+      select: { userId: true }
+    })
+    if (!record) {
+      return c.json(fail("Attendance record not found"), 404)
+    }
+    await assertUserInProgram(record.userId, resolveScopeProgram(authUser))
+    const updated = await addRecordRemark(recordId, body.remarks)
+    return c.json(ok("Remark updated", updated))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to update remark"), 400)
   }

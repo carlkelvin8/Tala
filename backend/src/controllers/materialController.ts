@@ -6,7 +6,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { MaterialCategory, RoleType } from "@prisma/client"
 import { resolveScopeProgram } from "../services/programScope.js"
 import { writeFile, mkdir } from "node:fs/promises"
-import { join, extname } from "node:path"
+import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 
 // Set of MIME types that are allowed for file uploads — rejects all other types
@@ -19,6 +19,29 @@ const ALLOWED_TYPES = new Set([
 // Maximum file size: 10 MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
+// Content signature check: the declared MIME type must match the file's actual bytes,
+// otherwise a spoofed header could smuggle executable content onto the static /uploads path.
+function detectUploadType(buffer: Uint8Array): string | null {
+  if (buffer.length >= 4 && buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+    return "application/pdf"
+  }
+  if (buffer.length >= 4 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg"
+  }
+  // DOCX (and other Office files) are ZIP archives starting with "PK"
+  if (buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b && (buffer[2] === 0x03 || buffer[2] === 0x05 || buffer[2] === 0x07)) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  }
+  return null
+}
+
+// Safe extension for a validated MIME type — never derived from a client-controlled filename
+const EXT_BY_TYPE: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "image/jpeg": ".jpg",
+}
+
 /* POST /api/materials/upload — handle multipart file upload and save to disk */
 export async function upload(c: Context) {
   try {
@@ -30,24 +53,29 @@ export async function upload(c: Context) {
     if (!file || typeof file === "string") {
       return c.json(fail("No file provided"), 400)
     }
-    // Reject the request if the file's MIME type is not in the allowed set
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return c.json(fail("Unsupported file type. Allowed: PDF, DOCX, JPG"), 400)
-    }
     // Reject the request if the file exceeds the maximum size
     if (file.size > MAX_FILE_SIZE) {
       return c.json(fail(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024} MB`), 400)
     }
-    // Extract the file extension from the original filename; fall back to ".bin" if none
-    const ext = extname(file.name) || ".bin"
+    // Read the file contents into an ArrayBuffer
+    const buffer = new Uint8Array(await file.arrayBuffer())
+    // Reject the request if the declared MIME type is not in the allowed set
+    if (!ALLOWED_TYPES.has(file.type)) {
+      return c.json(fail("Unsupported file type. Allowed: PDF, DOCX, JPG"), 400)
+    }
+    // Verify the file content matches the declared type
+    const detected = detectUploadType(buffer)
+    if (detected !== file.type) {
+      return c.json(fail("File content does not match its declared type"), 400)
+    }
+    // Use a fixed safe extension derived from the validated content
+    const ext = EXT_BY_TYPE[file.type]
     // Generate a unique filename using the current timestamp and a UUID to prevent collisions
     const filename = `${Date.now()}-${randomUUID()}${ext}`
     // Build the absolute path to the uploads directory relative to the process working directory
     const uploadsDir = join(process.cwd(), "uploads")
     // Create the uploads directory if it doesn't already exist (recursive: true prevents errors)
     await mkdir(uploadsDir, { recursive: true })
-    // Read the file contents into an ArrayBuffer
-    const buffer = await file.arrayBuffer()
     // Write the file to disk at the generated path
     await writeFile(join(uploadsDir, filename), Buffer.from(buffer))
     // Return the public URL path, original filename, and file size in the response

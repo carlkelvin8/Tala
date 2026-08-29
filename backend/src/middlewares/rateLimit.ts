@@ -49,6 +49,18 @@ export const rateLimitRegister = rateLimit({ max: 30, windowMs: 60 * 60 * 1000, 
 export const rateLimitRefresh = rateLimit({ max: 30, windowMs: 15 * 60 * 1000, key: (c) => `refresh:${clientIp(c)}` })
 export const rateLimitScan = rateLimit({ max: 60, windowMs: 60 * 1000, key: (c) => `scan:${clientIp(c)}:${c.get("user")?.id || "anonymous"}` })
 
+// Binds password reset attempts per email+IP so the 6-digit demo code (returned in
+// the response while no mail transport is configured) cannot be brute-forced.
+export const rateLimitForgotPassword = rateLimit({
+  max: 10,
+  windowMs: 15 * 60 * 1000,
+  key: async (c) => {
+    const body = await c.req.json<{ email?: string }>()
+    return `forgot:${clientIp(c)}:${body.email?.trim().toLowerCase() || "unknown"}`
+  },
+})
+export const rateLimitResetPassword = rateLimit({ max: 10, windowMs: 15 * 60 * 1000, key: (c) => `reset:${clientIp(c)}` })
+
 setInterval(() => {
   const now = Date.now()
   for (const store of stores) {

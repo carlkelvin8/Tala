@@ -14,3 +14,7 @@ export const remarkSchema = z.object({
   userId: z.string().uuid("Valid student ID is required"),
   remark: z.string().min(1, "Remark is required")
 })
+
+export const recordRemarkSchema = z.object({
+  remarks: z.string().max(2000, "Remarks must be at most 2000 characters")
+})

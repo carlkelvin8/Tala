@@ -3,7 +3,7 @@ import { login, logout, profile, refresh, register, updateAvatar, removeAvatar, 
 import { validateBody } from "../middlewares/zod.js"
 import { authMiddleware } from "../middlewares/auth.js"
 import { changePasswordSchema, loginSchema, refreshSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.js"
-import { rateLimitLogin, rateLimitRefresh, rateLimitRegister } from "../middlewares/rateLimit.js"
+import { rateLimitLogin, rateLimitRefresh, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword } from "../middlewares/rateLimit.js"
 
 export const authRoutes = new Hono()
 
@@ -17,5 +17,5 @@ authRoutes.post("/change-password", authMiddleware, validateBody(changePasswordS
 authRoutes.patch("/avatar", authMiddleware, updateAvatar)
 authRoutes.delete("/avatar", authMiddleware, removeAvatar)
 authRoutes.patch("/avatar-frame", authMiddleware, updateAvatarFrame)
-authRoutes.post("/forgot-password", validateBody(forgotPasswordSchema), forgotPassword)
-authRoutes.post("/reset-password", validateBody(resetPasswordSchema), resetPassword)
+authRoutes.post("/forgot-password", rateLimitForgotPassword, validateBody(forgotPasswordSchema), forgotPassword)
+authRoutes.post("/reset-password", rateLimitResetPassword, validateBody(resetPasswordSchema), resetPassword)
