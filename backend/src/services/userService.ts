@@ -127,10 +127,14 @@ async function syncProfileForRole(userId: string, role: RoleType) {
 /* Fetch a single user by ID with all role-specific profile relations included.
      Never returns the password hash. When a program is provided (e.g. an
      implementor), the user must belong to that program or it resolves to null. */
-export async function getUserById(id: string, program?: NstpType | null) {
+export async function getUserById(id: string, program?: NstpType | null, selfId?: string) {
   const scope = programUserScope(program)
+  // Scoped staff are always allowed to read their own record
+  const where = scope
+    ? { id, OR: [...(scope.OR as { program: NstpType }[]), ...(selfId === id ? [{ id }] : [])] }
+    : { id }
   const user = await prisma.user.findFirst({
-    where: scope ? { id, OR: scope.OR as never } : { id },
+    where: where as never,
     select: {
       id: true,
       email: true,

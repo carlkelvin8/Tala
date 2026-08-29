@@ -67,7 +67,7 @@ export async function getById(c: Context) {
     // Implementors are locked to ROTC — they may only view users of that program
     const program = resolveScopeProgram(authUser)
     // Delegate to the user service to fetch the user with all role-specific profile relations
-    const user = await getUserById(id, program)
+    const user = await getUserById(id, program, authUser.id)
     // Return 404 if the user does not exist (or is outside the caller's program)
     if (!user) {
       return c.json(fail("User not found"), 404)
