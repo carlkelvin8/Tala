@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { app } from "../src/app.js"
-import { createTestUser, cleanupTestUsers, cleanupTestCourses, cleanupTestSections, cleanupTestTerms, cleanupTestEnrollments, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
+import { createTestUser, cleanupTestUsers, cleanupTestCourses, cleanupTestSections, cleanupTestTerms, cleanupTestEnrollments, cleanupTestGradeCategories, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
 import { EnrollmentStatus, RoleType } from "@prisma/client"
 
 describe("Regression guards for Batch 2 fixes", () => {
@@ -244,6 +244,55 @@ describe("Regression guards for Batch 2 fixes", () => {
       const adminBody = await adminRes.json()
       expect(adminRes.status).toBe(200)
       expect(adminBody.data.nstpType).toBe("CWTS")
+    })
+  })
+
+  describe("Student total grade computation", () => {
+    const gradeIds: string[] = []
+    let gradeStudentId = ""
+    let gradeStudentToken = ""
+
+    it("does not inflate when a weighted category has no grades yet", async () => {
+      const stud = await createTestUser(RoleType.STUDENT)
+      emails.push(stud.email)
+      gradeStudentId = stud.id
+      gradeStudentToken = makeToken(stud.id, stud.role)
+
+      // 40% and 60% of the course; only the 40% category is graded at 100%
+      const c40 = (await (await app.request("/api/grades/categories", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ name: `G40-${uniqueId()}`, weight: 40 }),
+      })).json()).data
+      const c60 = (await (await app.request("/api/grades/categories", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ name: `G60-${uniqueId()}`, weight: 60 }),
+      })).json()).data
+      gradeIds.push(c40.id, c60.id)
+
+      const item = (await (await app.request("/api/grades/items", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ title: `Item-${uniqueId()}`, maxScore: 100, categoryId: c40.id }),
+      })).json()).data
+
+      const enc = await app.request("/api/grades", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: gradeStudentId, gradeItemId: item.id, score: 100 }),
+      })
+      expect(enc.status).toBe(200)
+
+      const res = await app.request("/api/dashboard/my", { headers: authHeader(gradeStudentToken) })
+      const body = await res.json()
+      expect(res.status).toBe(200)
+      // 100% of the 40-weight category ÷ the full 100 weight — must NOT read 100
+      expect(body.data.totalGrade.totalPercent).toBe(40)
+    }, 60000)
+
+    afterAll(async () => {
+      await cleanupTestGradeCategories(gradeIds)
     })
   })
 })
