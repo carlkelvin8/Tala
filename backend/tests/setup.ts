@@ -119,6 +119,7 @@ export async function cleanupTestMerits(ids: string[]) {
 
 export async function cleanupTestExamSessions(ids: string[]) {
   if (ids.length === 0) return
+  await prisma.examQuestion.deleteMany({ where: { examSessionId: { in: ids } } })
   await prisma.monitoringLog.deleteMany({ where: { examAttempt: { examSessionId: { in: ids } } } })
   await prisma.examAttempt.deleteMany({ where: { examSessionId: { in: ids } } })
   await prisma.examSession.deleteMany({ where: { id: { in: ids } } })

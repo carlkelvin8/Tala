@@ -12,8 +12,9 @@ import { SectionCard } from "../components/ui/section-card"
 import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
+import { QuestionManager, QuestionCountBadge } from "../components/exams/question-manager"
 import { getStoredUser } from "../lib/auth"
-import { FileText, Sparkles, Camera, CameraOff, Video, VideoOff, Clock, Shield, AlertTriangle, Plus, X, RefreshCw } from "lucide-react"
+import { FileText, Sparkles, Camera, CameraOff, Video, VideoOff, Clock, Shield, AlertTriangle, Plus, X, RefreshCw, ListChecks } from "lucide-react"
 import { motion } from "framer-motion"
 
 export function ExamsPage() {
@@ -31,6 +32,7 @@ export function ExamsPage() {
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createForm, setCreateForm] = useState({ title: "", scheduledAt: "", durationMin: 60 })
+  const [managingSession, setManagingSession] = useState<any | null>(null)
 
   const sessionsQuery = useQuery({
     queryKey: ["exams"],
@@ -232,7 +234,14 @@ export function ExamsPage() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-royal/10">
             <FileText className="h-4 w-4 text-royal" />
           </div>
-          <span className="font-semibold text-black">{session.title}</span>
+          <div className="min-w-0">
+            <span className="block font-semibold text-black">{session.title}</span>
+            {isAdminOrImplementor && (
+              <span className="mt-0.5 block">
+                <QuestionCountBadge count={session._count?.questions} />
+              </span>
+            )}
+          </div>
         </div>
       )
     },
@@ -493,13 +502,26 @@ export function ExamsPage() {
             rowKey={(session) => session.id}
             renderTitle={(session) => session.title}
             renderActions={(session) => (
-              <Button
-                size="sm"
-                onClick={() => startExam(session.durationMin, session.id)}
-                disabled={!cameraEnabled || running}
-              >
-                {running ? "In Progress" : "Start Exam"}
-              </Button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {isAdminOrImplementor && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setManagingSession(session)}
+                    className="flex items-center gap-1.5"
+                  >
+                    <ListChecks className="h-3.5 w-3.5" />
+                    Questions
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => startExam(session.durationMin, session.id)}
+                  disabled={!cameraEnabled || running}
+                >
+                  {running ? "In Progress" : "Start Exam"}
+                </Button>
+              </div>
             )}
           />
         )}
@@ -545,6 +567,18 @@ export function ExamsPage() {
       )}
       </motion.div>
       </motion.div>
+
+      {managingSession && (
+        <QuestionManager
+          key={managingSession.id}
+          session={managingSession}
+          open={!!managingSession}
+          onOpenChange={(open) => {
+            if (!open) setManagingSession(null)
+          }}
+          onQuestionsChange={() => sessionsQuery.refetch()}
+        />
+      )}
     </div>
   )
 }

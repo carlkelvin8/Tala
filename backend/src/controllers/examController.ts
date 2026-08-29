@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { createExamSession, endExamAttempt, listExamSessions, listExamAttempts, logMonitoringEvent, startExamAttempt } from "../services/examService.js"
+import { createExamQuestion, createExamSession, deleteExamQuestion, endExamAttempt, listExamQuestions, listExamSessions, listExamAttempts, logMonitoringEvent, startExamAttempt, updateExamQuestion } from "../services/examService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { RoleType } from "@prisma/client"
 
@@ -86,5 +86,51 @@ export async function logEvent(c: Context) {
     return c.json(ok("Event logged", log))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Log failed"), 400)
+  }
+}
+
+/* POST /api/exams/:id/questions — add a question to an exam session */
+export async function createQuestion(c: Context) {
+  try {
+    const id = c.req.param("id")
+    const body = await c.req.json()
+    const question = await createExamQuestion(id, body)
+    return c.json(ok("Exam question created", question))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Create failed"), 400)
+  }
+}
+
+/* GET /api/exams/:id/questions — list questions for an exam session */
+export async function listQuestions(c: Context) {
+  try {
+    const id = c.req.param("id")
+    const questions = await listExamQuestions(id)
+    return c.json(ok("Exam questions fetched", questions))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch questions"), 400)
+  }
+}
+
+/* PATCH /api/exams/questions/:questionId — update an exam question */
+export async function updateQuestion(c: Context) {
+  try {
+    const questionId = c.req.param("questionId")
+    const body = await c.req.json()
+    const question = await updateExamQuestion(questionId, body)
+    return c.json(ok("Exam question updated", question))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Update failed"), 400)
+  }
+}
+
+/* DELETE /api/exams/questions/:questionId — remove an exam question */
+export async function removeQuestion(c: Context) {
+  try {
+    const questionId = c.req.param("questionId")
+    const result = await deleteExamQuestion(questionId)
+    return c.json(ok("Exam question deleted", result))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Delete failed"), 400)
   }
 }

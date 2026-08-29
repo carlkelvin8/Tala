@@ -51,6 +51,11 @@ enum ExamStatus {
   CLOSED
 }
 
+enum ExamQuestionType {
+  IDENTIFICATION
+  MULTIPLE_CHOICE
+}
+
 enum NstpType {
   CWTS
   ROTC
@@ -379,8 +384,27 @@ model ExamSession {
   section  Section? @relation(fields: [sectionId], references: [id])
   flight   Flight?  @relation(fields: [flightId], references: [id])
   attempts ExamAttempt[]
+  questions ExamQuestion[]
 
   @@index([status])
+}
+
+model ExamQuestion {
+  id            String           @id @default(uuid())
+  examSessionId String
+  type          ExamQuestionType
+  question      String
+  options       Json?
+  correctAnswer String
+  points        Int              @default(1)
+  order         Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  examSession ExamSession @relation(fields: [examSessionId], references: [id])
+
+  @@index([examSessionId])
+  @@index([type])
 }
 
 model ExamAttempt {

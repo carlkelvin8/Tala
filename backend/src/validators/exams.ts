@@ -21,3 +21,15 @@ export const monitoringLogSchema = z.object({
   examAttemptId: z.string().uuid(), // UUID of the exam attempt this event belongs to
   event: z.string().min(1)          // Description of the monitoring event (e.g. "tab switch detected")
 })
+
+/* Schema for creating/updating an exam question */
+export const examQuestionSchema = z.object({
+  type: z.enum(["IDENTIFICATION", "MULTIPLE_CHOICE"]), // Question type the instructor picks
+  question: z.string().min(1),                         // Question prompt text
+  options: z.array(z.string().min(1)).optional(),      // Answer choices (required for multiple choice)
+  correctAnswer: z.string().min(1),                    // Expected answer
+  points: z.number().int().positive().default(1),      // Points awarded per question
+  order: z.number().int().nonnegative().default(0)     // Display order within the exam
+})
+
+export const examQuestionUpdateSchema = examQuestionSchema.partial()
