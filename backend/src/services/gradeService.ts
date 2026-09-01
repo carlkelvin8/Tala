@@ -30,15 +30,18 @@ export function computeWeightedTotalGrade(
     return { name: category.name, weight: category.weight, score, max }
   })
 
-  // Weighted roll-up must stay relative to the FULL configured weight, otherwise
-  // categories that have no graded items yet would silently inflate the total.
+  // The total is computed only from categories that have graded items. Weights of
+  // graded categories are renormalized so categories with no grades yet do not
+  // weigh the total down (e.g. only a 40-weight category graded at 100% => 100%).
   const weighted = breakdown.filter((c) => c.weight && c.weight > 0)
   const graded = weighted.filter((c) => c.max > 0)
   if (graded.length > 0) {
-    const weightSum = weighted.reduce((sum, c) => sum + (c.weight ?? 0), 0)
-    let total = graded.reduce((sum, c) => sum + (c.score / c.max) * (c.weight ?? 0), 0)
-    if (weightSum > 0 && weightSum <= 2) total *= 100
-    return { breakdown, totalPercent: Math.min(100, Math.max(0, total)) }
+    const gradedWeightSum = graded.reduce((sum, c) => sum + (c.weight ?? 0), 0)
+    if (gradedWeightSum > 0) {
+      const raw = graded.reduce((sum, c) => sum + ((c.score / c.max) * (c.weight ?? 0)), 0)
+      const total = (raw / gradedWeightSum) * 100
+      return { breakdown, totalPercent: Math.min(100, Math.max(0, total)) }
+    }
   }
 
   const score = breakdown.reduce((sum, c) => sum + c.score, 0)

@@ -254,7 +254,7 @@ describe("Regression guards for Batch 2 fixes", () => {
     let gradeStudentId = ""
     let gradeStudentToken = ""
 
-    it("does not inflate when a weighted category has no grades yet", async () => {
+    it("ignores ungraded categories for the total grade (graded categories only)", async () => {
       const stud = await createTestUser(RoleType.STUDENT)
       emails.push(stud.email)
       gradeStudentId = stud.id
@@ -289,8 +289,9 @@ describe("Regression guards for Batch 2 fixes", () => {
       const res = await app.request("/api/dashboard/my", { headers: authHeader(gradeStudentToken) })
       const body = await res.json()
       expect(res.status).toBe(200)
-      // 100% of the 40-weight category ÷ the full 100 weight — must NOT read 100
-      expect(body.data.totalGrade.totalPercent).toBe(40)
+      // The 60-weight category has no grades, so the total renormalizes over the
+      // graded 40-weight category only, which is at 100% => 100.
+      expect(body.data.totalGrade.totalPercent).toBe(100)
     }, 60000)
 
     afterAll(async () => {

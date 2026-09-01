@@ -127,9 +127,10 @@ describe("Grade Routes", () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     const row = body.data.find((g: any) => g.id === gradeIds[0])
-    // Category (Midterm, weight 40) with one graded item (85/100) => 34%.
+    // Category (Midterm, weight 40) with one graded item (85/100). The total is
+    // renormalized over graded categories only => 85/100 = 85%.
     expect(row).toBeDefined()
-    expect(row.totalGrade).toBe(34)
+    expect(row.totalGrade).toBe(85)
   })
 
   it("PATCH /api/grades/:id — updates a grade", async () => {
