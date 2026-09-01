@@ -94,7 +94,7 @@ export function App() {
         <Route path="/courses" element={<Navigate to="/courses/rotc" replace />} />
         <Route path="/sections" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><SectionsPage /></ProtectedRoute>} />
         <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
-        <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><MaterialsPage /></ProtectedRoute>} />
+        <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><MaterialsPage /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><AttendancePage /></ProtectedRoute>} />
         <Route path="/scanner" element={<ProtectedRoute roles={["IMPLEMENTOR"]}><ScannerPage /></ProtectedRoute>} />
         <Route path="/training" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TrainingPage /></ProtectedRoute>} />
