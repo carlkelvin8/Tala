@@ -103,6 +103,8 @@ describe("Attendance Routes", () => {
     const body = await res.json()
     expect(res.status).toBe(200)
     expect(body.data).toBeDefined()
+    // QR token should remain valid for 6 days
+    expect(body.data.expiresIn).toBe(6 * 24 * 60 * 60)
   })
 
   it("POST /api/attendance-sessions/:id/end — ends session", async () => {
