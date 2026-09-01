@@ -74,8 +74,14 @@ export async function list(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const { page, pageSize, skip, take } = getPagination(query)
-  const sectionId = resolveSectionId(authUser, query.sectionId)
-  const result = await listGrades({ studentId: query.studentId, sectionId }, skip, take, resolveScopeProgram(authUser))
+
+  // Students and cadet officers may only ever read their own grades — never a
+  // caller-supplied studentId. Their own studentId fully scopes the results, so
+  // no additional section filter is applied.
+  const isSelfScoped = authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER
+  const studentId = isSelfScoped ? authUser.id : query.studentId
+  const sectionId = isSelfScoped ? undefined : resolveSectionId(authUser, query.sectionId)
+  const result = await listGrades({ studentId, sectionId }, skip, take, resolveScopeProgram(authUser))
 
   // Compute the weighted total grade per student present in this page so each
   // grade row can show the student's overall grade alongside the individual score.

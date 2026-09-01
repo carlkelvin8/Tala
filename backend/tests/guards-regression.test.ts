@@ -294,6 +294,79 @@ describe("Regression guards for Batch 2 fixes", () => {
       expect(body.data.totalGrade.totalPercent).toBe(100)
     }, 60000)
 
+    it("student with enrollment-based section (null profile sectionId) sees their own grades", async () => {
+      // Reproduces the seeded-data scenario: studentProfile.sectionId is null but
+      // the student has an APPROVED enrollment, so auth falls back to the
+      // enrollment section. The /api/grades?studentId= self-query must still
+      // return their grades instead of an empty list.
+      const stud = await createTestUser(RoleType.STUDENT)
+      emails.push(stud.email)
+      const studToken = makeToken(stud.id, stud.role)
+
+      await prisma.enrollment.create({
+        data: { userId: stud.id, sectionId: rotcSectionId, status: EnrollmentStatus.APPROVED },
+      })
+
+      const cat = (await (await app.request("/api/grades/categories", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ name: `SG-${uniqueId()}`, weight: 100 }),
+      })).json()).data
+      gradeIds.push(cat.id)
+      const item = (await (await app.request("/api/grades/items", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ title: `SGItem-${uniqueId()}`, maxScore: 100, categoryId: cat.id }),
+      })).json()).data
+      const enc = await app.request("/api/grades", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: stud.id, gradeItemId: item.id, score: 88 }),
+      })
+      expect(enc.status).toBe(200)
+
+      const res = await app.request(`/api/grades?studentId=${stud.id}`, { headers: authHeader(studToken) })
+      const body = await res.json()
+      expect(res.status).toBe(200)
+      expect(Array.isArray(body.data)).toBe(true)
+      expect(body.data.length).toBeGreaterThan(0)
+      // Total reflects the single graded category at 88/100.
+      expect(body.data[0].totalGrade).toBe(88)
+    }, 60000)
+
+    it("student cannot read another student's grades via studentId param", async () => {
+      const victim = await createTestUser(RoleType.STUDENT)
+      emails.push(victim.email)
+
+      const cat = (await (await app.request("/api/grades/categories", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ name: `VIC-${uniqueId()}`, weight: 100 }),
+      })).json()).data
+      gradeIds.push(cat.id)
+      const item = (await (await app.request("/api/grades/items", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ title: `VICItem-${uniqueId()}`, maxScore: 100, categoryId: cat.id }),
+      })).json()).data
+      const enc = await app.request("/api/grades", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: victim.id, gradeItemId: item.id, score: 100 }),
+      })
+      expect(enc.status).toBe(200)
+
+      // The caller (studentToken's own student) requests the victim's id — the
+      // server must force the query to the caller's own id, so no victim row
+      // appears even though the victim has a grade.
+      const res = await app.request(`/api/grades?studentId=${victim.id}`, { headers: authHeader(studentToken) })
+      const body = await res.json()
+      expect(res.status).toBe(200)
+      expect(Array.isArray(body.data)).toBe(true)
+      const victimRows = body.data.filter((g: any) => g.studentId === victim.id)
+      expect(victimRows.length).toBe(0)
+    }, 60000)
+
     afterAll(async () => {
       await cleanupTestGradeCategories(gradeIds)
     })

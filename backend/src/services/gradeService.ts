@@ -137,7 +137,11 @@ export async function encodeStudentGrade(studentId: string, gradeItemId: string,
 export async function listGrades(filters: { studentId?: string; sectionId?: string }, skip: number, take: number, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
   if (filters.studentId) where.studentId = filters.studentId
-  if (filters.sectionId) {
+  // Only scope by section when listing across students. A specific studentId
+  // already restricts to that student's own grades; combining it with a section
+  // filter can collide when a student's section is carried on the enrollment
+  // rather than the profile (legacy/imported students).
+  if (filters.sectionId && !filters.studentId) {
     where.student = {
       studentProfile: { sectionId: filters.sectionId }
     }
