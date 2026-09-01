@@ -122,6 +122,16 @@ describe("Grade Routes", () => {
     expect(body.data).toBeInstanceOf(Array)
   })
 
+  it("GET /api/grades — includes the weighted total grade per student", async () => {
+    const res = await app.request("/api/grades", { headers: authHeader(adminToken) })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    const row = body.data.find((g: any) => g.id === gradeIds[0])
+    // Category (Midterm, weight 40) with one graded item (85/100) => 34%.
+    expect(row).toBeDefined()
+    expect(row.totalGrade).toBe(34)
+  })
+
   it("PATCH /api/grades/:id — updates a grade", async () => {
     const id = gradeIds[0]
     const res = await app.request(`/api/grades/${id}`, {

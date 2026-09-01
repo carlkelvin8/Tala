@@ -111,7 +111,7 @@ export function RegisterPage() {
         <FormField label="Role" htmlFor="role" required>
           <Select id="role" className="h-9" {...form.register("role")}>
             <option value="STUDENT">Student</option>
-            <option value="IMPLEMENTOR">Implementor (ROTC)</option>
+            <option value="IMPLEMENTOR">Implementer (ROTC)</option>
             <option value="CADET_OFFICER">Cadet Officer (ROTC)</option>
             <option value="ADMIN">Admin</option>
           </Select>

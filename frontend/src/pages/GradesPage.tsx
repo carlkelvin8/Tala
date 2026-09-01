@@ -260,6 +260,22 @@ export function GradesPage() {
         </span>
       )
     },
+    {
+      header: "Total",
+      cell: (grade: any) => {
+        const total = grade.totalGrade
+        if (total == null) return <span className="text-xs text-darksilver">—</span>
+        const isGood = total >= 75
+        return (
+          <span className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold",
+            isGood ? "text-emerald-600 bg-emerald-50" : "text-red-600 bg-red-50"
+          )}>
+            {Math.round(total)}%
+          </span>
+        )
+      }
+    },
     ...(perms.canEdit || perms.canDelete ? [{
       header: "",
       cell: (grade: any) => (

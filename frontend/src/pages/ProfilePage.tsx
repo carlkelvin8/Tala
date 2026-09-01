@@ -66,7 +66,7 @@ type ProfileResponse = {
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Implementor",
+  IMPLEMENTOR: "Implementer",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student",
 }

@@ -72,10 +72,14 @@ export function SectionCards({ program }: { program?: ProgramType }) {
     },
   ]
 
-  // Net Merits is not shown on implementor dashboards
+  // Net Merits is not shown on implementor dashboards. Students see their
+  // specific enrollment status in the student dashboard, so the aggregate
+  // "Enrollments" count card is hidden for them.
   const visibleCards =
     user?.role === "IMPLEMENTOR"
       ? cardConfig.filter((c) => c.key !== "merits")
+      : user?.role === "STUDENT"
+      ? cardConfig.filter((c) => c.key !== "enrollment")
       : cardConfig
 
   const values: Record<string, string> = {

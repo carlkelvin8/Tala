@@ -148,7 +148,7 @@ function StudentQRView() {
   const qrQuery = useQuery({
     queryKey: ["qr-token"],
     queryFn: () => apiRequest<ApiResponse<{ token: string; expiresIn: number }>>("/api/attendance/qr-token"),
-    refetchInterval: 28_000,
+    refetchOnWindowFocus: false,
   })
 
   useEffect(() => {
@@ -166,17 +166,27 @@ function StudentQRView() {
     return () => clearInterval(timer)
   }, [expiresIn])
 
-  // Auto-refetch when countdown reaches zero
+  // Auto-refetch when countdown reaches zero so a fresh QR is always available
   useEffect(() => {
     if (expiresIn <= 0) {
       qrQuery.refetch()
     }
   }, [expiresIn, qrQuery])
 
-  const progress = (expiresIn / 30) * 100
+  const progress = (expiresIn / (6 * 24 * 60 * 60)) * 100
+
+  function formatRemaining(totalSeconds: number) {
+    if (totalSeconds <= 0) return "0s"
+    const days = Math.floor(totalSeconds / (24 * 60 * 60))
+    const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / 3600)
+    if (days > 0) return `${days}d ${hours}h`
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    if (hours > 0) return `${hours}h ${minutes}m`
+    return `${totalSeconds}s`
+  }
 
   return (
-    <SectionCard title="Your QR Code" description="Show this to your instructor. It refreshes automatically." className="shadow-card">
+    <SectionCard title="Your QR Code" description="Show this to your instructor. It stays valid for 6 days." className="shadow-card">
       <div className="flex flex-col items-center gap-6 py-4">
         {qrQuery.isLoading ? (
           <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl bg-white border border-silver/20">
@@ -193,9 +203,9 @@ function StudentQRView() {
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-xs text-darksilver">
                   <Timer className="h-3.5 w-3.5" />
-                  Refreshes in
+                  Expires in
                 </span>
-                <span className="font-mono text-sm font-semibold text-black tabular-nums">{expiresIn}s</span>
+                <span className="font-mono text-sm font-semibold text-black tabular-nums">{formatRemaining(expiresIn)}</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-silver/20">
                 <div

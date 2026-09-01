@@ -10,7 +10,8 @@ import {
   updateGradeItem as updateGradeItemRecord,
   deleteGradeItem as deleteGradeItemRecord,
   updateGradeCategory as updateGradeCategoryRecord,
-  deleteGradeCategory as deleteGradeCategoryRecord
+  deleteGradeCategory as deleteGradeCategoryRecord,
+  computeStudentsTotalGrades
 } from "../services/gradeService.js"
 import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
@@ -75,7 +76,17 @@ export async function list(c: Context) {
   const { page, pageSize, skip, take } = getPagination(query)
   const sectionId = resolveSectionId(authUser, query.sectionId)
   const result = await listGrades({ studentId: query.studentId, sectionId }, skip, take, resolveScopeProgram(authUser))
-  return c.json(ok("Grades fetched", result.items, { page, pageSize, total: result.total }))
+
+  // Compute the weighted total grade per student present in this page so each
+  // grade row can show the student's overall grade alongside the individual score.
+  const studentIds = [...new Set(result.items.map((g) => g.studentId))]
+  const totals = await computeStudentsTotalGrades(studentIds)
+  const items = result.items.map((g) => ({
+    ...g,
+    totalGrade: totals.get(g.studentId) ?? null,
+  }))
+
+  return c.json(ok("Grades fetched", items, { page, pageSize, total: result.total }))
 }
 
 /* GET /api/grades/categories — return all grade categories */
