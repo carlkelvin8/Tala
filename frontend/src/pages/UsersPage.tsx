@@ -34,7 +34,7 @@ type FormValues = z.infer<typeof schema>
 
 const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
   ADMIN: { label: "Admin", color: "text-violet-600", bg: "bg-violet-50" },
-  IMPLEMENTOR: { label: "Implementor", color: "text-royal", bg: "bg-sky-50" },
+  IMPLEMENTOR: { label: "Implementer", color: "text-royal", bg: "bg-sky-50" },
   CADET_OFFICER: { label: "Cadet Officer", color: "text-amber-600", bg: "bg-amber-50" },
   STUDENT: { label: "Student", color: "text-emerald-600", bg: "bg-emerald-50" },
 }
@@ -152,7 +152,7 @@ export function UsersPage() {
   const summaryCards = [
     { label: "Total Users", value: roleCounts.total, icon: Users, color: "text-black/80", bg: "bg-silver/20" },
     { label: "Admins", value: roleCounts.ADMIN, icon: Shield, color: "text-violet-600", bg: "bg-violet-50" },
-    { label: "Implementors", value: roleCounts.IMPLEMENTOR, icon: UserPlus, color: "text-royal", bg: "bg-sky-50" },
+    { label: "Implementers", value: roleCounts.IMPLEMENTOR, icon: UserPlus, color: "text-royal", bg: "bg-sky-50" },
     { label: "Students", value: roleCounts.STUDENT, icon: User, color: "text-emerald-600", bg: "bg-emerald-50" },
   ]
 
@@ -226,7 +226,7 @@ export function UsersPage() {
           <FormField label="Role" required>
             <Select {...form.register("role")}>
               <option value="STUDENT">Student</option>
-              <option value="IMPLEMENTOR">Implementor</option>
+              <option value="IMPLEMENTOR">Implementer</option>
               <option value="CADET_OFFICER">Cadet Officer</option>
               <option value="ADMIN">Admin</option>
             </Select>
@@ -236,7 +236,7 @@ export function UsersPage() {
               <option value="CWTS">CWTS</option>
               <option value="ROTC">ROTC</option>
             </Select>
-            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementors are locked to ROTC.</p>}
+            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementers are locked to ROTC.</p>}
           </FormField>
           {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>}
           <div className="md:col-span-2">
