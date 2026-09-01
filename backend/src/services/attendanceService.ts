@@ -6,16 +6,11 @@ import { userProgram } from "./programGuard.js"
 import { env } from "../lib/env.js"
 import { createHmac, timingSafeEqual } from "crypto"
 
-const TOKEN_INTERVAL_SEC = 30
-const TOKEN_TOLERANCE_BUCKETS = 2
+const TOKEN_VALIDITY_MS = 6 * 24 * 60 * 60 * 1000 // 6 days
 
-function getTimeBucket(now: Date = new Date()): number {
-  return Math.floor(now.getTime() / 1000 / TOKEN_INTERVAL_SEC)
-}
-
-function sign(userId: string, bucket: number): string {
+function sign(userId: string, expiresAt: number): string {
   return createHmac("sha256", env.qrTokenSecret)
-    .update(`${userId}:${bucket}`)
+    .update(`${userId}:${expiresAt}`)
     .digest("hex")
 }
 
@@ -31,10 +26,10 @@ const userInclude = {
 } as const
 
 export async function generateQRToken(userId: string) {
-  const bucket = getTimeBucket()
-  const token = `${userId}:${bucket}:${sign(userId, bucket)}`
-  const expiresIn = TOKEN_INTERVAL_SEC - (Math.floor(Date.now() / 1000) % TOKEN_INTERVAL_SEC)
-  return { token, expiresIn, bucket }
+  const expiresAt = Date.now() + TOKEN_VALIDITY_MS
+  const token = `${userId}:${expiresAt}:${sign(userId, expiresAt)}`
+  const expiresIn = Math.floor(TOKEN_VALIDITY_MS / 1000)
+  return { token, expiresIn }
 }
 
 export async function scanQR(token: string, scannerId: string, scannerProgram?: NstpType | null) {
@@ -43,18 +38,17 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
     throw new Error("Invalid QR token format")
   }
 
-  const [userId, bucketStr, providedSig] = parts
-  const bucket = parseInt(bucketStr, 10)
-  if (isNaN(bucket)) {
+  const [userId, expiresAtStr, providedSig] = parts
+  const expiresAt = parseInt(expiresAtStr, 10)
+  if (isNaN(expiresAt)) {
     throw new Error("Invalid QR token")
   }
 
-  const currentBucket = getTimeBucket()
-  if (Math.abs(currentBucket - bucket) > TOKEN_TOLERANCE_BUCKETS) {
+  if (Date.now() > expiresAt) {
     throw new Error("QR token expired. Ask the student to show a fresh QR code.")
   }
 
-  const expectedSig = sign(userId, bucket)
+  const expectedSig = sign(userId, expiresAt)
   // Use constant-time comparison to prevent timing attacks
   const sigBuf = Buffer.from(providedSig, "hex")
   const expectedBuf = Buffer.from(expectedSig, "hex")
