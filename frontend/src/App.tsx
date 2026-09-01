@@ -102,7 +102,7 @@ export function App() {
         <Route path="/grades" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><GradesPage /></ProtectedRoute>} />
         <Route path="/merits" element={<ProtectedRoute roles={["ADMIN", "STUDENT"]}><MeritsPage /></ProtectedRoute>} />
         <Route path="/exams" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><ExamsPage /></ProtectedRoute>} />
-        <Route path="/medical-certificates" element={<ProtectedRoute roles={["IMPLEMENTOR", "STUDENT"]}><MedicalCertificatesPage /></ProtectedRoute>} />
+        <Route path="/medical-certificates" element={<ProtectedRoute roles={["IMPLEMENTOR"]}><MedicalCertificatesPage /></ProtectedRoute>} />
         <Route path="/submissions" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><SubmissionsPage /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><ReportsPage /></ProtectedRoute>} />
         <Route path="/certificates" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CertificatesPage /></ProtectedRoute>} />
