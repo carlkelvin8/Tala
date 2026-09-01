@@ -94,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <div className="absolute inset-0 rounded-xl bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
             </div>
             <div className="flex flex-col"> {/* Text block next to the logo */}
-              <span className="text-lg font-bold text-black group-hover:text-black/80 transition-colors">Kalasag-Tala</span> {/* App name that lightens on hover */}
+              <span className="text-lg font-bold text-black group-hover:text-black/80 transition-colors">AviNSTeP</span> {/* App name that lightens on hover */}
               <span className="text-[10px] text-darksilver font-bold uppercase tracking-widest">National Service Training</span> {/* Subtitle in small uppercase */}
             </div>
           </a>

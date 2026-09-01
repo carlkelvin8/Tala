@@ -76,7 +76,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
             <img src="/image.png" alt="Logo" className="h-9 w-9 object-contain" />
           </div>
           <div> {/* Text block next to the logo */}
-            <p className="text-sm font-bold text-black leading-none">Kalasag-Tala</p> {/* App name in bold dark text */}
+            <p className="text-sm font-bold text-black leading-none">AviNSTeP</p> {/* App name in bold dark text */}
             <p className="text-[10px] text-darksilver font-medium mt-1 tracking-wide uppercase">National Service Training Program Management System</p> {/* Subtitle in small uppercase muted text */}
           </div>
         </div>

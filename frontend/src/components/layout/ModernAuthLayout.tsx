@@ -23,7 +23,7 @@ export function ModernAuthLayout({ title, description, children, footer, classNa
                 <img src="/image.png" alt="Logo" className="h-24 w-24 object-contain" />
               </div>
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Tala</h2>
+                <h2 className="text-2xl font-bold text-white tracking-tight">AviNSTeP</h2>
                 <p className="text-xs text-darksilver font-medium tracking-wide uppercase mt-1">National Service Training Program Management System</p>
               </div>
             </div>
@@ -43,7 +43,7 @@ export function ModernAuthLayout({ title, description, children, footer, classNa
                 <img src="/image.png" alt="Logo" className="h-16 w-16 object-contain" />
               </div>
               <div className="text-center">
-                <h2 className="text-lg font-bold text-black tracking-tight">Tala</h2>
+                <h2 className="text-lg font-bold text-black tracking-tight">AviNSTeP</h2>
                 <p className="text-[10px] text-darksilver font-medium tracking-wide uppercase">National Service Training Program Management System</p>
               </div>
             </div>
