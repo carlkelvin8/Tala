@@ -11,7 +11,8 @@ import {
   deleteGradeItem as deleteGradeItemRecord,
   updateGradeCategory as updateGradeCategoryRecord,
   deleteGradeCategory as deleteGradeCategoryRecord,
-  computeStudentsTotalGrades
+  computeStudentsTotalGrades,
+  computeStudentTotalBreakdown
 } from "../services/gradeService.js"
 import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
@@ -93,6 +94,24 @@ export async function list(c: Context) {
   }))
 
   return c.json(ok("Grades fetched", items, { page, pageSize, total: result.total }))
+}
+
+/* GET /api/grades/total — return a single student's combined semester total
+   with a per-category breakdown. Students/cadets are forced to their own id. */
+export async function getTotal(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const query = c.req.query()
+    let studentId = query.studentId
+    if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+      studentId = authUser.id
+    }
+    if (!studentId) return c.json(fail("A studentId is required"), 400)
+    const result = await computeStudentTotalBreakdown(studentId)
+    return c.json(ok("Total fetched", result))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Total fetch failed"), 400)
+  }
 }
 
 /* GET /api/grades/categories — return all grade categories */

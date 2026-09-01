@@ -4,6 +4,7 @@ import {
   createItem,
   encode,
   list,
+  getTotal,
   listCategories,
   listItems,
   updateGrade,
@@ -23,6 +24,7 @@ export const gradeRoutes = new Hono()
 
 gradeRoutes.use(authMiddleware)
 gradeRoutes.get("/", validateQuery(gradeQuerySchema), list)
+gradeRoutes.get("/total", getTotal)
 gradeRoutes.get("/categories", listCategories)
 gradeRoutes.get("/items", listItems)
 gradeRoutes.post("/categories", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(gradeCategorySchema), createCategory)

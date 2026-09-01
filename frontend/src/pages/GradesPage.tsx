@@ -109,6 +109,16 @@ export function GradesPage() {
     enabled: studentSearch.trim().length >= 2
   })
 
+  const totalQuery = useQuery({
+    queryKey: ["grade-total", currentUser?.id],
+    queryFn: () =>
+      apiRequest<ApiResponse<{ totalPercent: number | null; breakdown: Array<{ name: string; weight: number | null; score: number; max: number; percent: number | null }> }>>(
+        isStudent ? `/api/grades/total?studentId=${currentUser?.id}` : "/api/grades/total"
+      ),
+    refetchInterval: 30000,
+    retry: false
+  })
+
   const gradeMutation = useMutation({
     mutationFn: (values: GradeFormValues) =>
       apiRequest<ApiResponse<any>>("/api/grades", { method: "POST", body: JSON.stringify(values) }),
@@ -409,6 +419,50 @@ export function GradesPage() {
 
       {activeTab === "grades" && (
         <>
+          {isStudent && (totalQuery.data?.data ?? null) && (
+            <SectionCard title="Total Grade — This Semester" description="Combined grade across all categories (weighted by category weight)." className="shadow-card">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-2xl shadow-soft",
+                    (totalQuery.data?.data?.totalPercent ?? 0) >= 75 ? "bg-gradient-to-br from-emerald-500 to-emerald-600" : "bg-gradient-to-br from-rose-500 to-rose-600"
+                  )}>
+                    <span className="text-2xl font-extrabold text-white">{Math.round(totalQuery.data?.data?.totalPercent ?? 0)}%</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Semester</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-black">Overall Grade</p>
+                    <p className="text-xs text-darksilver">Combined across all graded categories</p>
+                    {(totalQuery.data?.data?.totalPercent ?? 0) >= 75 ? (
+                      <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Passing</span>
+                    ) : (
+                      <span className="mt-2 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">Failing</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  {(totalQuery.data?.data?.breakdown ?? []).map((cat) => {
+                    const pct = cat.percent
+                    const good = pct != null && pct >= 75
+                    return (
+                      <div key={cat.name} className="flex items-center gap-3">
+                        <span className="w-32 shrink-0 truncate text-xs font-medium text-darksilver">{cat.name}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-silver/30">
+                          <div
+                            className={cn("h-full rounded-full", good ? "bg-emerald-500" : "bg-rose-500")}
+                            style={{ width: `${pct ?? 0}%` }}
+                          />
+                        </div>
+                        <span className={cn("w-14 shrink-0 text-right text-xs font-bold", good ? "text-emerald-600" : "text-rose-500")}>
+                          {pct != null ? `${pct}%` : "—"}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </SectionCard>
+          )}
           {perms.canCreate && (
             <FormSection title="Encode Grade" description="Search for student and enter assessment score." className="shadow-card">
               <form className="space-y-5" onSubmit={onGradeSubmit}>

@@ -367,6 +367,54 @@ describe("Regression guards for Batch 2 fixes", () => {
       expect(victimRows.length).toBe(0)
     }, 60000)
 
+    it("GET /api/grades/total returns own combined semester total and blocks reading another student's", async () => {
+      const stud = await createTestUser(RoleType.STUDENT)
+      emails.push(stud.email)
+      const studToken = makeToken(stud.id, stud.role)
+
+      const victim = await createTestUser(RoleType.STUDENT)
+      emails.push(victim.email)
+
+      const catA = (await (await app.request("/api/grades/categories", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ name: `TOT-${uniqueId()}`, weight: 100 }),
+      })).json()).data
+      gradeIds.push(catA.id)
+      const item = (await (await app.request("/api/grades/items", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ title: `TOTItem-${uniqueId()}`, maxScore: 100, categoryId: catA.id }),
+      })).json()).data
+      const enc = await app.request("/api/grades", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: stud.id, gradeItemId: item.id, score: 88 }),
+      })
+      expect(enc.status).toBe(200)
+      const encVictim = await app.request("/api/grades", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: victim.id, gradeItemId: item.id, score: 100 }),
+      })
+      expect(encVictim.status).toBe(200)
+
+      // Student reading their own total -> 88% from the single 100-weight category.
+      const own = await app.request(`/api/grades/total?studentId=${stud.id}`, { headers: authHeader(studToken) })
+      const ownBody = await own.json()
+      expect(own.status).toBe(200)
+      expect(ownBody.data.totalPercent).toBe(88)
+      expect(Array.isArray(ownBody.data.breakdown)).toBe(true)
+      expect(ownBody.data.breakdown.find((c: any) => c.name === catA.name)?.percent).toBe(88)
+
+      // Student attempts to read the victim's total -> forced to self, so it is
+      // the caller's own total (88), not the victim's (100).
+      const cross = await app.request(`/api/grades/total?studentId=${victim.id}`, { headers: authHeader(studToken) })
+      const crossBody = await cross.json()
+      expect(cross.status).toBe(200)
+      expect(crossBody.data.totalPercent).toBe(88)
+    }, 60000)
+
     afterAll(async () => {
       await cleanupTestGradeCategories(gradeIds)
     })

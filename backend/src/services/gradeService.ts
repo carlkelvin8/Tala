@@ -82,6 +82,36 @@ export async function computeStudentsTotalGrades(studentIds: string[]) {
   return totals
 }
 
+/* Compute a single student's semester total plus a per-category breakdown so
+   the frontend can show how the overall grade is combined across categories. */
+export async function computeStudentTotalBreakdown(studentId: string) {
+  const categories = await prisma.gradeCategory.findMany({
+    orderBy: { createdAt: "asc" },
+    include: {
+      items: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          grades: { where: { studentId }, select: { score: true } },
+        },
+      },
+    },
+  })
+  const scoped = categories.map((category) => ({
+    name: category.name,
+    weight: category.weight,
+    items: category.items.map((item) => ({
+      maxScore: item.maxScore,
+      grades: item.grades.map((g) => ({ score: g.score })),
+    })),
+  }))
+  const { breakdown, totalPercent } = computeWeightedTotalGrade(scoped)
+  const detailed = breakdown.map((c) => {
+    const pct = c.max > 0 ? Math.round((c.score / c.max) * 100) : null
+    return { name: c.name, weight: c.weight, score: c.score, max: c.max, percent: pct }
+  })
+  return { totalPercent, breakdown: detailed }
+}
+
 /* Create a new grade category */
 export async function createGradeCategory(name: string, weight?: number) {
   // Insert a new grade category record with the provided name and optional weight
