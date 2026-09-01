@@ -58,7 +58,7 @@ export function App() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute roles={["CADET_OFFICER", "STUDENT"]}>
+          <ProtectedRoute>
             <DashboardPage />
           </ProtectedRoute>
         }
