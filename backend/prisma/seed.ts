@@ -6,6 +6,7 @@ import {
   AttendanceStatus,
   MeritType,
   ExamStatus,
+  ExamQuestionType,
   NstpType,
   StudentStatus,
 } from "@prisma/client"
@@ -452,6 +453,7 @@ async function main() {
 
   await prisma.monitoringLog.deleteMany()
   await prisma.examAttempt.deleteMany()
+  await prisma.examQuestion.deleteMany()
   await prisma.examSession.deleteMany()
 
   const exam1 = await prisma.examSession.create({
@@ -489,6 +491,44 @@ async function main() {
   })
 
   const examEvents = ["tab_switch", "focus_lost", "face_not_detected", "browser_minimized"]
+
+  // ── Questions (Multiple Choice + Identification) ─────────────────────────
+  const examQuestions = [
+    // NSTP Midterm Examination — weeks 1-4 content
+    { examSessionId: exam1.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "What does NSTP stand for?", options: ["National Service Training Program", "National Security Training Program", "National Student Training Program", "New Service Training Program"], correctAnswer: "National Service Training Program", points: 2, order: 1 },
+    { examSessionId: exam1.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "Which law institutionalized the NSTP?", options: ["RA 9163", "RA 7077", "RA 8044", "RA 8491"], correctAnswer: "RA 9163", points: 2, order: 2 },
+    { examSessionId: exam1.id, type: ExamQuestionType.IDENTIFICATION, question: "The NSTP component focused on civic welfare and community service.", options: null, correctAnswer: "CWTS", points: 2, order: 3 },
+    { examSessionId: exam1.id, type: ExamQuestionType.IDENTIFICATION, question: "The program component preparing students for military training.", options: null, correctAnswer: "ROTC", points: 2, order: 4 },
+    { examSessionId: exam1.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "Which of the following is a core value of good citizenship?", options: ["Discipline", "Procrastination", "Apathy", "Indifference"], correctAnswer: "Discipline", points: 2, order: 5 },
+
+    // NSTP Final Examination — comprehensive
+    { examSessionId: exam2.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "Which agency oversees the NSTP program?", options: ["CHED and TESDA", "DOH only", "DAR only", "NIA only"], correctAnswer: "CHED and TESDA", points: 2, order: 1 },
+    { examSessionId: exam2.id, type: ExamQuestionType.IDENTIFICATION, question: "The acronym for the agency that implements ROTC.", options: null, correctAnswer: "AFP", points: 2, order: 2 },
+    { examSessionId: exam2.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "Disaster Risk Reduction focuses mainly on what?", options: ["Preparedness and Mitigation", "Late response", "Ignoring hazards", "Waste disposal"], correctAnswer: "Preparedness and Mitigation", points: 2, order: 3 },
+    { examSessionId: exam2.id, type: ExamQuestionType.IDENTIFICATION, question: "The first aid acronym for checking responsiveness and breathing.", options: null, correctAnswer: "ABC", points: 2, order: 4 },
+    { examSessionId: exam2.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "Which skill best supports community development?", options: ["Project planning", "Avoiding people", "Hoarding resources", "Gossiping"], correctAnswer: "Project planning", points: 2, order: 5 },
+
+    // ROTC Leadership Quiz
+    { examSessionId: exam3.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "Which is a key trait of an effective leader?", options: ["Integrity", "Indecision", "Arrogance", "Avoidance"], correctAnswer: "Integrity", points: 2, order: 1 },
+    { examSessionId: exam3.id, type: ExamQuestionType.IDENTIFICATION, question: "The process of guiding and directing a group toward a goal.", options: null, correctAnswer: "Leadership", points: 2, order: 2 },
+    { examSessionId: exam3.id, type: ExamQuestionType.MULTIPLE_CHOICE, question: "The chain of command ensures what?", options: ["Clear lines of authority", "Confusion", "Duplication", "Chaos"], correctAnswer: "Clear lines of authority", points: 2, order: 3 },
+    { examSessionId: exam3.id, type: ExamQuestionType.IDENTIFICATION, question: "The principle that each subordinate reports to a single superior.", options: null, correctAnswer: "Unity of command", points: 2, order: 4 },
+  ]
+
+  const questionData = []
+  for (let qi = 0; qi < examQuestions.length; qi++) {
+    const q = examQuestions[qi]
+    questionData.push({
+      examSessionId: q.examSessionId,
+      type: q.type,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      points: q.points,
+      order: q.order,
+    })
+  }
+  await prisma.examQuestion.createMany({ data: questionData })
 
   for (const student of approvedForGrades.slice(0, 6)) {
     const attempt = await prisma.examAttempt.create({
@@ -606,7 +646,8 @@ async function main() {
   console.log(`     Attendance Sessions: 8`)
   console.log(`     Grade Categories:    4`)
   console.log(`     Grade Items:         ${items.length}`)
-  console.log(`     Exam Sessions:       3`)
+  console.log(`     Exam Sessions:       3  (${examQuestions.length} questions: MC + Identification)`)
+  console.log(`     Exam Questions:      ${examQuestions.length} (Multiple Choice + Identification)`)
   console.log(`     Merits/Demerits:     seeded per student`)
   console.log(`     Instructor Remarks:  seeded`)
   console.log(`     Audit Logs:          ${auditEntries.length}`)
