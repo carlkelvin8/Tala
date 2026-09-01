@@ -10,6 +10,8 @@ import { prisma } from "../lib/prisma.js"
 import { getAuthUser } from "../middlewares/auth.js"
 // Import the program scope helper (OR-filter that also catches legacy null-program students)
 import { programUserScope } from "../services/programScope.js"
+// Import the shared weighted-total-grade computation
+import { computeWeightedTotalGrade } from "../services/gradeService.js"
 
 /* Count attendance records since a given date for a filter and return the
    attendance rate as a percentage, or null when no records exist. */
@@ -158,48 +160,6 @@ export async function summary(c: Context) {
       enrollmentCount: enrollmentsApproved // Total number of approved enrollments
     })
   )
-}
-
-/* Compute a student's total grade as a weighted percentage across grade categories.
-   Category weights are treated as percentages (e.g. 30, 40, 30); when they are
-   stored as fractions (sum <= 2), the result is scaled up to a percentage. */
-function computeWeightedTotalGrade(
-  categories: Array<{
-    name: string
-    weight: number | null
-    items: Array<{ maxScore: number; grades: Array<{ score: number }> }>
-  }>
-) {
-  const breakdown = categories.map((category) => {
-    let score = 0
-    let max = 0
-    for (const item of category.items) {
-      const grade = item.grades[0]
-      if (grade) {
-        score += grade.score
-        max += item.maxScore
-      }
-    }
-    return { name: category.name, weight: category.weight, score, max }
-  })
-
-  // Weighted roll-up must stay relative to the FULL configured weight, otherwise
-  // categories that have no graded items yet would silently inflate the total.
-  const weighted = breakdown.filter((c) => c.weight && c.weight > 0)
-  const graded = weighted.filter((c) => c.max > 0)
-  if (graded.length > 0) {
-    const weightSum = weighted.reduce((sum, c) => sum + (c.weight ?? 0), 0)
-    let total = graded.reduce((sum, c) => sum + (c.score / c.max) * (c.weight ?? 0), 0)
-    if (weightSum > 0 && weightSum <= 2) total *= 100
-    return { breakdown, totalPercent: Math.min(100, Math.max(0, total)) }
-  }
-
-  const score = breakdown.reduce((sum, c) => sum + c.score, 0)
-  const max = breakdown.reduce((sum, c) => sum + c.max, 0)
-  return {
-    breakdown,
-    totalPercent: max > 0 ? Math.min(100, Math.max(0, (score / max) * 100)) : null,
-  }
 }
 
 /* GET /api/dashboard/my — personalized summary for the logged-in student:

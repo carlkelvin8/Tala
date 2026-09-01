@@ -7,6 +7,78 @@ import { assertUserInProgram } from "./programGuard.js"
 import { programUserScope } from "./programScope.js"
 import { NstpType } from "@prisma/client"
 
+/* Compute a student's total grade as a weighted percentage across grade categories.
+   Category weights are treated as percentages (e.g. 30, 40, 30); when they are
+   stored as fractions (sum <= 2), the result is scaled up to a percentage. */
+export function computeWeightedTotalGrade(
+  categories: Array<{
+    name: string
+    weight: number | null
+    items: Array<{ maxScore: number; grades: Array<{ score: number }> }>
+  }>
+) {
+  const breakdown = categories.map((category) => {
+    let score = 0
+    let max = 0
+    for (const item of category.items) {
+      const grade = item.grades[0]
+      if (grade) {
+        score += grade.score
+        max += item.maxScore
+      }
+    }
+    return { name: category.name, weight: category.weight, score, max }
+  })
+
+  // Weighted roll-up must stay relative to the FULL configured weight, otherwise
+  // categories that have no graded items yet would silently inflate the total.
+  const weighted = breakdown.filter((c) => c.weight && c.weight > 0)
+  const graded = weighted.filter((c) => c.max > 0)
+  if (graded.length > 0) {
+    const weightSum = weighted.reduce((sum, c) => sum + (c.weight ?? 0), 0)
+    let total = graded.reduce((sum, c) => sum + (c.score / c.max) * (c.weight ?? 0), 0)
+    if (weightSum > 0 && weightSum <= 2) total *= 100
+    return { breakdown, totalPercent: Math.min(100, Math.max(0, total)) }
+  }
+
+  const score = breakdown.reduce((sum, c) => sum + c.score, 0)
+  const max = breakdown.reduce((sum, c) => sum + c.max, 0)
+  return {
+    breakdown,
+    totalPercent: max > 0 ? Math.min(100, Math.max(0, (score / max) * 100)) : null,
+  }
+}
+
+/* Utility to fetch and compute the weighted total grade per student for a given
+   set of student user IDs. Returns a map of userId -> totalPercent (or null). */
+export async function computeStudentsTotalGrades(studentIds: string[]) {
+  if (studentIds.length === 0) return new Map<string, number | null>()
+  const categories = await prisma.gradeCategory.findMany({
+    orderBy: { createdAt: "asc" },
+    include: {
+      items: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          grades: { where: { studentId: { in: studentIds } }, select: { studentId: true, score: true } },
+        },
+      },
+    },
+  })
+  const totals = new Map<string, number | null>()
+  for (const studentId of studentIds) {
+    const scoped = categories.map((category) => ({
+      name: category.name,
+      weight: category.weight,
+      items: category.items.map((item) => ({
+        maxScore: item.maxScore,
+        grades: item.grades.filter((g) => g.studentId === studentId).map((g) => ({ score: g.score })),
+      })),
+    }))
+    totals.set(studentId, computeWeightedTotalGrade(scoped).totalPercent)
+  }
+  return totals
+}
+
 /* Create a new grade category */
 export async function createGradeCategory(name: string, weight?: number) {
   // Insert a new grade category record with the provided name and optional weight
