@@ -17,16 +17,11 @@ type ScanResponse = {
   } | null
 }
 
-declare class BarcodeDetector {
-  constructor(options?: { formats?: string[] })
-  detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
-}
-
 export function ScannerPage() {
   const [isScanning, setIsScanning] = useState(false)
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const scannerRef = useRef<{ stop: () => void; destroy: () => void } | null>(null)
   const processingRef = useRef(false)
   const lastTokenRef = useRef<string | null>(null)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -57,9 +52,12 @@ export function ScannerPage() {
   })
 
   const stopScanning = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
+    if (scannerRef.current) {
+      try {
+        scannerRef.current.stop()
+        scannerRef.current.destroy()
+      } catch { /* scanner may already be shutting down */ }
+      scannerRef.current = null
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -67,29 +65,17 @@ export function ScannerPage() {
     setIsScanning(false)
   }
 
-  const startScanning = async () => {
+  const startScanning = () => {
     if (!navigator.onLine) {
       setScanResult({ success: false, message: "You are offline. Connect to the internet before scanning." })
       return
     }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScanResult({ success: false, message: "Camera access requires HTTPS and a supported browser." })
+      return
+    }
     setIsScanning(true)
     setScanResult(null)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-    } catch (error) {
-      const message = error instanceof DOMException && error.name === "NotAllowedError"
-        ? "Camera access was denied. Enable camera permission in your browser settings, then try again."
-        : "Camera could not start. Check whether another app is using it, then try again."
-      setScanResult({ success: false, message })
-      setIsScanning(false)
-    }
   }
 
   const submitToken = (token: string) => {
@@ -102,44 +88,28 @@ export function ScannerPage() {
   useEffect(() => {
     if (!isScanning || !videoRef.current) return
 
-    let animFrame: number | null = null
     let stopped = false
-    let qrScanner: any = null
 
     async function init() {
-      if (typeof BarcodeDetector !== "undefined") {
-        const detector = new BarcodeDetector({ formats: ["qr_code"] })
-        async function scanFrame() {
-          if (stopped || !videoRef.current) return
-          try {
-            const barcodes = await detector.detect(videoRef.current)
-            if (barcodes.length > 0 && barcodes[0].rawValue) {
-              submitToken(barcodes[0].rawValue)
-              return
-            }
-          } catch { /* ignore */ }
-          animFrame = requestAnimationFrame(scanFrame)
-        }
-        scanFrame()
-      } else {
-        try {
-          if (!videoRef.current) return
-          const video = videoRef.current
-          const QrScanner = (await import("qr-scanner")).default
-          qrScanner = new QrScanner(
-            video,
-            (result: { data: string }) => {
-              if (result?.data) {
-                submitToken(result.data)
-              }
-            },
-            { returnDetailedScanResult: true }
-          )
-          await qrScanner.start()
-        } catch {
-          setScanResult({ success: false, message: "QR scanner not supported in this browser" })
-          stopScanning()
-        }
+      try {
+        const QrScanner = (await import("qr-scanner")).default
+        if (stopped || !videoRef.current) return
+        const scanner = new QrScanner(
+          videoRef.current,
+          (result: { data: string }) => {
+            if (result?.data) submitToken(result.data.trim())
+          },
+          { returnDetailedScanResult: true, preferredCamera: "environment" }
+        )
+        scannerRef.current = scanner
+        await scanner.start()
+      } catch (error) {
+        if (stopped) return
+        const message = error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Camera access was denied. Enable camera permission in your browser settings, then try again."
+          : "Camera could not start. Check browser permissions and make sure no other app is using it."
+        setScanResult({ success: false, message })
+        stopScanning()
       }
     }
 
@@ -147,9 +117,9 @@ export function ScannerPage() {
 
     return () => {
       stopped = true
-      if (animFrame) cancelAnimationFrame(animFrame)
-      if (qrScanner) {
-        try { qrScanner.stop(); qrScanner.destroy() } catch {}
+      if (scannerRef.current) {
+        try { scannerRef.current.stop(); scannerRef.current.destroy() } catch {}
+        scannerRef.current = null
       }
     }
   }, [isScanning])

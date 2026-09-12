@@ -27,11 +27,6 @@ import {
   cardItemVariants,
 } from "../components/ui/page-transition"
 
-declare class BarcodeDetector {
-  constructor(options?: { formats?: string[] })
-  detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
-}
-
 const ATTENDANCE_STATUSES = ["ALL", "PRESENT", "LATE", "ABSENT"] as const
 
 const statusMeta: Record<string, { label: string; color: string; bg: string; dot: string; icon: typeof CheckCircle2 }> = {
@@ -225,7 +220,8 @@ function ScannerView() {
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null)
   const [isScanning, setIsScanning] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const scannerRef = useRef<{ stop: () => void; destroy: () => void } | null>(null)
+  const processingRef = useRef(false)
 
   const scanMutation = useMutation({
     mutationFn: (token: string) =>
@@ -237,19 +233,21 @@ function ScannerView() {
       const name = data.data?.student ? getFullName(data.data.student) : "Student"
       setScanResult({ success: true, message: `${name} — marked PRESENT` })
       toast.success("Attendance recorded")
+      processingRef.current = false
       setTimeout(() => setScanResult(null), 4000)
     },
     onError: (error) => {
       setScanResult({ success: false, message: error instanceof Error ? error.message : "Scan failed" })
       toast.error("Scan failed")
+      processingRef.current = false
       setTimeout(() => setScanResult(null), 4000)
     },
   })
 
   const stopScanning = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
+    if (scannerRef.current) {
+      try { scannerRef.current.stop(); scannerRef.current.destroy() } catch {}
+      scannerRef.current = null
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -257,68 +255,43 @@ function ScannerView() {
     setIsScanning(false)
   }, [])
 
-  const startScanning = useCallback(async () => {
+  const startScanning = useCallback(() => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScanResult({ success: false, message: "Camera access requires HTTPS and a supported browser." })
+      return
+    }
     setIsScanning(true)
     setScanResult(null)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-    } catch {
-      setScanResult({ success: false, message: "Camera access denied" })
-      setIsScanning(false)
-    }
   }, [])
 
   useEffect(() => {
     if (!isScanning || !videoRef.current) return
 
-    let animFrame: number | null = null
     let stopped = false
-    let scannerCleanup: (() => void) | null = null
 
     async function init() {
-      if (typeof BarcodeDetector !== "undefined") {
-        const detector = new BarcodeDetector({ formats: ["qr_code"] })
-        async function scanFrame() {
-          if (stopped || !videoRef.current) return
-          try {
-            const barcodes = await detector.detect(videoRef.current)
-            if (barcodes.length > 0 && barcodes[0].rawValue) {
-              scanMutation.mutate(barcodes[0].rawValue)
-              stopScanning()
-              return
-            }
-          } catch { /* ignore */ }
-          animFrame = requestAnimationFrame(scanFrame)
-        }
-        scanFrame()
-      } else {
-        try {
-          if (!videoRef.current) return
-          const video = videoRef.current
-          const QrScanner = (await import("qr-scanner")).default
-          const scanner = new QrScanner(
-            video,
-            (result: { data: string }) => {
-              if (result?.data) {
-                scanMutation.mutate(result.data)
-                stopScanning()
-              }
-            },
-            { returnDetailedScanResult: true }
-          )
-          await scanner.start()
-          scannerCleanup = () => { scanner.stop(); scanner.destroy() }
-        } catch {
-          setScanResult({ success: false, message: "QR scanner not supported in this browser" })
-          stopScanning()
-        }
+      try {
+        const QrScanner = (await import("qr-scanner")).default
+        if (stopped || !videoRef.current) return
+        const scanner = new QrScanner(
+          videoRef.current,
+          (result: { data: string }) => {
+            if (!result?.data || processingRef.current) return
+            processingRef.current = true
+            scanMutation.mutate(result.data.trim())
+            stopScanning()
+          },
+          { returnDetailedScanResult: true, preferredCamera: "environment" }
+        )
+        scannerRef.current = scanner
+        await scanner.start()
+      } catch (error) {
+        if (stopped) return
+        const message = error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Camera access was denied. Enable camera permission in your browser settings, then try again."
+          : "Camera could not start. Check browser permissions and make sure no other app is using it."
+        setScanResult({ success: false, message })
+        stopScanning()
       }
     }
 
@@ -326,8 +299,10 @@ function ScannerView() {
 
     return () => {
       stopped = true
-      if (animFrame) cancelAnimationFrame(animFrame)
-      if (scannerCleanup) scannerCleanup()
+      if (scannerRef.current) {
+        try { scannerRef.current.stop(); scannerRef.current.destroy() } catch {}
+        scannerRef.current = null
+      }
     }
   }, [isScanning])
 
