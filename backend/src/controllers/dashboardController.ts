@@ -10,8 +10,9 @@ import { prisma } from "../lib/prisma.js"
 import { getAuthUser } from "../middlewares/auth.js"
 // Import the program scope helper (OR-filter that also catches legacy null-program students)
 import { programUserScope } from "../services/programScope.js"
-// Import the shared weighted-total-grade computation
-import { computeWeightedTotalGrade } from "../services/gradeService.js"
+// Import the shared total-grade computation
+import { computeTotalGrade } from "../services/gradeService.js"
+import { getGradeConfig } from "../services/gradeConfigService.js"
 
 /* Count attendance records since a given date for a filter and return the
    attendance rate as a percentage, or null when no records exist. */
@@ -168,7 +169,7 @@ export async function studentSummary(c: Context) {
   const authUser = getAuthUser(c)
   const userId = authUser.id
 
-  const [enrollment, gradeCategories, attendanceRecords, pendingSubmissions] = await Promise.all([
+  const [enrollment, gradeCategories, attendanceRecords, pendingSubmissions, gradeConfig] = await Promise.all([
     prisma.enrollment.findFirst({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -199,9 +200,10 @@ export async function studentSummary(c: Context) {
       select: { status: true },
     }),
     prisma.documentSubmission.count({ where: { userId, status: "PENDING" } }),
+    getGradeConfig(),
   ])
 
-  const grade = computeWeightedTotalGrade(gradeCategories)
+  const grade = computeTotalGrade(gradeCategories, gradeConfig.computationMode)
 
   const attendanceTotal = attendanceRecords.length
   const attendancePresent = attendanceRecords.filter(
@@ -230,6 +232,7 @@ export async function studentSummary(c: Context) {
           }
         : null,
       totalGrade: grade,
+      passingGrade: gradeConfig.passingGrade,
       attendance: {
         recorded: attendanceTotal,
         attended: attendancePresent,

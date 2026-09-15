@@ -159,7 +159,7 @@ function SubmissionBoxPanel({ summary, isLoading }: { summary?: StudentSummary; 
           </span>
           <div>
             <p className="text-sm font-semibold text-black">Submission Box</p>
-            <p className="text-xs text-darksilver">Excuse letters, medical certs, official documents</p>
+            <p className="text-xs text-darksilver">Excuse letters and official documents</p>
           </div>
         </div>
         <Link
@@ -189,7 +189,7 @@ function SubmissionBoxPanel({ summary, isLoading }: { summary?: StudentSummary; 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-black">{s.title}</p>
                 <p className="text-[11px] text-darksilver">
-                  {s.docType === "EXCUSE_LETTER" ? "Excuse Letter" : s.docType === "MEDICAL_CERTIFICATE" ? "Medical Certificate" : "Official Document"}
+                  {s.docType === "EXCUSE_LETTER" ? "Excuse Letter" : "Official Document"}
                   {" · "}{new Date(s.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                 </p>
               </div>

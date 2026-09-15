@@ -6,16 +6,20 @@ import { logAudit } from "./auditService.js"
 import { assertUserInProgram } from "./programGuard.js"
 import { programUserScope } from "./programScope.js"
 import { NstpType } from "@prisma/client"
+import { ComputationMode, getGradeConfig } from "./gradeConfigService.js"
 
 /* Compute a student's total grade as a weighted percentage across grade categories.
    Category weights are treated as percentages (e.g. 30, 40, 30); when they are
-   stored as fractions (sum <= 2), the result is scaled up to a percentage. */
-export function computeWeightedTotalGrade(
+   stored as fractions (sum <= 2), the result is scaled up to a percentage.
+   In "average" mode the total is a simple (score sum / max sum) percentage
+   across all graded items, ignoring category weights. */
+export function computeTotalGrade(
   categories: Array<{
     name: string
     weight: number | null
     items: Array<{ maxScore: number; grades: Array<{ score: number }> }>
-  }>
+  }>,
+  mode: ComputationMode = "weighted"
 ) {
   const breakdown = categories.map((category) => {
     let score = 0
@@ -30,9 +34,19 @@ export function computeWeightedTotalGrade(
     return { name: category.name, weight: category.weight, score, max }
   })
 
-  // The total is computed only from categories that have graded items. Weights of
-  // graded categories are renormalized so categories with no grades yet do not
-  // weigh the total down (e.g. only a 40-weight category graded at 100% => 100%).
+  if (mode === "average") {
+    const score = breakdown.reduce((sum, c) => sum + c.score, 0)
+    const max = breakdown.reduce((sum, c) => sum + c.max, 0)
+    return {
+      breakdown,
+      totalPercent: max > 0 ? Math.min(100, Math.max(0, (score / max) * 100)) : null,
+    }
+  }
+
+  // Weighted mode: the total is computed only from categories that have graded
+  // items. Weights of graded categories are renormalized so categories with no
+  // grades yet do not weigh the total down (e.g. only a 40-weight category
+  // graded at 100% => 100%).
   const weighted = breakdown.filter((c) => c.weight && c.weight > 0)
   const graded = weighted.filter((c) => c.max > 0)
   if (graded.length > 0) {
@@ -52,21 +66,36 @@ export function computeWeightedTotalGrade(
   }
 }
 
-/* Utility to fetch and compute the weighted total grade per student for a given
+/* Backward-compatible wrapper that reads the current computation mode from the
+   system settings and computes the weighted total grade. */
+export function computeWeightedTotalGrade(
+  categories: Array<{
+    name: string
+    weight: number | null
+    items: Array<{ maxScore: number; grades: Array<{ score: number }> }>
+  }>
+) {
+  return computeTotalGrade(categories, "weighted")
+}
+
+/* Utility to fetch and compute the total grade per student for a given
    set of student user IDs. Returns a map of userId -> totalPercent (or null). */
 export async function computeStudentsTotalGrades(studentIds: string[]) {
   if (studentIds.length === 0) return new Map<string, number | null>()
-  const categories = await prisma.gradeCategory.findMany({
-    orderBy: { createdAt: "asc" },
-    include: {
-      items: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          grades: { where: { studentId: { in: studentIds } }, select: { studentId: true, score: true } },
+  const [gradeConfig, categories] = await Promise.all([
+    getGradeConfig(),
+    prisma.gradeCategory.findMany({
+      orderBy: { createdAt: "asc" },
+      include: {
+        items: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            grades: { where: { studentId: { in: studentIds } }, select: { studentId: true, score: true } },
+          },
         },
       },
-    },
-  })
+    }),
+  ])
   const totals = new Map<string, number | null>()
   for (const studentId of studentIds) {
     const scoped = categories.map((category) => ({
@@ -77,7 +106,7 @@ export async function computeStudentsTotalGrades(studentIds: string[]) {
         grades: item.grades.filter((g) => g.studentId === studentId).map((g) => ({ score: g.score })),
       })),
     }))
-    totals.set(studentId, computeWeightedTotalGrade(scoped).totalPercent)
+    totals.set(studentId, computeTotalGrade(scoped, gradeConfig.computationMode).totalPercent)
   }
   return totals
 }
@@ -85,17 +114,20 @@ export async function computeStudentsTotalGrades(studentIds: string[]) {
 /* Compute a single student's semester total plus a per-category breakdown so
    the frontend can show how the overall grade is combined across categories. */
 export async function computeStudentTotalBreakdown(studentId: string) {
-  const categories = await prisma.gradeCategory.findMany({
-    orderBy: { createdAt: "asc" },
-    include: {
-      items: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          grades: { where: { studentId }, select: { score: true } },
+  const [gradeConfig, categories] = await Promise.all([
+    getGradeConfig(),
+    prisma.gradeCategory.findMany({
+      orderBy: { createdAt: "asc" },
+      include: {
+        items: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            grades: { where: { studentId }, select: { score: true } },
+          },
         },
       },
-    },
-  })
+    }),
+  ])
   const scoped = categories.map((category) => ({
     name: category.name,
     weight: category.weight,
@@ -104,12 +136,12 @@ export async function computeStudentTotalBreakdown(studentId: string) {
       grades: item.grades.map((g) => ({ score: g.score })),
     })),
   }))
-  const { breakdown, totalPercent } = computeWeightedTotalGrade(scoped)
+  const { breakdown, totalPercent } = computeTotalGrade(scoped, gradeConfig.computationMode)
   const detailed = breakdown.map((c) => {
     const pct = c.max > 0 ? Math.round((c.score / c.max) * 100) : null
     return { name: c.name, weight: c.weight, score: c.score, max: c.max, percent: pct }
   })
-  return { totalPercent, breakdown: detailed }
+  return { totalPercent, breakdown: detailed, passingGrade: gradeConfig.passingGrade, computationMode: gradeConfig.computationMode }
 }
 
 /* Create a new grade category */

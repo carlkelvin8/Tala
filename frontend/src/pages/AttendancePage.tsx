@@ -37,7 +37,9 @@ const statusMeta: Record<string, { label: string; color: string; bg: string; dot
 
 export function AttendancePage() {
   const user = getStoredUser()
-  const isScanner = user?.role === "IMPLEMENTOR"
+  // Staff roles (implementors, cadet officers, and admins) may scan student QR
+  // codes; students may only present their own QR code.
+  const isScanner = user?.role === "IMPLEMENTOR" || user?.role === "CADET_OFFICER" || user?.role === "ADMIN"
 
   return (
     <div className="space-y-6">

@@ -11,6 +11,7 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"))
 const EnrollmentPage = lazy(() => import("./pages/EnrollmentPage").then((module) => ({ default: module.EnrollmentPage })))
 const StudentsPage = lazy(() => import("./pages/StudentsPage").then((module) => ({ default: module.StudentsPage })))
 const MaterialsPage = lazy(() => import("./pages/MaterialsPage").then((module) => ({ default: module.MaterialsPage })))
+const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage").then((module) => ({ default: module.AnnouncementsPage })))
 const AttendancePage = lazy(() => import("./pages/AttendancePage").then((module) => ({ default: module.AttendancePage })))
 const GradesPage = lazy(() => import("./pages/GradesPage").then((module) => ({ default: module.GradesPage })))
 const MeritsPage = lazy(() => import("./pages/MeritsPage").then((module) => ({ default: module.MeritsPage })))
@@ -26,7 +27,6 @@ const TrainingPage = lazy(() => import("./pages/TrainingPage").then((module) => 
 const TermsPage = lazy(() => import("./pages/TermsPage").then((module) => ({ default: module.TermsPage })))
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })))
 const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage").then((module) => ({ default: module.AuditLogsPage })))
-const MedicalCertificatesPage = lazy(() => import("./pages/MedicalCertificatesPage").then((module) => ({ default: module.MedicalCertificatesPage })))
 const SubmissionsPage = lazy(() => import("./pages/SubmissionsPage").then((module) => ({ default: module.SubmissionsPage })))
 const CertificatesPage = lazy(() => import("./pages/CertificatesPage").then((module) => ({ default: module.CertificatesPage })))
 const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage").then((module) => ({ default: module.LeaderboardPage })))
@@ -95,14 +95,14 @@ export function App() {
         <Route path="/sections" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><SectionsPage /></ProtectedRoute>} />
         <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
         <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><MaterialsPage /></ProtectedRoute>} />
+        <Route path="/announcements" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><AnnouncementsPage /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><AttendancePage /></ProtectedRoute>} />
-        <Route path="/scanner" element={<ProtectedRoute roles={["IMPLEMENTOR"]}><ScannerPage /></ProtectedRoute>} />
+        <Route path="/scanner" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><ScannerPage /></ProtectedRoute>} />
         <Route path="/training" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TrainingPage /></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TermsPage /></ProtectedRoute>} />
         <Route path="/grades" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><GradesPage /></ProtectedRoute>} />
         <Route path="/merits" element={<ProtectedRoute roles={["ADMIN", "STUDENT"]}><MeritsPage /></ProtectedRoute>} />
         <Route path="/exams" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><ExamsPage /></ProtectedRoute>} />
-        <Route path="/medical-certificates" element={<ProtectedRoute roles={["IMPLEMENTOR"]}><MedicalCertificatesPage /></ProtectedRoute>} />
         <Route path="/submissions" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><SubmissionsPage /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><ReportsPage /></ProtectedRoute>} />
         <Route path="/certificates" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CertificatesPage /></ProtectedRoute>} />

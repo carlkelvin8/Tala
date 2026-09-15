@@ -14,6 +14,7 @@ import {
   computeStudentsTotalGrades,
   computeStudentTotalBreakdown
 } from "../services/gradeService.js"
+import { getGradeConfig, updateGradeConfig } from "../services/gradeConfigService.js"
 import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { prisma } from "../lib/prisma.js"
@@ -235,5 +236,30 @@ export async function deleteCategory(c: Context) {
     return c.json(ok("Category deleted"))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Delete failed"), 400)
+  }
+}
+
+/* GET /api/grades/config — return the grade computation configuration */
+export async function getGradeConfigHandler(c: Context) {
+  try {
+    const config = await getGradeConfig()
+    return c.json(ok("Grade configuration fetched", config))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Config fetch failed"), 400)
+  }
+}
+
+/* PATCH /api/grades/config — update the grade computation configuration */
+export async function updateGradeConfigHandler(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const body = await c.req.json()
+    const config = await updateGradeConfig(
+      { passingGrade: body.passingGrade, computationMode: body.computationMode },
+      authUser.id
+    )
+    return c.json(ok("Grade configuration updated", config))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Config update failed"), 400)
   }
 }

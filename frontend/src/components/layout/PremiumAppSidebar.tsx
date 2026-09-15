@@ -17,7 +17,7 @@ import { logoutSession } from "../../lib/api"
 import { cn } from "../../lib/utils"
 import {
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
-  FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine, FileHeart,
+  FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine,
   Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower, Inbox
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
@@ -40,7 +40,6 @@ const iconMap = {
   "/grades": GraduationCap,
   "/merits": Award,
   "/exams": ClipboardCheck,
-  "/medical-certificates": FileHeart,
   "/submissions": Inbox,
   "/reports": FileBarChart,
   "/certificates": Medal,

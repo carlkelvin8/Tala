@@ -52,20 +52,26 @@ async function main() {
 
   const impl1 = await prisma.user.upsert({
     where: { email: "implementor@nstp.local" },
-    update: {},
-    create: { email: "implementor@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR },
+    update: { program: NstpType.ROTC },
+    create: { email: "implementor@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
   })
 
   const impl2 = await prisma.user.upsert({
     where: { email: "implementor2@nstp.local" },
-    update: {},
-    create: { email: "implementor2@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR },
+    update: { program: NstpType.ROTC },
+    create: { email: "implementor2@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
   })
 
   const implCoordinator = await prisma.user.upsert({
     where: { email: "coordinator@nstp.local" },
-    update: {},
-    create: { email: "coordinator@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR },
+    update: { program: NstpType.ROTC },
+    create: { email: "coordinator@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
+  })
+
+  const instructor = await prisma.user.upsert({
+    where: { email: "instructor@nstp.local" },
+    update: { program: NstpType.ROTC },
+    create: { email: "instructor@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
   })
 
   const cadet1 = await prisma.user.upsert({
@@ -123,6 +129,12 @@ async function main() {
     where: { userId: implCoordinator.id },
     update: {},
     create: { userId: implCoordinator.id, firstName: "Instructor", lastName: "",   contactNo: "09175556666" },
+  })
+
+  await prisma.implementorProfile.upsert({
+    where: { userId: instructor.id },
+    update: {},
+    create: { userId: instructor.id, firstName: "Instructor", lastName: "ROTC", contactNo: "09175557777" },
   })
 
   await prisma.cadetOfficerProfile.upsert({
@@ -635,7 +647,7 @@ async function main() {
   // ── DONE ─────────────────────────────────────────────────────────────────────
   console.log("")
   console.log("✅  Seed complete! Summary:")
-  console.log(`     Users:               ${2 + 3 + 2 + studentUsers.length} (1 admin, 2 implementors, 1 coordinator, 2 cadets, 10 students)`)
+  console.log(`     Users:               ${2 + 4 + 2 + studentUsers.length} (1 admin, 4 implementors (all ROTC), 2 cadets, 10 students)`)
   console.log(`     Courses:             4`)
   console.log(`     Sections:            4`)
   console.log(`     Flights:             3`)
@@ -657,6 +669,7 @@ async function main() {
   console.log("  📧  Admin:         admin@nstp.local")
   console.log("  📧  Implementor:   implementor@nstp.local")
   console.log("  📧  Coordinator:   coordinator@nstp.local (Instructor)")
+  console.log("  📧  Instructor:    instructor@nstp.local (ROTC)")
   console.log("  📧  Cadet:         cadet@nstp.local")
   console.log("  📧  Student:       student@nstp.local  (through student10@nstp.local)")
 }

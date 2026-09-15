@@ -72,14 +72,16 @@ export function SectionCards({ program }: { program?: ProgramType }) {
     },
   ]
 
-  // Net Merits is not shown on implementor dashboards. Students see their
-  // specific enrollment status in the student dashboard, so the aggregate
-  // "Enrollments" count card is hidden for them.
+  // Net Merits is only hidden on the CWTS dashboard (which does not track
+  // merits). The ROTC dashboard — including for instructors (IMPLEMENTOR) —
+  // shows it. Students see their specific enrollment status in the student
+  // dashboard, so the aggregate "Enrollments" count card is hidden for them.
+  const hideMerits = program === "CWTS"
   const visibleCards =
-    user?.role === "IMPLEMENTOR"
-      ? cardConfig.filter((c) => c.key !== "merits")
-      : user?.role === "STUDENT"
+    user?.role === "STUDENT"
       ? cardConfig.filter((c) => c.key !== "enrollment")
+      : hideMerits
+      ? cardConfig.filter((c) => c.key !== "merits")
       : cardConfig
 
   const values: Record<string, string> = {
@@ -92,8 +94,7 @@ export function SectionCards({ program }: { program?: ProgramType }) {
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-4 sm:grid-cols-2",
-        user?.role === "IMPLEMENTOR" ? "lg:grid-cols-3 xl:grid-cols-3" : "xl:grid-cols-4"
+        "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       )}
     >
       {visibleCards.map(({ key, label, description, icon: Icon, iconBg, iconColor, accent }, idx) => (

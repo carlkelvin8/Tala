@@ -12,12 +12,14 @@ import {
   updateItem,
   deleteItem,
   updateCategory,
-  deleteCategory
+  deleteCategory,
+  getGradeConfigHandler,
+  updateGradeConfigHandler
 } from "../controllers/gradeController.js"
 import { authMiddleware } from "../middlewares/auth.js"
 import { roleGuard } from "../middlewares/roleGuard.js"
 import { validateBody, validateQuery } from "../middlewares/zod.js"
-import { gradeCategorySchema, gradeCategoryUpdateSchema, gradeItemSchema, gradeItemUpdateSchema, gradeQuerySchema, studentGradeSchema, studentGradeUpdateSchema } from "../validators/grades.js"
+import { gradeCategorySchema, gradeCategoryUpdateSchema, gradeItemSchema, gradeItemUpdateSchema, gradeQuerySchema, gradeConfigSchema, studentGradeSchema, studentGradeUpdateSchema } from "../validators/grades.js"
 import { RoleType } from "@prisma/client"
 
 export const gradeRoutes = new Hono()
@@ -27,6 +29,8 @@ gradeRoutes.get("/", validateQuery(gradeQuerySchema), list)
 gradeRoutes.get("/total", getTotal)
 gradeRoutes.get("/categories", listCategories)
 gradeRoutes.get("/items", listItems)
+gradeRoutes.get("/config", getGradeConfigHandler)
+gradeRoutes.patch("/config", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(gradeConfigSchema), updateGradeConfigHandler)
 gradeRoutes.post("/categories", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(gradeCategorySchema), createCategory)
 gradeRoutes.post("/items", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(gradeItemSchema), createItem)
 gradeRoutes.post("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(studentGradeSchema), encode)

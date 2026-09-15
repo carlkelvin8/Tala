@@ -8,6 +8,7 @@ import { authRoutes } from "./routes/authRoutes.js"
 import { userRoutes } from "./routes/userRoutes.js"
 import { enrollmentRoutes } from "./routes/enrollmentRoutes.js"
 import { materialRoutes } from "./routes/materialRoutes.js"
+import { announcementRoutes } from "./routes/announcementRoutes.js"
 import { attendanceRoutes } from "./routes/attendanceRoutes.js"
 import { attendanceSessionRoutes } from "./routes/attendanceSessionRoutes.js"
 import { gradeRoutes } from "./routes/gradeRoutes.js"
@@ -23,7 +24,6 @@ import { termRoutes } from "./routes/termRoutes.js"
 import { remarkRoutes } from "./routes/remarkRoutes.js"
 import { trainingDayRoutes } from "./routes/trainingDayRoutes.js"
 import { auditRoutes } from "./routes/auditRoutes.js"
-import { medicalCertificateRoutes } from "./routes/medicalCertificateRoutes.js"
 import { submissionRoutes } from "./routes/submissionRoutes.js"
 import { notificationRoutes } from "./routes/notificationRoutes.js"
 import { autoSectioningRoutes } from "./routes/autoSectioningRoutes.js"
@@ -77,6 +77,8 @@ app.route("/api/users", userRoutes)
 app.route("/api/enrollments", enrollmentRoutes)
 // Mount learning material routes at /api/materials
 app.route("/api/materials", materialRoutes)
+// Mount announcement routes at /api/announcements
+app.route("/api/announcements", announcementRoutes)
 // Mount attendance record routes at /api/attendance
 app.route("/api/attendance", attendanceRoutes)
 // Mount attendance session routes at /api/attendance-sessions
@@ -100,7 +102,6 @@ app.route("/api/terms", termRoutes)
 app.route("/api/remarks", remarkRoutes)
 app.route("/api/training", trainingDayRoutes)
 app.route("/api/audit-logs", auditRoutes)
-app.route("/api/medical-certificates", medicalCertificateRoutes)
 app.route("/api/submissions", submissionRoutes)
 app.route("/api/notifications", notificationRoutes)
 app.route("/api/auto-sectioning", autoSectioningRoutes)

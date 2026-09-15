@@ -45,3 +45,9 @@ export const gradeQuerySchema = z.object({
   page: z.string().optional(),
   pageSize: z.string().optional()
 })
+
+/* Schema for updating the grade computation configuration */
+export const gradeConfigSchema = z.object({
+  passingGrade: z.number().positive().max(100).optional(),
+  computationMode: z.enum(["weighted", "average"]).optional()
+})

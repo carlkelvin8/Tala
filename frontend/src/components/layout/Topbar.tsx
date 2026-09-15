@@ -34,7 +34,6 @@ const routeLabels: Record<string, string> = {
   "/reports": "Reports",
   "/users": "Users",
   "/profile": "Profile",
-  "/medical-certificates": "Medical Certificates",
   "/certificates": "Certificates",
   "/leaderboard": "Leaderboard",
   "/calendar": "Calendar",

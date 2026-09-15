@@ -26,9 +26,13 @@ const STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const
 
 const DOC_TYPES = [
   { value: "EXCUSE_LETTER", label: "Excuse Letter" },
-  { value: "MEDICAL_CERTIFICATE", label: "Medical Certificate" },
   { value: "OTHER_OFFICIAL_DOCUMENT", label: "Other Official Document" },
 ] as const
+
+// Legacy submissions (e.g. medical certificates) fold into official documents.
+const LEGACY_DOC_TYPE_LABELS: Record<string, string> = {
+  MEDICAL_CERTIFICATE: "Other Official Document",
+}
 
 const statusMeta: Record<string, { label: string; color: string; bg: string; dot: string; icon: typeof Check }> = {
   PENDING:  { label: "Pending",  color: "text-amber-600",  bg: "bg-amber-50",   dot: "bg-amber-500",  icon: FileText },
@@ -37,7 +41,7 @@ const statusMeta: Record<string, { label: string; color: string; bg: string; dot
 }
 
 function docTypeLabel(value: string) {
-  return DOC_TYPES.find((d) => d.value === value)?.label ?? value
+  return DOC_TYPES.find((d) => d.value === value)?.label ?? LEGACY_DOC_TYPE_LABELS[value] ?? value
 }
 
 function DocTypeTag({ value }: { value: string }) {
@@ -108,7 +112,7 @@ export function SubmissionsPage() {
               transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
             >
               {isStudent
-                ? "Submit and track excuse letters, medical certificates, and other official documents."
+                ? "Submit and track excuse letters and other official documents."
                 : "Review and manage student document submissions."}
             </motion.p>
           </div>

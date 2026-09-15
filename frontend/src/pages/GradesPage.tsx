@@ -19,8 +19,8 @@ import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
-import { GraduationCap, Search, Plus, Edit, Trash2, Save, Sparkles, Hash, Award, BookOpen, ChevronRight, X, RefreshCw, User } from "lucide-react"
-import { useState } from "react"
+import { GraduationCap, Search, Plus, Edit, Trash2, Save, Sparkles, Hash, Award, BookOpen, ChevronRight, X, RefreshCw, User, Settings2 } from "lucide-react"
+import { useState, useEffect } from "react"
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
 
@@ -45,12 +45,13 @@ type GradeFormValues = z.infer<typeof gradeSchema>
 type CategoryFormValues = z.infer<typeof categorySchema>
 type ItemFormValues = z.infer<typeof itemSchema>
 
-type TabId = "grades" | "items" | "categories"
+type TabId = "grades" | "items" | "categories" | "computation"
 
 const tabs: { id: TabId; label: string; icon: typeof GraduationCap }[] = [
-  { id: "grades",     label: "Grades",      icon: Award },
-  { id: "items",      label: "Grade Items", icon: BookOpen },
-  { id: "categories", label: "Categories",  icon: Hash },
+  { id: "grades",       label: "Grades",        icon: Award },
+  { id: "items",        label: "Grade Items",   icon: BookOpen },
+  { id: "categories",   label: "Categories",    icon: Hash },
+  { id: "computation",  label: "Computation",   icon: Settings2 },
 ]
 
 export function GradesPage() {
@@ -78,6 +79,39 @@ export function GradesPage() {
   const [deletingCategory, setDeletingCategory] = useState<any | null>(null)
   const [editCategoryName, setEditCategoryName] = useState("")
   const [editCategoryWeight, setEditCategoryWeight] = useState<number | undefined>(undefined)
+
+  const [configPassingGrade, setConfigPassingGrade] = useState<number>(75)
+  const [configComputationMode, setConfigComputationMode] = useState<"weighted" | "average">("weighted")
+
+  const configQuery = useQuery({
+    queryKey: ["grade-config"],
+    queryFn: () => apiRequest<ApiResponse<{ passingGrade: number; computationMode: "weighted" | "average" }>>("/api/grades/config"),
+    refetchInterval: 10000,
+    retry: false,
+  })
+
+  const updateConfigMutation = useMutation({
+    mutationFn: (data: { passingGrade: number; computationMode: "weighted" | "average" }) =>
+      apiRequest<ApiResponse<{ passingGrade: number; computationMode: "weighted" | "average" }>>("/api/grades/config", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      configQuery.refetch()
+      toast.success("Computation settings saved")
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Unable to update settings")
+    },
+  })
+
+  // Keep the editable form in sync with the latest saved configuration
+  useEffect(() => {
+    const config = configQuery.data?.data
+    if (!config) return
+    setConfigPassingGrade(config.passingGrade)
+    setConfigComputationMode(config.computationMode)
+  }, [configQuery.data])
 
   const gradesQuery = useQuery({
     queryKey: ["grades", currentUser?.id],
@@ -112,7 +146,7 @@ export function GradesPage() {
   const totalQuery = useQuery({
     queryKey: ["grade-total", currentUser?.id],
     queryFn: () =>
-      apiRequest<ApiResponse<{ totalPercent: number | null; breakdown: Array<{ name: string; weight: number | null; score: number; max: number; percent: number | null }> }>>(
+      apiRequest<ApiResponse<{ totalPercent: number | null; passingGrade: number; computationMode: "weighted" | "average"; breakdown: Array<{ name: string; weight: number | null; score: number; max: number; percent: number | null }> }>>(
         isStudent ? `/api/grades/total?studentId=${currentUser?.id}` : "/api/grades/total"
       ),
     refetchInterval: 30000,
@@ -214,6 +248,10 @@ export function GradesPage() {
   const categories = categoriesQuery.data?.data ?? []
   const items = itemsQuery.data?.data ?? []
 
+  // Passing grade from saved configuration (falls back to the standard 75)
+  const passingGrade = configQuery.data?.data?.passingGrade ?? totalQuery.data?.data?.passingGrade ?? 75
+  const computationMode = configQuery.data?.data?.computationMode ?? totalQuery.data?.data?.computationMode ?? "weighted"
+
   const gradeColumns = [
     {
       header: "Student",
@@ -244,7 +282,7 @@ export function GradesPage() {
       header: "Score",
       cell: (grade: any) => {
         const pct = grade.gradeItem?.maxScore ? Math.round((grade.score / grade.gradeItem.maxScore) * 100) : 0
-        const isGood = pct >= 75
+        const isGood = pct >= passingGrade
         return (
           <div className="flex items-center gap-2">
             <span className={cn(
@@ -275,7 +313,7 @@ export function GradesPage() {
       cell: (grade: any) => {
         const total = grade.totalGrade
         if (total == null) return <span className="text-xs text-darksilver">—</span>
-        const isGood = total >= 75
+        const isGood = total >= passingGrade
         return (
           <span className={cn(
             "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-bold",
@@ -420,12 +458,12 @@ export function GradesPage() {
       {activeTab === "grades" && (
         <>
           {isStudent && (totalQuery.data?.data ?? null) && (
-            <SectionCard title="Total Grade — This Semester" description="Combined grade across all categories (weighted by category weight)." className="shadow-card">
+            <SectionCard title="Total Grade — This Semester" description={`Combined grade across all categories (${computationMode === "weighted" ? "weighted by category weight" : "simple average of all scores"}).`} className="shadow-card">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="flex items-center gap-4">
                   <div className={cn(
                     "flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-2xl shadow-soft",
-                    (totalQuery.data?.data?.totalPercent ?? 0) >= 75 ? "bg-gradient-to-br from-emerald-500 to-emerald-600" : "bg-gradient-to-br from-rose-500 to-rose-600"
+                    (totalQuery.data?.data?.totalPercent ?? 0) >= passingGrade ? "bg-gradient-to-br from-emerald-500 to-emerald-600" : "bg-gradient-to-br from-rose-500 to-rose-600"
                   )}>
                     <span className="text-2xl font-extrabold text-white">{Math.round(totalQuery.data?.data?.totalPercent ?? 0)}%</span>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Semester</span>
@@ -433,17 +471,17 @@ export function GradesPage() {
                   <div>
                     <p className="text-sm font-semibold text-black">Overall Grade</p>
                     <p className="text-xs text-darksilver">Combined across all graded categories</p>
-                    {(totalQuery.data?.data?.totalPercent ?? 0) >= 75 ? (
-                      <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Passing</span>
+                    {(totalQuery.data?.data?.totalPercent ?? 0) >= passingGrade ? (
+                      <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">Passing ({passingGrade}%)</span>
                     ) : (
-                      <span className="mt-2 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">Failing</span>
+                      <span className="mt-2 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">Failing (&lt;{passingGrade}%)</span>
                     )}
                   </div>
                 </div>
                 <div className="flex-1 space-y-2">
                   {(totalQuery.data?.data?.breakdown ?? []).map((cat) => {
                     const pct = cat.percent
-                    const good = pct != null && pct >= 75
+                    const good = pct != null && pct >= passingGrade
                     return (
                       <div key={cat.name} className="flex items-center gap-3">
                         <span className="w-32 shrink-0 truncate text-xs font-medium text-darksilver">{cat.name}</span>
@@ -634,6 +672,80 @@ export function GradesPage() {
             ) : (
               <ResponsiveTableCards data={categories} columns={categoryColumns} rowKey={(cat) => cat.id} renderTitle={(cat) => cat.name} />
             )}
+          </SectionCard>
+        </>
+      )}
+
+      {activeTab === "computation" && (perms.canEdit || perms.canCreate) && (
+        <>
+          <SectionCard
+            title="Grade Computation Settings"
+            description="Configure how the overall student grade is calculated and when a student passes."
+            className="shadow-card"
+          >
+            <div className="space-y-6">
+              {configQuery.isError && <Alert variant="danger">Unable to load configuration.</Alert>}
+              {configQuery.isLoading ? (
+                <LoadingSkeleton rows={2} columns={2} />
+              ) : (
+                <>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <FormField label="Passing Grade (%)" hint="Minimum percentage to pass">
+                      <div className="relative">
+                        <Award className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                        <Input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={configPassingGrade}
+                          onChange={(e) => {
+                            const v = Number(e.target.value)
+                            if (v > 0 && v <= 100) setConfigPassingGrade(v)
+                          }}
+                          className="h-11 pl-10"
+                        />
+                      </div>
+                    </FormField>
+                    <FormField label="Computation Mode" hint="How the total grade percentage is derived">
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
+                        <Select
+                          value={configComputationMode}
+                          onChange={(e) => setConfigComputationMode(e.target.value as "weighted" | "average")}
+                          className="h-11 pl-10"
+                        >
+                          <option value="weighted">Weighted by category</option>
+                          <option value="average">Simple average of all scores</option>
+                        </Select>
+                      </div>
+                    </FormField>
+                  </div>
+
+                  <div className="rounded-xl border border-silver/20 bg-slate-50 p-4 text-sm text-darksilver space-y-1">
+                    <p className="font-medium text-black">How it works</p>
+                    <ul className="list-disc pl-5 space-y-0.5">
+                      <li><strong>Weighted by category:</strong> Each category contributes to the total by its assigned weight. Ungraded categories are ignored and do not lower the grade.</li>
+                      <li><strong>Simple average:</strong> The total is the sum of all scores divided by the sum of all maximum scores, regardless of category weights.</li>
+                      <li><strong>Passing Grade:</strong> Students scoring at or above this threshold are shown as <span className="font-semibold text-emerald-600">Passing</span>; below is <span className="font-semibold text-rose-600">Failing</span>.</li>
+                    </ul>
+                  </div>
+
+                  {updateConfigMutation.isError && <Alert variant="danger">{(updateConfigMutation.error as Error).message}</Alert>}
+
+                  <Button
+                    onClick={() => updateConfigMutation.mutate({ passingGrade: configPassingGrade, computationMode: configComputationMode })}
+                    disabled={updateConfigMutation.isPending}
+                    className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
+                  >
+                    {updateConfigMutation.isPending ? (
+                      <span className="flex items-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Saving…</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><Save className="h-4 w-4" />Save Settings</span>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
           </SectionCard>
         </>
       )}

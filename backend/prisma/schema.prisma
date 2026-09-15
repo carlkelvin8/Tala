@@ -88,6 +88,7 @@ model User {
   gradesEncoded      StudentGrade[]        @relation("GradeEncoder")
   studentMerits      MeritDemerit[]        @relation("StudentMerits")
   meritsEncoded      MeritDemerit[]        @relation("MeritEncoder")
+  announcements      Announcement[]        @relation("AnnouncementCreator")
   examAttempts       ExamAttempt[]
   auditLogs          AuditLog[]            @relation("AuditActor")
   remarksReceived    InstructorRemark[]
@@ -448,12 +449,25 @@ model AuditLog {
   @@index([action])
 }
 
-model Announcement {
-  id        String   @id @default(uuid())
-  title     String
-  body      String
-  createdAt DateTime @default(now())
+model SystemSetting {
+  key       String   @id
+  value     Json
   updatedAt DateTime @updatedAt
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  title       String
+  body        String
+  program     NstpType?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User? @relation("AnnouncementCreator", fields: [createdById], references: [id])
+
+  @@index([program])
+  @@index([createdAt])
 }
 
 model FileUpload {
