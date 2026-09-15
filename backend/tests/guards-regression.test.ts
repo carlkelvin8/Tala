@@ -97,51 +97,51 @@ describe("Regression guards for Batch 2 fixes", () => {
     })
   })
 
-  describe("Implementor ROTC-only course/section locks", () => {
-    it("POST /api/sections — implementor must scope to an ROTC course", async () => {
+  describe("Implementor program-scoped course/section locks", () => {
+    it("POST /api/sections — implementor must scope to a course of their program", async () => {
       const res = await app.request("/api/sections", {
         method: "POST",
         headers: authHeader(implementorToken),
         body: json({ code: "NOCOURSE", name: "No Course" }),
       })
       expect(res.status).toBe(400)
-      expect((await res.json()).message).toContain("ROTC course")
+      expect((await res.json()).message).toContain("their program")
     })
 
-    it("POST /api/sections — implementor cannot use a CWTS course", async () => {
+    it("POST /api/sections — implementor cannot use a course of the other program", async () => {
       const res = await app.request("/api/sections", {
         method: "POST",
         headers: authHeader(implementorToken),
-        body: json({ code: "WRONC", name: "Wrong Program", courseId: cwtsCourseId }),
+        body: json({ code: "WRONC", name: "Wrong Program", courseId: rotcCourseId }),
       })
       expect(res.status).toBe(400)
-      expect((await res.json()).message).toContain("ROTC courses")
+      expect((await res.json()).message).toContain("belongs to another program")
     })
 
-    it("GET /api/courses/:id — CWTS course is invisible (404) to implementor", async () => {
-      const res = await app.request(`/api/courses/${cwtsCourseId}`, { headers: authHeader(implementorToken) })
+    it("GET /api/courses/:id — cross-program course is invisible (404) to implementor, own program is visible", async () => {
+      const res = await app.request(`/api/courses/${rotcCourseId}`, { headers: authHeader(implementorToken) })
       expect(res.status).toBe(404)
-      const res2 = await app.request(`/api/courses/${rotcCourseId}`, { headers: authHeader(implementorToken) })
+      const res2 = await app.request(`/api/courses/${cwtsCourseId}`, { headers: authHeader(implementorToken) })
       expect(res2.status).toBe(200)
     })
 
-    it("DELETE /api/courses/:id — implementor cannot delete a CWTS course", async () => {
-      const res = await app.request(`/api/courses/${cwtsCourseId}`, {
+    it("DELETE /api/courses/:id — implementor cannot delete a course of the other program", async () => {
+      const res = await app.request(`/api/courses/${rotcCourseId}`, {
         method: "DELETE",
         headers: authHeader(implementorToken),
       })
       expect(res.status).toBe(404)
-      const remaining = await prisma.course.findUnique({ where: { id: cwtsCourseId } })
+      const remaining = await prisma.course.findUnique({ where: { id: rotcCourseId } })
       expect(remaining).not.toBeNull()
     })
 
-    it("DELETE /api/sections/:id — implementor cannot delete a CWTS section", async () => {
-      const res = await app.request(`/api/sections/${cwtsSectionId}`, {
+    it("DELETE /api/sections/:id — implementor cannot delete a section of the other program", async () => {
+      const res = await app.request(`/api/sections/${rotcSectionId}`, {
         method: "DELETE",
         headers: authHeader(implementorToken),
       })
       expect(res.status).toBe(400)
-      const remaining = await prisma.section.findUnique({ where: { id: cwtsSectionId } })
+      const remaining = await prisma.section.findUnique({ where: { id: rotcSectionId } })
       expect(remaining).not.toBeNull()
     })
   })
@@ -399,13 +399,13 @@ describe("Regression guards for Batch 2 fixes", () => {
       expect(body.data.flightId).toBe(flight.id)
     })
 
-    it("PATCH /api/remarks/record/:recordId — implementor cannot touch a CWTS student's record", async () => {
-      const cwtsStud = await createTestUser(RoleType.STUDENT)
-      emails.push(cwtsStud.email)
-      await prisma.studentProfile.update({ where: { userId: cwtsStud.id }, data: { sectionId: cwtsSectionId } })
+    it("PATCH /api/remarks/record/:recordId — implementor cannot touch the other program's student record", async () => {
+      const rotcStud = await createTestUser(RoleType.STUDENT)
+      emails.push(rotcStud.email)
+      await prisma.studentProfile.update({ where: { userId: rotcStud.id }, data: { sectionId: rotcSectionId } })
 
       const record = await prisma.attendanceRecord.create({
-        data: { userId: cwtsStud.id, date: new Date(), status: "ABSENT" },
+        data: { userId: rotcStud.id, date: new Date(), status: "ABSENT" },
       })
 
       const res = await app.request(`/api/remarks/record/${record.id}`, {

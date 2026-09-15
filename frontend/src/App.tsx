@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom"
 import { AppLayout } from "./components/layout/AppLayout"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { getStoredUser } from "./lib/auth"
+import { getEffectiveProgram } from "./lib/programs"
 
 const ModernLoginPage = lazy(() => import("./components/auth/ModernLoginPage").then((module) => ({ default: module.ModernLoginPage })))
 const ModernRegisterPage = lazy(() => import("./components/auth/ModernRegisterPage").then((module) => ({ default: module.ModernRegisterPage })))
@@ -44,6 +45,14 @@ function PageFallback() {
   )
 }
 
+/* Route staff (implementors) to the mandatory-courses list of their program;
+   admins and unassigned users land on the CWTS list. */
+function ProgramCoursesRedirect() {
+  const user = getStoredUser()
+  const program = getEffectiveProgram(user)
+  return <Navigate to={program === "ROTC" ? "/courses/rotc" : "/courses/cwts"} replace />
+}
+
 export function App() {
   const user = getStoredUser()
 
@@ -66,7 +75,7 @@ export function App() {
       <Route
         path="/dashboard/cwts"
         element={
-          <ProtectedRoute roles={["ADMIN"]}>
+          <ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}>
             <DashboardPage program="CWTS" />
           </ProtectedRoute>
         }
@@ -89,9 +98,9 @@ export function App() {
       >
         <Route path="/enrollment" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><EnrollmentPage /></ProtectedRoute>} />
         <Route path="/students" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><StudentsPage /></ProtectedRoute>} />
-        <Route path="/courses/cwts" element={<ProtectedRoute roles={["ADMIN"]}><CoursesPage program="CWTS" /></ProtectedRoute>} />
+        <Route path="/courses/cwts" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="CWTS" /></ProtectedRoute>} />
         <Route path="/courses/rotc" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="ROTC" /></ProtectedRoute>} />
-        <Route path="/courses" element={<Navigate to="/courses/rotc" replace />} />
+        <Route path="/courses" element={<ProgramCoursesRedirect />} />
         <Route path="/sections" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><SectionsPage /></ProtectedRoute>} />
         <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
         <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><MaterialsPage /></ProtectedRoute>} />

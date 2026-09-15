@@ -45,7 +45,7 @@ export async function listSessions(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  // Implementors are locked to ROTC — scope their session list to ROTC sessions
+  // Implementors are scoped to their account program — scope their session list to that program
   const program = resolveScopeProgram(authUser)
   const sessions = await listExamSessions({
     ...(sectionId ? { sectionId } : {}),

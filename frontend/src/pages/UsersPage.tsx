@@ -44,7 +44,7 @@ export function UsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { role: "STUDENT", program: "CWTS" } })
   const selectedRole = form.watch("role")
-  // Implementor accounts are locked to the CWTS program
+  // Implementor accounts default to CWTS (they may carry CWTS or ROTC)
   const isImplementorRole = selectedRole === "IMPLEMENTOR"
   const usersQuery = useQuery({
     queryKey: ["users", search],
@@ -106,8 +106,8 @@ export function UsersPage() {
     {
       header: "Program",
       cell: (user: any) => {
-        // Implementors are locked to ROTC regardless of the stored value
-        const program = user.role === "IMPLEMENTOR" ? "ROTC" : (user.program ?? null)
+        // Implementors honor their stored program and default to CWTS
+        const program = user.role === "IMPLEMENTOR" ? (user.program ?? "CWTS") : (user.program ?? null)
         if (!program) return <span className="text-xs text-silver">—</span>
         const isROTC = program === "ROTC"
         return (
@@ -232,11 +232,11 @@ export function UsersPage() {
             </Select>
           </FormField>
           <FormField label="Program">
-            <Select {...form.register("program")} disabled={isImplementorRole}>
+            <Select {...form.register("program")}>
               <option value="CWTS">CWTS</option>
               <option value="ROTC">ROTC</option>
             </Select>
-            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementers are locked to ROTC.</p>}
+            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Implementers default to CWTS.</p>}
           </FormField>
           {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>}
           <div className="md:col-span-2">

@@ -4,12 +4,12 @@ import { ok, fail } from "../lib/response.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { getTrainingDaySummary, getStudentTrainingDays, getTermAttendanceOverview } from "../services/trainingDayService.js"
 
-// Implementors are locked to ROTC; admins may opt into a program via ?program=
+// Implementors are scoped to their account program (default CWTS); admins may opt into a program via ?program=
 export function programParam(c: Context): string | null {
   const program = c.req.query("program")
   const valid = program?.toUpperCase() === "ROTC" || program?.toUpperCase() === "CWTS"
   const authUser = getAuthUser(c)
-  if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.ROTC
+  if (authUser.role === RoleType.IMPLEMENTOR) return authUser.program ?? NstpType.CWTS
   return valid ? (program as string) : null
 }
 

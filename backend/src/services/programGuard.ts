@@ -1,10 +1,10 @@
 import { NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 
-/* Guard helpers for program scoping. "Scoped" callers (implementors locked to ROTC,
-   cadet officers running their program) may only touch resources that resolve to
-   THEIR program. Flight-only resources and program-agnostic resources carry no
-   program attribution and are therefore restricted to admins. */
+/* Guard helpers for program scoping. "Scoped" callers (implementors and cadet
+   officers running their program) may only touch resources that resolve to THEIR
+   program. Flight-only resources and program-agnostic resources carry no program
+   attribution and are therefore restricted to admins. */
 
 export class ProgramScopeError extends Error {}
 

@@ -15,9 +15,10 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
   return querySectionId
 }
 
-/* Implementors are locked to ROTC — their directory only shows ROTC students */
-function resolveScopeProgram(authUser: { role: RoleType }): NstpType | undefined {
-  return authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : undefined
+/* Implementors are scoped to their account program (default CWTS) — their
+   directory only shows students of that program */
+function resolveScopeProgram(authUser: { role: RoleType; program?: NstpType | null }): NstpType | undefined {
+  return authUser.role === RoleType.IMPLEMENTOR ? (authUser.program ?? NstpType.CWTS) : undefined
 }
 
 /* Reject section reassignments that would move a student onto the other program.

@@ -12,10 +12,10 @@ function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, quer
   return querySectionId
 }
 
-/* Implementors are locked to ROTC. Admins may target a program via ?program=.
-   Everyone else is scoped to their account-level program. */
+/* Implementors are scoped to their account program (default CWTS). Admins may
+   target a program via ?program=. Everyone else is scoped to their account-level program. */
 function resolveScopeProgram(authUser: { role: RoleType; program?: NstpType | null }, rawProgram?: string): NstpType | null {
-  if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.ROTC
+  if (authUser.role === RoleType.IMPLEMENTOR) return authUser.program ?? NstpType.CWTS
   if (authUser.role === RoleType.ADMIN) {
     const program = rawProgram?.toUpperCase()
     return program === "ROTC" || program === "CWTS" ? (program as NstpType) : null

@@ -73,9 +73,10 @@ export function SectionCards({ program }: { program?: ProgramType }) {
   ]
 
   // Net Merits is only hidden on the CWTS dashboard (which does not track
-  // merits). The ROTC dashboard — including for instructors (IMPLEMENTOR) —
-  // shows it. Students see their specific enrollment status in the student
-  // dashboard, so the aggregate "Enrollments" count card is hidden for them.
+  // merits). The ROTC dashboard — including for ROTC-scoped implementors
+  // (instructors) — shows it. Students see their specific enrollment status in
+  // the student dashboard, so the aggregate "Enrollments" count card is hidden
+  // for them.
   const hideMerits = program === "CWTS"
   const visibleCards =
     user?.role === "STUDENT"

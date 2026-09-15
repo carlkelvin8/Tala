@@ -8,6 +8,7 @@ describe("Document Submission Routes", () => {
   const submissionIds: string[] = []
   const attendanceIds: string[] = []
   let adminToken = ""
+  let implementor: Awaited<ReturnType<typeof createTestUser>>
   let implementorToken = ""
   let studentUser: Awaited<ReturnType<typeof createTestUser>>
   let studentToken = ""
@@ -17,7 +18,7 @@ describe("Document Submission Routes", () => {
     emails.push(admin.email)
     adminToken = makeToken(admin.id, admin.role)
 
-    const implementor = await createTestUser(RoleType.IMPLEMENTOR)
+    implementor = await createTestUser(RoleType.IMPLEMENTOR)
     emails.push(implementor.email)
     implementorToken = makeToken(implementor.id, implementor.role)
 
@@ -85,7 +86,8 @@ describe("Document Submission Routes", () => {
   })
 
   it("PATCH /api/submissions/:id — implementor cannot approve another program's student", async () => {
-    // Student is CWTS (set earlier); implantor is locked to ROTC → must be blocked
+    // Student is CWTS; an ROTC-scoped implementor (instructor) must be blocked
+    await prisma.user.update({ where: { id: implementor.id }, data: { program: NstpType.ROTC } })
     await prisma.attendanceRecord.create({
       data: {
         userId: studentUser.id,

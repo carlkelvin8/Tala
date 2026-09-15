@@ -64,7 +64,7 @@ export async function getById(c: Context) {
     // Extract the user ID from the URL path parameter
     const id = c.req.param("id")
     const authUser = getAuthUser(c)
-    // Implementors are locked to ROTC — they may only view users of that program
+    // Implementors are scoped to their account program — they may only view users of that program
     const program = resolveScopeProgram(authUser)
     // Delegate to the user service to fetch the user with all role-specific profile relations
     const user = await getUserById(id, program, authUser.id)

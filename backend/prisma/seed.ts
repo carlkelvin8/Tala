@@ -52,20 +52,20 @@ async function main() {
 
   const impl1 = await prisma.user.upsert({
     where: { email: "implementor@nstp.local" },
-    update: { program: NstpType.ROTC },
-    create: { email: "implementor@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
+    update: { program: NstpType.CWTS },
+    create: { email: "implementor@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.CWTS },
   })
 
   const impl2 = await prisma.user.upsert({
     where: { email: "implementor2@nstp.local" },
-    update: { program: NstpType.ROTC },
-    create: { email: "implementor2@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
+    update: { program: NstpType.CWTS },
+    create: { email: "implementor2@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.CWTS },
   })
 
   const implCoordinator = await prisma.user.upsert({
     where: { email: "coordinator@nstp.local" },
-    update: { program: NstpType.ROTC },
-    create: { email: "coordinator@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.ROTC },
+    update: { program: NstpType.CWTS },
+    create: { email: "coordinator@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.CWTS },
   })
 
   const instructor = await prisma.user.upsert({
@@ -667,8 +667,8 @@ async function main() {
   console.log("")
   console.log("  🔑  All passwords: Password123!")
   console.log("  📧  Admin:         admin@nstp.local")
-  console.log("  📧  Implementor:   implementor@nstp.local")
-  console.log("  📧  Coordinator:   coordinator@nstp.local (Instructor)")
+  console.log("  📧  Implementor:   implementor@nstp.local (CWTS)")
+  console.log("  📧  Coordinator:   coordinator@nstp.local (Instructor, CWTS)")
   console.log("  📧  Instructor:    instructor@nstp.local (ROTC)")
   console.log("  📧  Cadet:         cadet@nstp.local")
   console.log("  📧  Student:       student@nstp.local  (through student10@nstp.local)")

@@ -8,8 +8,8 @@ export async function create(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const body = await c.req.json()
-    // Implementors are locked to ROTC — always create ROTC courses
-    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (body.nstpType ?? undefined)
+    // Implementors are scoped to their account program (default CWTS)
+    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? (authUser.program ?? NstpType.CWTS) : (body.nstpType ?? undefined)
     const course = await createCourse(body.code, body.name, nstpType)
     return c.json(ok("Course created", course))
   } catch (error) {
@@ -19,8 +19,8 @@ export async function create(c: Context) {
 
 export async function list(c: Context) {
   const authUser = getAuthUser(c)
-  // Implementors only see ROTC content
-  const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : undefined
+  // Implementors only see their program's content
+  const nstpType = authUser.role === RoleType.IMPLEMENTOR ? (authUser.program ?? NstpType.CWTS) : undefined
   const courses = await listCourses(nstpType)
   return c.json(ok("Courses fetched", courses))
 }
@@ -38,8 +38,8 @@ export async function getById(c: Context) {
     const id = c.req.param("id")
     const course = await getCourseById(id)
     if (!course) return c.json(fail("Course not found"), 404)
-    // Implementors cannot view courses outside ROTC
-    if (authUser.role === RoleType.IMPLEMENTOR && course.nstpType !== NstpType.ROTC) {
+    // Implementors cannot view courses outside their program
+    if (authUser.role === RoleType.IMPLEMENTOR && course.nstpType !== (authUser.program ?? NstpType.CWTS)) {
       return c.json(fail("Course not found"), 404)
     }
     return c.json(ok("Course fetched", course))
@@ -53,16 +53,16 @@ export async function update(c: Context) {
     const authUser = getAuthUser(c)
     const id = c.req.param("id")
     const body = await c.req.json()
-    // An implementor may only update courses that already belong to ROTC —
-    // editing a CWTS course (or any non-ROTC course) would force a program swap.
+    // An implementor may only update courses that belong to their program —
+    // editing a course from another program would force a program swap.
     if (authUser.role === RoleType.IMPLEMENTOR) {
       const existing = await getCourseById(id)
-      if (!existing || existing.nstpType !== NstpType.ROTC) {
+      if (!existing || existing.nstpType !== (authUser.program ?? NstpType.CWTS)) {
         return c.json(fail("Course not found"), 404)
       }
     }
-    // Implementors are locked to ROTC and cannot change a course's program to CWTS
-    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? NstpType.ROTC : (body.nstpType ?? undefined)
+    // Implementors are scoped to their program and cannot change a course's program
+    const nstpType = authUser.role === RoleType.IMPLEMENTOR ? (authUser.program ?? NstpType.CWTS) : (body.nstpType ?? undefined)
     const course = await updateCourse(id, body.code, body.name, nstpType)
     return c.json(ok("Course updated", course))
   } catch (error) {
@@ -74,10 +74,10 @@ export async function remove(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const id = c.req.param("id")
-    // Implementors may only delete ROTC courses
+    // Implementors may only delete courses in their program
     if (authUser.role === RoleType.IMPLEMENTOR) {
       const existing = await getCourseById(id)
-      if (!existing || existing.nstpType !== NstpType.ROTC) {
+      if (!existing || existing.nstpType !== (authUser.program ?? NstpType.CWTS)) {
         return c.json(fail("Course not found"), 404)
       }
     }

@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
 } from "../ui/sidebar"
 import { NavLink } from "react-router-dom"
-import { navItems } from "../../lib/navigation"
+import { navItems, filterNavItems } from "../../lib/navigation"
 import { getStoredUser, getUserDisplayName } from "../../lib/auth"
 import { logoutSession } from "../../lib/api"
 import { cn } from "../../lib/utils"
@@ -55,7 +55,7 @@ const iconMap = {
 // The premium sidebar component used in the Dashboard page layout
 export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps<typeof Sidebar> & { onNavigate?: () => void }) {
   const user = getStoredUser() // Read the current authenticated user from localStorage
-  const items = navItems.filter((item: typeof navItems[0]) => (user ? item.roles.includes(user.role) : false)) // Filter nav items to only those the current user's role is allowed to see
+  const items = filterNavItems(user) // Filter nav items to those the current user's role and program can see
   const displayName = user ? getUserDisplayName(user) : "Guest User" // Get the user's display name or "Guest User" fallback
 
   const handleLogout = async () => { // Handler for the sign out button
@@ -97,7 +97,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
                   {roleLabels[user.role]} {/* Human-readable role label */}
                 </span>
               )}
-              {getEffectiveProgram(user) && ( // Show the user's NSTP program badge (implementors are locked to ROTC)
+              {getEffectiveProgram(user) && ( // Show the user's NSTP program badge
                 <span className={cn(
                   "inline-block mt-1 ml-1 text-[10px] font-semibold px-2 py-0.5 rounded tracking-wide",
                   programTextColors[getEffectiveProgram(user) as ProgramType],

@@ -26,7 +26,7 @@ export async function getCount(c: Context) {
     ) {
       return c.json(fail("Forbidden"), 403)
     }
-    // Implementors are locked to ROTC — cannot read another program's student
+    // Implementors are scoped to their account program — cannot read another program's student
     if (authUser.role === RoleType.IMPLEMENTOR) {
       const program = resolveScopeProgram(authUser)
       const target = await getUserById(userId, program)

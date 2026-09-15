@@ -1,7 +1,7 @@
 import { NstpType, RoleType } from "@prisma/client"
 
 /* Resolve the program a staff member is allowed to operate on.
-   - Implementors are locked to ROTC.
+   - Implementors are scoped to their account-level program (default CWTS).
    - Admins may target a program via ?program= (falls back to scoping nothing).
    - Everyone else is scoped to their account-level program.
    Returns null when the caller may see all programs (e.g. an admin without ?program=). */
@@ -9,7 +9,7 @@ export function resolveScopeProgram(
   authUser: { role: RoleType; program?: NstpType | null },
   rawProgram?: string
 ): NstpType | null {
-  if (authUser.role === RoleType.IMPLEMENTOR) return NstpType.ROTC
+  if (authUser.role === RoleType.IMPLEMENTOR) return authUser.program ?? NstpType.CWTS
   if (authUser.role === RoleType.ADMIN) {
     const program = rawProgram?.toUpperCase()
     return program === "ROTC" || program === "CWTS" ? (program as NstpType) : null

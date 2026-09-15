@@ -14,7 +14,7 @@ import {
 } from "../components/ui/sidebar"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { NavLink, useNavigate } from "react-router-dom"
-import { navItems } from "../lib/navigation"
+import { filterNavItems } from "../lib/navigation"
 import { getStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
 import { logoutSession } from "../lib/api"
 import { cn } from "../lib/utils"
@@ -47,7 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate()
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [currentUser, setCurrentUser] = useState(user)
-  const items = navItems.filter((item) => (currentUser ? item.roles.includes(currentUser.role) : false))
+  const items = filterNavItems(currentUser)
 
   React.useEffect(() => {
     const handleStorageChange = () => {

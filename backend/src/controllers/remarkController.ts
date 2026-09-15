@@ -13,7 +13,7 @@ export async function createRemark(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const body = await c.req.json()
-    // Implementors are locked to ROTC — they may not write remarks on other programs
+    // Implementors are scoped to their account program — they may not write remarks on other programs
     const program = resolveScopeProgram(authUser)
     if (program) {
       const target = await getUserById(body.userId, program)
@@ -37,7 +37,7 @@ export async function listRemarks(c: Context) {
     ) {
       return c.json(fail("Forbidden"), 403)
     }
-    // Implementors are locked to ROTC — cannot read another program's student
+    // Implementors are scoped to their account program — cannot read another program's student
     if (authUser.role === RoleType.IMPLEMENTOR) {
       const program = resolveScopeProgram(authUser)
       const target = await getUserById(userId, program)
