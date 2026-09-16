@@ -1,4 +1,4 @@
-import { getAccessToken, getRefreshToken, setAuthSession, clearAuthSession } from "./auth"
+import { getAccessToken, getRefreshToken, setAuthSession, clearAuthSession, getStoredUser } from "./auth"
 
 const baseUrl = import.meta.env.VITE_API_URL ?? ""
 
@@ -16,10 +16,9 @@ async function tryRefreshToken(): Promise<boolean> {
 
     const data = await response.json()
     if (data.success && data.data) {
-      const storedUser = JSON.parse(localStorage.getItem("nstp_user") || "null")
-      if (storedUser) {
-        setAuthSession(storedUser, data.data.accessToken, data.data.refreshToken)
-      }
+      const storedUser = getStoredUser()
+      if (!storedUser) return false
+      setAuthSession(storedUser, data.data.accessToken, data.data.refreshToken)
       return true
     }
     return false
@@ -57,7 +56,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}) {
 
   const contentType = response.headers.get("content-type") ?? ""
   const text = await response.text()
-  const data = text && contentType.includes("application/json") ? JSON.parse(text) : text
+  let data: unknown = text
+  if (text && contentType.includes("application/json")) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+  }
   if (!response.ok) {
     const message =
       typeof data === "object" && data !== null && "message" in data && data.message

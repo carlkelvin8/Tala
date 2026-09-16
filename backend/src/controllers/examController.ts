@@ -17,10 +17,15 @@ export async function createSession(c: Context) {
   try {
     // Parse the JSON body containing exam session configuration
     const body = await c.req.json()
+    // Resolve the caller's program so scoped staff (implementors) can only
+    // create exams for sections of their own program.
+    const authUser = getAuthUser(c)
+    const scopeProgram = resolveScopeProgram(authUser)
     // Delegate to the exam service; convert scheduledAt string to a Date object
     const session = await createExamSession({
       ...body,                              // Spread all other fields (title, description, durationMin, etc.)
-      scheduledAt: new Date(body.scheduledAt) // Convert the ISO date string to a Date object
+      scheduledAt: new Date(body.scheduledAt), // Convert the ISO date string to a Date object
+      scopeProgram                          // Lock the exam to the caller's program when scoped
     })
     // Return the created exam session object
     return c.json(ok("Exam session created", session))

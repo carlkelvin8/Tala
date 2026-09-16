@@ -42,8 +42,9 @@ export async function studentDays(c: Context) {
 export async function overview(c: Context) {
   try {
     const termId = c.req.query("termId")
+    const program = programParam(c)
     if (!termId) return c.json(fail("termId is required"), 400)
-    const result = await getTermAttendanceOverview(termId)
+    const result = await getTermAttendanceOverview(termId, program)
     return c.json(ok("Term attendance overview fetched", result))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to fetch overview"), 400)

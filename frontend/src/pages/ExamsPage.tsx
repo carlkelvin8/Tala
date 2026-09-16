@@ -198,7 +198,13 @@ export function ExamsPage() {
     }
     try {
       const result = await attemptMutation.mutateAsync(examSessionId)
-      setCurrentAttemptId(result.data?.id ?? null)
+      // Never start the countdown unless the server returned a real attempt id —
+      // an in-flight attempt that can never be submitted would strand the student.
+      if (!result.data?.id) {
+        toast.error("Unable to start the exam attempt. Please try again.")
+        return
+      }
+      setCurrentAttemptId(result.data.id)
       setTimeLeft(durationMin * 60)
       setRunning(true)
       toast.success("Exam started — timer is now counting down")

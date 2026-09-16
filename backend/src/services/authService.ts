@@ -26,7 +26,7 @@ export async function registerUser(data: {
   const studentNo = data.studentNo?.trim() || undefined
   if (studentNo) {
     const existingStudent = await prisma.studentProfile.findUnique({
-      where: { studentNo: data.studentNo }
+      where: { studentNo }
     })
     if (existingStudent) {
       throw new Error("Student number already in use")
@@ -170,7 +170,7 @@ export async function updateProfile(userId: string, data: {
 }
 
 function hashResetCode(code: string) {
-  return createHash("sha256").update(`${code}:${env.accessTokenSecret}`).digest("hex")
+  return createHash("sha256").update(`${code}:${env.refreshTokenSecret}`).digest("hex")
 }
 
 export async function forgotPassword(email: string) {
@@ -182,7 +182,7 @@ export async function forgotPassword(email: string) {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0")
   const ticket = jwt.sign(
     { sub: user.id, type: "password-reset", codeHash: hashResetCode(code) },
-    env.accessTokenSecret,
+    env.refreshTokenSecret,
     { expiresIn: "10m" }
   )
   await logAudit("FORGOT_PASSWORD", "User", user.id, user.id)
@@ -194,7 +194,7 @@ export async function forgotPassword(email: string) {
 
 export async function resetPassword(ticket: string, code: string, newPassword: string) {
   try {
-    const payload = jwt.verify(ticket, env.accessTokenSecret) as { sub: string; type: string; codeHash?: string }
+    const payload = jwt.verify(ticket, env.refreshTokenSecret) as { sub: string; type: string; codeHash?: string }
     if (payload.type !== "password-reset" || !payload.codeHash) {
       throw new Error("Invalid reset ticket")
     }

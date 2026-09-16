@@ -124,31 +124,35 @@ export async function autoSectionEnrollees(courseId: string) {
   const assignments: { enrollmentId: string; userId: string; sectionCode: string }[] = []
   const sectionCounts = new Map<string, number>()
 
-  for (let i = 0; i < deduped.length && i < plan.length; i++) {
-    const enrollment = deduped[i]
-    const target = plan[i]
-    await prisma.enrollment.update({
-      where: { id: enrollment.id },
-      data: { sectionId: target.sectionId },
-    })
+  // Assign every student inside a single transaction so a mid-loop failure can
+  // never leave enrollment.sectionId and studentProfile.sectionId out of sync.
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < deduped.length && i < plan.length; i++) {
+      const enrollment = deduped[i]
+      const target = plan[i]
+      await tx.enrollment.update({
+        where: { id: enrollment.id },
+        data: { sectionId: target.sectionId },
+      })
 
-    await prisma.studentProfile.update({
-      where: { userId: enrollment.user.id },
-      data: { sectionId: target.sectionId },
-    })
+      await tx.studentProfile.update({
+        where: { userId: enrollment.user.id },
+        data: { sectionId: target.sectionId },
+      })
 
-    await logAudit("UPDATE", "Enrollment", enrollment.id, undefined, {
-      sectionId: target.sectionId,
-      sectionCode: target.sectionCode,
-    })
+      await logAudit("UPDATE", "Enrollment", enrollment.id, undefined, {
+        sectionId: target.sectionId,
+        sectionCode: target.sectionCode,
+      })
 
-    sectionCounts.set(target.sectionCode, (sectionCounts.get(target.sectionCode) ?? 0) + 1)
-    assignments.push({
-      enrollmentId: enrollment.id,
-      userId: enrollment.user.id,
-      sectionCode: target.sectionCode,
-    })
-  }
+      sectionCounts.set(target.sectionCode, (sectionCounts.get(target.sectionCode) ?? 0) + 1)
+      assignments.push({
+        enrollmentId: enrollment.id,
+        userId: enrollment.user.id,
+        sectionCode: target.sectionCode,
+      })
+    }
+  })
 
   const sectionSummary = Array.from(sectionCounts.entries()).map(([code, count]) => {
     const existing = existingSections.find((s) => s.code === code)

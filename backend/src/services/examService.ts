@@ -5,6 +5,8 @@ import { logAudit } from "./auditService.js"
 // Import Prisma types and the question-type enum for type-safe question writes
 import { ExamQuestionType, NstpType } from "@prisma/client"
 import type { Prisma } from "@prisma/client"
+// Import the program guard so scoped staff can only create exams in their own program
+import { assertSectionProgram } from "./programGuard.js"
 
 /* Create a new exam session */
 export async function createExamSession(data: {
@@ -14,9 +16,20 @@ export async function createExamSession(data: {
   scheduledAt: Date     // Date and time when the exam is scheduled to start
   sectionId?: string    // Optional UUID to restrict the exam to a specific section
   flightId?: string     // Optional UUID to restrict the exam to a specific flight
+  scopeProgram?: NstpType | null // Program the caller is locked to (ROTC for implementors)
 }) {
+  // Scoped staff (implementors) must target a section of their own program;
+  // general and flight-only exams are program-agnostic and admin-managed.
+  if (data.scopeProgram) {
+    if (!data.sectionId) {
+      throw new Error("You must scope the exam to a section of your program")
+    }
+    await assertSectionProgram(data.sectionId, data.scopeProgram)
+  }
+
+  const { scopeProgram, ...createData } = data
   // Insert a new exam session record with the provided configuration
-  const session = await prisma.examSession.create({ data })
+  const session = await prisma.examSession.create({ data: createData })
   // Log the exam session creation event to the audit trail
   await logAudit("CREATE", "ExamSession", session.id)
   // Return the created exam session object

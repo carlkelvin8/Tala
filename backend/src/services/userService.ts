@@ -29,33 +29,35 @@ export async function createUser(data: {
   const passwordHash = await hashPassword(data.password)
   // Implementor accounts honor the assigned program and default to CWTS; all other roles may carry any program
   const program = data.role === RoleType.IMPLEMENTOR ? (data.program ?? NstpType.CWTS) : (data.program ?? null)
-  // Create the base user record with email, hashed password, and role
-  const user = await userRepository.create({
-    email: data.email,
-    passwordHash,
-    role: data.role,
-    program
-  })
+  // Create the base user record AND its role-specific profile in one transaction
+  // so a profile failure can never leave behind an orphaned user (which would
+  // silently break auth middleware profile lookups).
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: { email: data.email, passwordHash, role: data.role, program }
+    })
 
-  // Create the role-specific profile record based on the assigned role
-  if (data.role === RoleType.STUDENT) {
-    // Create a student profile with name fields
-    await prisma.studentProfile.create({
-      data: { userId: user.id, firstName: data.firstName, lastName: data.lastName }
-    })
-  }
-  if (data.role === RoleType.IMPLEMENTOR) {
-    // Create an implementor profile with name fields
-    await prisma.implementorProfile.create({
-      data: { userId: user.id, firstName: data.firstName, lastName: data.lastName }
-    })
-  }
-  if (data.role === RoleType.CADET_OFFICER) {
-    // Create a cadet officer profile with name fields
-    await prisma.cadetOfficerProfile.create({
-      data: { userId: user.id, firstName: data.firstName, lastName: data.lastName }
-    })
-  }
+    // Create the role-specific profile record based on the assigned role
+    if (data.role === RoleType.STUDENT) {
+      // Create a student profile with name fields
+      await tx.studentProfile.create({
+        data: { userId: newUser.id, firstName: data.firstName, lastName: data.lastName }
+      })
+    }
+    if (data.role === RoleType.IMPLEMENTOR) {
+      // Create an implementor profile with name fields
+      await tx.implementorProfile.create({
+        data: { userId: newUser.id, firstName: data.firstName, lastName: data.lastName }
+      })
+    }
+    if (data.role === RoleType.CADET_OFFICER) {
+      // Create a cadet officer profile with name fields
+      await tx.cadetOfficerProfile.create({
+        data: { userId: newUser.id, firstName: data.firstName, lastName: data.lastName }
+      })
+    }
+    return newUser
+  })
 
   // Log the user creation event to the audit trail
   await logAudit("CREATE", "User", user.id)

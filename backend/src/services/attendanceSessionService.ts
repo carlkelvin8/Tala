@@ -14,7 +14,7 @@ import {
   type Coordinates,     // TypeScript interface for a lat/lon pair
 } from "../lib/geolocation.js"
 // Import the AttendanceStatus enum from Prisma for type-safe status values
-import { AttendanceStatus, NstpType } from "@prisma/client"
+import { AttendanceStatus, NstpType, RoleType } from "@prisma/client"
 // Import program guards so scoped staff (implementors) stay inside their program
 import { assertSectionProgram, resolveSectionProgram } from "./programGuard.js"
 
@@ -395,6 +395,16 @@ export async function markAttendanceWithLocation(
     }
   }
 
+  // Reject duplicate check-ins for the same student on the same date — the
+  // userId+date unique constraint would otherwise surface as an opaque 500.
+  const duplicate = await prisma.attendanceRecord.findFirst({
+    where: { userId, date: session.date },
+    select: { id: true },
+  })
+  if (duplicate) {
+    throw new Error("Attendance for this date has already been marked")
+  }
+
   // Use server timestamp as the source of truth for check-in time
   const serverNow = new Date()
   // A check-in more than 15 minutes after the session started counts as late
@@ -504,7 +514,7 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
   }
   const enrolledStudents = sessionWhere.length
     ? await prisma.user.findMany({
-        where: { OR: sessionWhere },
+        where: { role: RoleType.STUDENT, OR: sessionWhere },
         select: { id: true },
       })
     : []
