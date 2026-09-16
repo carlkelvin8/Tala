@@ -351,6 +351,24 @@ export async function markAttendanceWithLocation(
     throw new Error("Session not found"); // Should not happen after verification passed
   }
 
+  // Only enrolled members of the session's section/flight may check in. General
+  // sessions (no section/flight) remain open to any student.
+  if (session.sectionId || session.flightId) {
+    const membership = await prisma.enrollment.findFirst({
+      where: {
+        userId,
+        status: "APPROVED",
+        OR: [
+          ...(session.sectionId ? [{ sectionId: session.sectionId }] : []),
+          ...(session.flightId ? [{ flightId: session.flightId }] : []),
+        ],
+      },
+    })
+    if (!membership) {
+      throw new Error("You are not enrolled in the section or flight assigned to this session")
+    }
+  }
+
   // Check for previous attendance (anti-tamper: impossible speed)
   const previousRecord = await prisma.attendanceRecord.findFirst({
     where: {
@@ -390,7 +408,8 @@ export async function markAttendanceWithLocation(
       longitude,
       status: isLate ? AttendanceStatus.LATE : AttendanceStatus.PRESENT,
       sessionId,
-      verifiedBy: session.verifierId || undefined,
+      // Only record the verifier when verification is required for this session
+      verifiedBy: session.requireVerifier ? (session.verifierId ?? undefined) : undefined,
     },
   });
 
@@ -467,16 +486,28 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
     throw new Error("Session has already been ended");
   }
 
-  // Auto-mark ABSENT for enrolled students who did not check in
-  const enrolledStudents = await prisma.studentProfile.findMany({
-    where: {
-      OR: [
-        { sectionId: session.sectionId ?? undefined },
-        { flightId: session.flightId ?? undefined }
-      ].filter(w => w.sectionId || w.flightId)
-    },
-    select: { userId: true }
-  })
+  // Auto-mark ABSENT for enrolled students who did not check in. The roster is
+  // the union of approved enrollments and profile section/flight assignment so
+  // both enrollment-driven and legacy profile-driven rosters are covered.
+  const sessionWhere: Record<string, unknown>[] = []
+  if (session.sectionId) {
+    sessionWhere.push(
+      { studentProfile: { sectionId: session.sectionId } },
+      { enrollments: { some: { sectionId: session.sectionId, status: "APPROVED" } } }
+    )
+  }
+  if (session.flightId) {
+    sessionWhere.push(
+      { studentProfile: { flightId: session.flightId } },
+      { enrollments: { some: { flightId: session.flightId, status: "APPROVED" } } }
+    )
+  }
+  const enrolledStudents = sessionWhere.length
+    ? await prisma.user.findMany({
+        where: { OR: sessionWhere },
+        select: { id: true },
+      })
+    : []
 
   const markedUserIds = await prisma.attendanceRecord.findMany({
     where: { sessionId },
@@ -485,27 +516,28 @@ export async function endSession(sessionId: string, hostId: string, remarks?: st
 
   const markedSet = new Set(markedUserIds.map(r => r.userId))
   // Also skip students who already have an attendance record for this date —
-  // protects against partial failures and the userId+date unique constraint
+  // protects against partial failures and the userId+date unique constraint.
   const alreadyRecorded = await prisma.attendanceRecord.findMany({
-    where: { date: session.date, userId: { in: enrolledStudents.map((s) => s.userId) } },
+    where: { date: session.date, userId: { in: enrolledStudents.map((s) => s.id) } },
     select: { userId: true },
   })
   for (const rec of alreadyRecorded) markedSet.add(rec.userId)
 
-  const absentStudents = enrolledStudents.filter(s => !markedSet.has(s.userId))
+  const absentStudents = enrolledStudents.filter(s => !markedSet.has(s.id))
 
   if (absentStudents.length > 0) {
     await prisma.attendanceRecord.createMany({
       data: absentStudents.map(student => ({
-        userId: student.userId,
+        userId: student.id,
         date: session.date,
         status: "ABSENT" as const,
         sessionId
-      }))
+      })),
+      skipDuplicates: true
     })
     // Auto-fail any student whose (new) absence total now exceeds the limit
     for (const student of absentStudents) {
-      await checkAndMarkAbsences(student.userId)
+      await checkAndMarkAbsences(student.id)
     }
   }
 

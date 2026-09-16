@@ -27,6 +27,13 @@ export async function getCourseById(id: string) {
 }
 
 export async function updateCourse(id: string, code: string, name: string, nstpType?: NstpType) {
+  const existing = await courseRepository.getById(id)
+  if (!existing) throw new Error("Course not found")
+  // Flipping the NSTP program of a course that already has sections would strand
+  // those students in the wrong component — forbid it once any section exists.
+  if (nstpType && existing.nstpType !== nstpType && existing.sections.length > 0) {
+    throw new Error("Cannot change the NSTP program of a course that already has sections")
+  }
   const course = await courseRepository.update(id, { code, name, nstpType })
   await logAudit("UPDATE", "Course", id)
   return course

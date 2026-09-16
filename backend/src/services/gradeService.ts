@@ -204,8 +204,10 @@ export async function listGrades(filters: { studentId?: string; sectionId?: stri
       studentProfile: { sectionId: filters.sectionId }
     }
   }
-  // Scoped staff only see grades of students belonging to their program
-  if (scopeProgram && !filters.studentId) {
+  // Scoped staff only see grades of students belonging to their program. The
+  // scope applies even when a studentId filter is present so a staff member can
+  // never read a student outside their program.
+  if (scopeProgram) {
     const scope = programUserScope(scopeProgram)
     if (scope) {
       if (where.student) {
@@ -279,6 +281,16 @@ export async function deleteGrade(id: string, userId: string, scopeProgram?: Nst
 
 /* Update a grade item's details */
 export async function updateGradeItem(id: string, data: { title?: string; maxScore?: number; categoryId?: string }, userId: string) {
+  // Refuse to lower maxScore below an already-encoded score
+  if (data.maxScore !== undefined) {
+    const overMax = await prisma.studentGrade.findFirst({
+      where: { gradeItemId: id, score: { gt: data.maxScore } },
+      select: { id: true },
+    })
+    if (overMax) {
+      throw new Error(`Cannot lower max score below an existing grade of ${data.maxScore}`)
+    }
+  }
   // Update the grade item record with the provided fields
   const item = await prisma.gradeItem.update({
     where: { id }, // Target the specific grade item by ID

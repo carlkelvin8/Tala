@@ -23,10 +23,25 @@ export async function createExamSession(data: {
   return session
 }
 
-export async function listExamSessions(filters?: { sectionId?: string; program?: NstpType }) {
+export async function listExamSessions(filters?: {
+  sectionId?: string
+  program?: NstpType
+  studentVisibility?: { sectionId?: string; flightId?: string }
+}) {
   const where: Record<string, unknown> = {}
-  if (filters?.sectionId) where.sectionId = filters.sectionId
-  if (filters?.program) where.OR = [{ section: { course: { nstpType: filters.program } } }]
+  // Students see general exams plus exams tied to their own section/flight.
+  if (filters?.studentVisibility) {
+    const visibleFor = [
+      { sectionId: null, flightId: null },
+      ...(filters.studentVisibility.sectionId ? [{ sectionId: filters.studentVisibility.sectionId }] : []),
+      ...(filters.studentVisibility.flightId ? [{ flightId: filters.studentVisibility.flightId }] : []),
+    ]
+    where.OR = visibleFor
+  } else if (filters?.sectionId) {
+    where.sectionId = filters.sectionId
+  } else if (filters?.program) {
+    where.OR = [{ section: { course: { nstpType: filters.program } } }]
+  }
   return prisma.examSession.findMany({
     where,
     orderBy: { scheduledAt: "desc" },
@@ -160,7 +175,9 @@ export async function startExamAttempt(examSessionId: string, studentId: string)
   return attempt
 }
 
-/* End an existing exam attempt by setting its end time, with ownership verification */
+/* End an existing exam attempt by setting its end time, with ownership
+   verification. Server-side duration is enforced: a submit arriving past the
+   deadline is capped at the deadline and flagged as expired. */
 export async function endExamAttempt(id: string, studentId: string) {
   // Verify the attempt belongs to the requesting student
   const existing = await prisma.examAttempt.findUnique({ where: { id } })
@@ -174,12 +191,23 @@ export async function endExamAttempt(id: string, studentId: string) {
     throw new Error("Exam attempt already submitted")
   }
 
+  const session = await prisma.examSession.findUnique({
+    where: { id: existing.examSessionId },
+    select: { durationMin: true },
+  })
+  // Guard against a null startedAt (partial write) by falling back to createdAt
+  const startedAt = existing.startedAt ?? existing.createdAt
+  const deadline = session ? new Date(startedAt.getTime() + session.durationMin * 60_000) : null
+  const now = new Date()
+  const expired = deadline !== null && now > deadline
+  const endedAt = expired ? deadline : now
+
   const attempt = await prisma.examAttempt.update({
     where: { id },
-    data: { endedAt: new Date() }
+    data: { endedAt }
   })
   await logAudit("UPDATE", "ExamAttempt", id, studentId)
-  return attempt
+  return { ...attempt, expired }
 }
 
 /* Log a monitoring event for a student's own, in-progress exam attempt */

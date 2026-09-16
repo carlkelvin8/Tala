@@ -6,4 +6,5 @@ export type AuthUser = {
   email: string
   program?: NstpType | null
   sectionId?: string
+  flightId?: string
 }

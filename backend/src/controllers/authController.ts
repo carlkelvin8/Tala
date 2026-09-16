@@ -17,8 +17,12 @@ export async function register(c: Context) {
     // Return a success response with the new user's ID, email, role, and program
     return c.json(ok("User registered", { id: user.id, email: user.email, role: user.role, program: user.program }))
   } catch (error) {
-    // Return 400 with the error message if registration fails (e.g. duplicate email)
-    return c.json(fail(error instanceof Error ? error.message : "Registration failed"), 400)
+    // Duplicate email/student number map to 409 so clients can surface the conflict
+    const message = error instanceof Error ? error.message : "Registration failed"
+    if (message === "Email already in use" || message === "Student number already in use") {
+      return c.json(fail(message), 409)
+    }
+    return c.json(fail(message), 400)
   }
 }
 
@@ -60,7 +64,15 @@ export async function login(c: Context) {
       })
     )
   } catch (error) {
-    return c.json(fail(error instanceof Error ? error.message : "Login failed"), 400)
+    // Invalid credentials / disabled accounts map to 401/403 so clients can branch
+    const message = error instanceof Error ? error.message : "Login failed"
+    if (message === "Invalid credentials") {
+      return c.json(fail(message), 401)
+    }
+    if (message === "Account disabled") {
+      return c.json(fail(message), 403)
+    }
+    return c.json(fail(message), 401)
   }
 }
 

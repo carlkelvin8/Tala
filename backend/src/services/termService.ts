@@ -7,16 +7,20 @@ export async function createTerm(data: { name: string; startDate: string; endDat
   if (endDate <= startDate) {
     throw new Error("End date must be after start date")
   }
-  if (data.isActive) {
-    await prisma.academicTerm.updateMany({ where: { isActive: true }, data: { isActive: false } })
-  }
-  const term = await prisma.academicTerm.create({
-    data: {
-      name: data.name,
-      startDate,
-      endDate,
-      isActive: data.isActive ?? false
+  // Deactivating other terms and creating the new one must be atomic so two
+  // concurrent activations can never leave more than one active term.
+  const term = await prisma.$transaction(async (tx) => {
+    if (data.isActive) {
+      await tx.academicTerm.updateMany({ where: { isActive: true }, data: { isActive: false } })
     }
+    return tx.academicTerm.create({
+      data: {
+        name: data.name,
+        startDate,
+        endDate,
+        isActive: data.isActive ?? false
+      }
+    })
   })
   await logAudit("CREATE", "AcademicTerm", term.id)
   return term
@@ -40,16 +44,20 @@ export async function updateTerm(id: string, data: { name?: string; startDate?: 
       throw new Error("End date must be after start date")
     }
   }
-  if (data.isActive) {
-    await prisma.academicTerm.updateMany({ where: { isActive: true, id: { not: id } }, data: { isActive: false } })
-  }
-  const term = await prisma.academicTerm.update({
-    where: { id },
-    data: {
-      ...data,
-      startDate: data.startDate ? new Date(data.startDate) : undefined,
-      endDate: data.endDate ? new Date(data.endDate) : undefined
+  // Deactivating other terms and updating this one must be atomic so two
+  // concurrent activations can never leave more than one active term.
+  const term = await prisma.$transaction(async (tx) => {
+    if (data.isActive) {
+      await tx.academicTerm.updateMany({ where: { isActive: true, id: { not: id } }, data: { isActive: false } })
     }
+    return tx.academicTerm.update({
+      where: { id },
+      data: {
+        ...data,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
+        endDate: data.endDate ? new Date(data.endDate) : undefined
+      }
+    })
   })
   await logAudit("UPDATE", "AcademicTerm", id)
   return term

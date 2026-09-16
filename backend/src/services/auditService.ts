@@ -11,16 +11,21 @@ export async function logAudit(
   actorId?: string,                  // Optional UUID of the user who performed the action
   meta?: Prisma.InputJsonValue       // Optional additional metadata (e.g. changed fields, context)
 ) {
-  // Insert a new audit log record into the database
-  await prisma.auditLog.create({
-    data: {
-      action,   // The action type string
-      entity,   // The entity/model name string
-      entityId, // The affected record's ID (may be undefined)
-      actorId,  // The acting user's ID (may be undefined for system actions)
-      meta      // Optional JSON metadata (may be undefined)
-    }
-  })
+  // Insert a new audit log record into the database. Audit logging must never
+  // break the primary operation, so failures are swallowed and logged.
+  try {
+    await prisma.auditLog.create({
+      data: {
+        action,   // The action type string
+        entity,   // The entity/model name string
+        entityId, // The affected record's ID (may be undefined)
+        actorId,  // The acting user's ID (may be undefined for system actions)
+        meta      // Optional JSON metadata (may be undefined)
+      }
+    })
+  } catch (error) {
+    console.error(JSON.stringify({ level: "warn", event: "audit_log_write_failed", action, entity, entityId, error: error instanceof Error ? error.message : error }))
+  }
 }
 
 export async function listAuditLogs(filters: { action?: string; entity?: string; search?: string }, skip: number, take: number) {

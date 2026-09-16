@@ -11,7 +11,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 // Import the program scope helper (OR-filter that also catches legacy null-program students)
 import { programUserScope } from "../services/programScope.js"
 // Import the shared total-grade computation
-import { computeTotalGrade } from "../services/gradeService.js"
+import { computeTotalGrade, computeStudentsTotalGrades } from "../services/gradeService.js"
 import { getGradeConfig } from "../services/gradeConfigService.js"
 
 /* Count attendance records since a given date for a filter and return the
@@ -73,7 +73,7 @@ export async function summary(c: Context) {
   since.setDate(since.getDate() - 30) // Subtract 30 days from today
 
   // Run all six database aggregation queries in parallel for performance
-  const [attendanceTotal, attendancePresent, enrollmentsApproved, gradeAgg, meritsMerit, meritsDemerit] =
+  const [attendanceTotal, attendancePresent, enrollmentsApproved, meritsMerit, meritsDemerit] =
     await Promise.all([
       // Count all attendance records in the last 30 days (regardless of status)
       prisma.attendanceRecord.count({
@@ -98,13 +98,6 @@ export async function summary(c: Context) {
           ...enrollmentFilter,
           status: EnrollmentStatus.APPROVED // Only count approved enrollments
         }
-      }),
-      // Calculate the average score across all student grade records
-      prisma.studentGrade.aggregate({
-        _avg: {
-          score: true // Compute the mean of the score column
-        },
-        where: gradeFilter
       }),
       // Sum all merit points awarded to students
       prisma.meritDemerit.aggregate({
@@ -133,17 +126,28 @@ export async function summary(c: Context) {
     attendanceTotal > 0 ? (attendancePresent / attendanceTotal) * 100 : null
 
   // For admins, also compute a per-program attendance rate so the dashboard
-  // can show CWTS and ROTC attendance separately
+  // can show CWTS and ROTC attendance separately. Uses the section-derived
+  // program scope so legacy students without an account program count too.
   const attendanceByProgram =
     program === null
       ? {
-          CWTS: await attendanceRateFor(since, { user: { program: NstpType.CWTS } }),
-          ROTC: await attendanceRateFor(since, { user: { program: NstpType.ROTC } })
+          CWTS: await attendanceRateFor(since, { user: userProgramFilter(NstpType.CWTS) }),
+          ROTC: await attendanceRateFor(since, { user: userProgramFilter(NstpType.ROTC) })
         }
       : null
 
-  // Extract the average grade score; use null if no grades have been recorded
-  const gradeAverage = gradeAgg._avg?.score ?? null
+  // Average the per-student total grade (percentage) so items with different
+  // max scores are not weighted by raw score values.
+  const gradedStudentIds = await prisma.studentGrade.findMany({
+    where: gradeFilter,
+    select: { studentId: true },
+    distinct: ["studentId"],
+  })
+  const totals = await computeStudentsTotalGrades(gradedStudentIds.map((r) => r.studentId))
+  const gradedTotals = [...totals.values()].filter((t): t is number => t !== null)
+  const gradeAverage = gradedTotals.length > 0
+    ? gradedTotals.reduce((sum, t) => sum + t, 0) / gradedTotals.length
+    : null
 
   // Compute net merits by subtracting total demerit points from total merit points
   const netMerits = (meritsMerit._sum.points ?? 0) - (meritsDemerit._sum.points ?? 0)
@@ -169,21 +173,31 @@ export async function studentSummary(c: Context) {
   const authUser = getAuthUser(c)
   const userId = authUser.id
 
-  const [enrollment, gradeCategories, attendanceRecords, pendingSubmissions, gradeConfig] = await Promise.all([
-    prisma.enrollment.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        section: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-            course: { select: { id: true, code: true, name: true, nstpType: true } },
-          },
-        },
+  const enrollmentInclude = {
+    section: {
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        course: { select: { id: true, code: true, name: true, nstpType: true } },
       },
-    }),
+    },
+  }
+  const [enrollment, gradeCategories, attendanceRecords, pendingSubmissions, gradeConfig] = await Promise.all([
+    // Prefer the active (APPROVED) enrollment so status is never reported from a
+    // stale/rejected record; fall back to the latest enrollment of any status.
+    prisma.enrollment.findFirst({
+      where: { userId, status: EnrollmentStatus.APPROVED },
+      orderBy: { createdAt: "desc" },
+      include: enrollmentInclude,
+    }).then((found) =>
+      found ??
+      prisma.enrollment.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        include: enrollmentInclude,
+      })
+    ),
     prisma.gradeCategory.findMany({
       orderBy: { createdAt: "asc" },
       include: {

@@ -20,6 +20,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { prisma } from "../lib/prisma.js"
 import { RoleType } from "@prisma/client"
 import { resolveScopeProgram } from "../services/programScope.js"
+import { assertUserInProgram } from "../services/programGuard.js"
 
 function resolveSectionId(authUser: { role: RoleType; sectionId?: string }, querySectionId?: string): string | undefined {
   if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
@@ -77,7 +78,13 @@ export async function list(c: Context) {
   const query = c.req.query()
   const { page, pageSize, skip, take } = getPagination(query)
   const sectionId = resolveSectionId(authUser, query.sectionId)
-  const result = await listGrades({ studentId: query.studentId, sectionId }, skip, take, resolveScopeProgram(authUser))
+  // Students and cadet officers may only ever read their own grades; the
+  // client-supplied studentId (if any) is ignored for them.
+  let studentId = query.studentId
+  if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    studentId = authUser.id
+  }
+  const result = await listGrades({ studentId, sectionId }, skip, take, resolveScopeProgram(authUser))
 
   // Compute the weighted total grade per student present in this page so each
   // grade row can show the student's overall grade alongside the individual score.
@@ -98,13 +105,21 @@ export async function getTotal(c: Context) {
     const authUser = getAuthUser(c)
     const query = c.req.query()
     let studentId = query.studentId
-    if (authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER) {
+    const isSelfRole = authUser.role === RoleType.STUDENT || authUser.role === RoleType.CADET_OFFICER
+    if (isSelfRole) {
       studentId = authUser.id
     }
     if (!studentId) return c.json(fail("A studentId is required"), 400)
+    // Scoped staff may only fetch totals of students inside their program
+    if (!isSelfRole) {
+      await assertUserInProgram(studentId, resolveScopeProgram(authUser))
+    }
     const result = await computeStudentTotalBreakdown(studentId)
     return c.json(ok("Total fetched", result))
   } catch (error) {
+    if (error instanceof Error && error.name === "ProgramScopeError") {
+      return c.json(fail(error.message), 403)
+    }
     return c.json(fail(error instanceof Error ? error.message : "Total fetch failed"), 400)
   }
 }

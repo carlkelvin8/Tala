@@ -44,6 +44,14 @@ export async function setSessionStatus(c: Context) {
 export async function listSessions(c: Context) {
   const authUser = getAuthUser(c)
   const query = c.req.query()
+  // Students only ever see sessions they are allowed to take: general exams and
+  // exams assigned to their own section/flight.
+  if (authUser.role === RoleType.STUDENT) {
+    const sessions = await listExamSessions({
+      studentVisibility: { sectionId: authUser.sectionId, flightId: authUser.flightId }
+    })
+    return c.json(ok("Exam sessions fetched", sessions))
+  }
   const sectionId = resolveSectionId(authUser, query.sectionId)
   // Implementors are scoped to their account program — scope their session list to that program
   const program = resolveScopeProgram(authUser)

@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { checkAndMarkAbsences } from "./absenceService.js"
 import { userProgram } from "./programGuard.js"
+import { utcStartOfDay } from "../lib/dates.js"
 import { env } from "../lib/env.js"
 import { createHmac, timingSafeEqual } from "crypto"
 
@@ -75,8 +76,11 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
     }
   }
 
-  const today = new Date()
-  const date = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  // The attendance date is the UTC calendar day; this matches the session.date
+  // convention so a QR-scanned PRESENT record is never de-duplicated against a
+  // different midnight for the same calendar day (which would otherwise cause a
+  // scanned student to be auto-marked ABSENT).
+  const date = utcStartOfDay(new Date())
 
   const existing = await prisma.attendanceRecord.findUnique({
     where: { userId_date: { userId, date } },

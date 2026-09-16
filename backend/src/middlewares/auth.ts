@@ -31,13 +31,15 @@ export async function authMiddleware(c: Context, next: Next) {
   }
 
   let sectionId: string | undefined
+  let flightId: string | undefined
 
   if (user.role === RoleType.STUDENT) {
     const profile = await prisma.studentProfile.findUnique({
       where: { userId: user.id },
-      select: { sectionId: true }
+      select: { sectionId: true, flightId: true }
     })
     sectionId = profile?.sectionId ?? undefined
+    flightId = profile?.flightId ?? undefined
     // Fall back to the student's latest APPROVED enrollment section so section
     // scoping never silently collapses to "entire database" when the profile
     // field is out of sync (e.g. legacy students or CSV import without a section).
@@ -58,7 +60,7 @@ export async function authMiddleware(c: Context, next: Next) {
     sectionId = enrollment?.sectionId ?? undefined
   }
 
-  const authUser: AuthUser = { id: user.id, role: user.role, email: user.email, program: user.program, sectionId }
+  const authUser: AuthUser = { id: user.id, role: user.role, email: user.email, program: user.program, sectionId, flightId }
   c.set("user", authUser)
   await next()
 }

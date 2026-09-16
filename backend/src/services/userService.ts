@@ -113,16 +113,28 @@ export async function updateUser(id: string, data: { role?: RoleType; program?: 
   return user
 }
 
-/* Ensure the user owns the profile row their role requires; create it if missing. */
+/* Ensure the user owns exactly the profile row their role requires. Profiles for
+   roles the user no longer holds are removed so a role change never leaves stale
+   records (e.g. a demoted student retaining a section-backed studentProfile). */
 async function syncProfileForRole(userId: string, role: RoleType) {
-  if (role === RoleType.STUDENT && !(await prisma.studentProfile.findUnique({ where: { userId } }))) {
-    await prisma.studentProfile.create({ data: { userId, firstName: "User", lastName: "" } })
-  }
-  if (role === RoleType.IMPLEMENTOR && !(await prisma.implementorProfile.findUnique({ where: { userId } }))) {
-    await prisma.implementorProfile.create({ data: { userId, firstName: "User", lastName: "" } })
-  }
-  if (role === RoleType.CADET_OFFICER && !(await prisma.cadetOfficerProfile.findUnique({ where: { userId } }))) {
-    await prisma.cadetOfficerProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+  if (role === RoleType.STUDENT) {
+    if (!(await prisma.studentProfile.findUnique({ where: { userId } }))) {
+      await prisma.studentProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+    }
+    await prisma.implementorProfile.deleteMany({ where: { userId } })
+    await prisma.cadetOfficerProfile.deleteMany({ where: { userId } })
+  } else if (role === RoleType.IMPLEMENTOR) {
+    await prisma.studentProfile.deleteMany({ where: { userId } })
+    if (!(await prisma.implementorProfile.findUnique({ where: { userId } }))) {
+      await prisma.implementorProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+    }
+    await prisma.cadetOfficerProfile.deleteMany({ where: { userId } })
+  } else if (role === RoleType.CADET_OFFICER) {
+    await prisma.studentProfile.deleteMany({ where: { userId } })
+    await prisma.implementorProfile.deleteMany({ where: { userId } })
+    if (!(await prisma.cadetOfficerProfile.findUnique({ where: { userId } }))) {
+      await prisma.cadetOfficerProfile.create({ data: { userId, firstName: "User", lastName: "" } })
+    }
   }
 }
 

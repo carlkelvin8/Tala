@@ -72,6 +72,10 @@ export async function updateAnnouncement(
   if (scopeProgram && existing.program && existing.program !== scopeProgram) {
     throw new Error("Announcement belongs to another program")
   }
+  // A scoped caller can never retarget an announcement to another program
+  if (scopeProgram && data.program !== undefined && data.program !== scopeProgram) {
+    throw new Error("Announcement must stay within your program")
+  }
   const updateData: Record<string, unknown> = {}
   if (data.title !== undefined) updateData.title = data.title
   if (data.body !== undefined) updateData.body = data.body

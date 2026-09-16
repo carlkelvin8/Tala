@@ -26,16 +26,20 @@ async function resolveProgram(term: { name: string } | null, sectionId?: string,
 }
 
 export async function getTrainingDaySummary(termId: string, sectionId?: string, program?: string | null) {
-  const where: Record<string, unknown> = { termId }
-  if (sectionId) where.sectionId = sectionId
-
   const term = await prisma.academicTerm.findUnique({ where: { id: termId } })
 
-  // Only count sessions from the resolved program when one is known (flight
-  // sessions have no section/course, so they always count toward the term).
+  // Only count sessions from the resolved program when one is known. Flight
+  // sessions have no section/course (program-agnostic) so they always count
+  // toward the term's totals; section sessions are filtered by their program.
   const nstpType = await resolveProgram(term, sectionId, program)
-  if (nstpType) {
-    where.section = { course: { nstpType } }
+  let where: Record<string, unknown> = { termId }
+  if (sectionId) {
+    where.sectionId = sectionId
+  } else if (nstpType) {
+    where.OR = [
+      { section: { course: { nstpType } } },
+      { sectionId: null, flightId: { not: null } },
+    ]
   }
 
   const totalSessions = await prisma.attendanceSession.count({ where })

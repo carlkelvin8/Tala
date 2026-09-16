@@ -36,6 +36,10 @@ export async function reviewSubmission(
   if (existing.status !== "PENDING") {
     throw new Error("Submission has already been reviewed")
   }
+  // A review must finalize the submission — PENDING as an input is not actionable
+  if (status !== "APPROVED" && status !== "REJECTED") {
+    throw new Error("Invalid review status")
+  }
   // Scoped staff may only review their own program's students — approving a
   // submission converts absences to present, so this must stay in-program
   await assertUserInProgram(existing.userId, scopeProgram)

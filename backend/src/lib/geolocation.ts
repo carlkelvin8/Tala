@@ -103,18 +103,24 @@ export function isSpeedRealistic(
 }
 
 /**
- * Anti-tamper: Check if timestamp is not too old (stale)
+ * Anti-tamper: Check if timestamp is not too old (stale) and not in the future.
+ * A future-dated tampering attempt (or a client clock skewed ahead beyond the
+ * tolerance) is rejected just like a stale timestamp.
  * @param timestamp Timestamp to check
  * @param maxAgeSeconds Maximum age in seconds (default: 60 seconds)
+ * @param maxFutureSkewSeconds Allowed future skew in seconds (default: 5 seconds)
  */
 export function isTimestampFresh(
   timestamp: Date,           // The timestamp to evaluate
-  maxAgeSeconds: number = 60 // Maximum acceptable age in seconds before the timestamp is stale
+  maxAgeSeconds: number = 60, // Maximum acceptable age in seconds before the timestamp is stale
+  maxFutureSkewSeconds: number = 5 // Tolerated clock skew ahead of the server clock
 ): boolean {
   // Capture the current server time
   const now = new Date();
-  // Compute how many seconds have elapsed since the provided timestamp
+  // Compute how many seconds have elapsed since the provided timestamp (negative = future)
   const ageSeconds = (now.getTime() - timestamp.getTime()) / 1000;
+  // Reject timestamps from the future beyond the allowed skew
+  if (ageSeconds < -maxFutureSkewSeconds) return false;
   // Return true only if the timestamp is within the allowed age window
   return ageSeconds <= maxAgeSeconds;
 }

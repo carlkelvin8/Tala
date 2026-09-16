@@ -70,7 +70,9 @@ export async function createEnrollment(data: { userId: string; sectionId?: strin
       flightId: data.flightId
     }
   })
-  await syncStudentSection(data.userId, data.sectionId)
+  // NOTE: the profile section is intentionally NOT synced here. PENDING students
+  // must not gain section access (or get auto-ABSENT) before they are approved;
+  // the section is applied only when the enrollment is APPROVED.
   await logAudit("CREATE", "Enrollment", enrollment.id)
   return enrollment
 }
@@ -96,7 +98,6 @@ export async function bulkCreateEnrollments(data: { enrollments: { userId: strin
           flightId: enrollment.flightId
         }
       })
-      await syncStudentSection(enrollment.userId, enrollment.sectionId)
       results.created++
     } catch (error) {
       results.errors.push(error instanceof Error ? error.message : "Unknown error")
@@ -127,17 +128,28 @@ export async function updateEnrollmentStatus(id: string, status: EnrollmentStatu
         `Cannot approve: the student belongs to ${userProgramValue}, but this section is under ${sectionProgram}. Program transfers are not allowed.`
       )
     }
+    // Guard against double-active enrollments: approving this record must not
+    // leave the student with another concurrent PENDING/APPROVED enrollment.
+    const otherActive = await prisma.enrollment.findFirst({
+      where: { userId: enrollment.userId, id: { not: id }, status: { in: ["PENDING", "APPROVED"] } },
+      select: { id: true },
+    })
+    if (otherActive) {
+      throw new Error("Student already has an active enrollment")
+    }
   }
   const updated = await prisma.enrollment.update({
     where: { id },
     data: { status }
   })
-  // Profile section follows the (only) active enrollment: PENDING/APPROVED keeps
-  // the section, REJECTED clears it so a rejected student drops out of rosters.
-  await syncStudentSection(
-    enrollment.userId,
-    status === EnrollmentStatus.REJECTED ? null : enrollment.sectionId
-  )
+  // Profile section follows the enrollment lifecycle: the section is granted ONLY
+  // on APPROVED (never on PENDING — pending students must not gain section access)
+  // and cleared when the enrollment is REJECTED so rejected students drop out.
+  if (status === EnrollmentStatus.APPROVED) {
+    await syncStudentSection(enrollment.userId, enrollment.sectionId)
+  } else if (status === EnrollmentStatus.REJECTED) {
+    await syncStudentSection(enrollment.userId, null)
+  }
   await logAudit("UPDATE", "Enrollment", id)
   return updated
 }
@@ -253,6 +265,13 @@ export async function importStudents(data: {
 
       const passwordHash = await bcryptModule.hash(data.defaultPassword ?? "Password123!", 10)
       const sectionInfo = row.sectionCode ? sectionMap.get(row.sectionCode.trim().toUpperCase()) : undefined
+      // A provided-but-unknown section code must fail the row instead of silently
+      // approving the student with no section (which would hide them from rosters).
+      if (row.sectionCode && row.sectionCode.trim() && !sectionInfo) {
+        results.failed++
+        results.errors.push(`${row.email ?? row.studentNo}: Unknown section code "${row.sectionCode.trim().toUpperCase()}"`)
+        continue
+      }
       const user = await prisma.user.create({
         data: {
           email: row.email.trim().toLowerCase(),

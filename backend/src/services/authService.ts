@@ -22,7 +22,9 @@ export async function registerUser(data: {
     throw new Error("Email already in use")
   }
 
-  if (data.studentNo) {
+  // Normalize blank student numbers to null so the unique index never sees ""
+  const studentNo = data.studentNo?.trim() || undefined
+  if (studentNo) {
     const existingStudent = await prisma.studentProfile.findUnique({
       where: { studentNo: data.studentNo }
     })
@@ -48,7 +50,7 @@ export async function registerUser(data: {
         userId: newUser.id,
         firstName: data.firstName,
         lastName: data.lastName,
-        studentNo: data.studentNo
+        studentNo
       }
     })
     await tx.enrollment.create({
@@ -184,6 +186,9 @@ export async function forgotPassword(email: string) {
     { expiresIn: "10m" }
   )
   await logAudit("FORGOT_PASSWORD", "User", user.id, user.id)
+  if (process.env.NODE_ENV === "production") {
+    return { message: genericMessage }
+  }
   return { message: genericMessage, otp: code, ticket }
 }
 

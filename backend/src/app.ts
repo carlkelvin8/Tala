@@ -3,6 +3,7 @@ import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import { requestId } from "hono/request-id"
+import { bodyLimit } from "hono/body-limit"
 import { env } from "./lib/env.js"
 import { authRoutes } from "./routes/authRoutes.js"
 import { userRoutes } from "./routes/userRoutes.js"
@@ -61,6 +62,8 @@ app.use(
 )
 
 app.use("*", secureHeaders())
+
+app.use("/api/*", bodyLimit({ maxSize: 5 * 1024 * 1024, onError: (c) => c.json(fail("Request body too large"), 413) }))
 
 if (process.env.VERCEL !== "1") {
   const { serveStatic } = await import("@hono/node-server/serve-static")

@@ -57,7 +57,10 @@ export async function updateSection(id: string, data: { code?: string; name?: st
   const targetCourseId = patch.courseId !== undefined ? patch.courseId : existing.courseId
   if (targetCourseId) {
     const count = await countSectionsInCourse(targetCourseId)
-    if (count >= MAX_SECTIONS_PER_COURSE) {
+    // A section moving within its own course occupies a slot it already holds —
+    // don't count itself against the cap.
+    const offset = patch.courseId !== undefined && targetCourseId === existing.courseId ? 1 : 0
+    if (count - offset >= MAX_SECTIONS_PER_COURSE) {
       throw new Error(`Course has reached the maximum of ${MAX_SECTIONS_PER_COURSE} sections`)
     }
   }

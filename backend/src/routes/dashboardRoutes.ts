@@ -13,7 +13,7 @@ export const dashboardRoutes = new Hono()
 
 // Apply the auth middleware to every route — dashboard data requires a valid session
 dashboardRoutes.use(authMiddleware)
-// GET /api/dashboard/ — returns aggregated statistics (attendance rate, grade average, merits, enrollments)
-dashboardRoutes.get("/", summary)
+// GET /api/dashboard/ — staff only; returns aggregated statistics (attendance rate, grade average, merits, enrollments)
+dashboardRoutes.get("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.CADET_OFFICER]), summary)
 // GET /api/dashboard/my — returns the logged-in student's enrollment status, total grade, and attendance
 dashboardRoutes.get("/my", roleGuard([RoleType.STUDENT]), studentSummary)

@@ -20,8 +20,11 @@ export async function create(c: Context) {
     // Return only the safe fields (no password hash) in the response
     return c.json(ok("User created", { id: user.id, email: user.email, role: user.role, program: user.program }))
   } catch (error) {
-    // Return 400 with the error message if creation fails (e.g. duplicate email)
-    return c.json(fail(error instanceof Error ? error.message : "Create user failed"), 400)
+    const message = error instanceof Error ? error.message : "Create user failed"
+    if (message === "Email already in use") {
+      return c.json(fail(message), 409)
+    }
+    return c.json(fail(message), 400)
   }
 }
 
