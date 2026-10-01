@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { app } from "../src/app.js"
-import { createTestUser, cleanupTestUsers, cleanupTestMerits, makeToken, authHeader, json, uniqueId } from "./setup.js"
-import { RoleType } from "@prisma/client"
+import { createTestUser, cleanupTestUsers, cleanupTestMerits, makeToken, authHeader, json, uniqueId, prisma } from "./setup.js"
+import { NstpType, RoleType } from "@prisma/client"
 
 describe("Merit Routes", () => {
   const emails: string[] = []
@@ -144,5 +144,139 @@ describe("Merit Routes", () => {
       headers: authHeader(implToken),
     })
     expect(res.status).toBe(403)
+  })
+
+  describe("ROTC implementor program-scoped access", () => {
+    it("POST /api/merits — ROTC implementor assigns to ROTC student, blocked for CWTS student", async () => {
+      const rotcImpl = await createTestUser(RoleType.IMPLEMENTOR)
+      emails.push(rotcImpl.email)
+      await prisma.user.update({ where: { id: rotcImpl.id }, data: { program: NstpType.ROTC } })
+      const rotcToken = makeToken(rotcImpl.id, rotcImpl.role)
+
+      const rotcStud = await createTestUser(RoleType.STUDENT)
+      emails.push(rotcStud.email)
+      await prisma.user.update({ where: { id: rotcStud.id }, data: { program: NstpType.ROTC } })
+
+      const cwtsStud = await createTestUser(RoleType.STUDENT)
+      emails.push(cwtsStud.email)
+      await prisma.user.update({ where: { id: cwtsStud.id }, data: { program: NstpType.CWTS } })
+
+      const allowed = await app.request("/api/merits", {
+        method: "POST",
+        headers: authHeader(rotcToken),
+        body: json({ studentId: rotcStud.id, type: "MERIT", points: 5, reason: "ROTC good conduct" }),
+      })
+      expect(allowed.status).toBe(200)
+      meritIds.push((await allowed.json()).data.id)
+
+      const blocked = await app.request("/api/merits", {
+        method: "POST",
+        headers: authHeader(rotcToken),
+        body: json({ studentId: cwtsStud.id, type: "MERIT", points: 5, reason: "Cross-program" }),
+      })
+      expect(blocked.status).toBe(403)
+    }, 60000)
+
+    it("GET /api/merits — ROTC implementor sees only ROTC students, CWTS implementor blocked", async () => {
+      const rotcImpl = await createTestUser(RoleType.IMPLEMENTOR)
+      emails.push(rotcImpl.email)
+      await prisma.user.update({ where: { id: rotcImpl.id }, data: { program: NstpType.ROTC } })
+      const rotcToken = makeToken(rotcImpl.id, rotcImpl.role)
+
+      const cwtsImpl = await createTestUser(RoleType.IMPLEMENTOR)
+      emails.push(cwtsImpl.email)
+      await prisma.user.update({ where: { id: cwtsImpl.id }, data: { program: NstpType.CWTS } })
+      const cwtsToken = makeToken(cwtsImpl.id, cwtsImpl.role)
+
+      const rotcStud = await createTestUser(RoleType.STUDENT)
+      emails.push(rotcStud.email)
+      await prisma.user.update({ where: { id: rotcStud.id }, data: { program: NstpType.ROTC } })
+
+      const cwtsStud = await createTestUser(RoleType.STUDENT)
+      emails.push(cwtsStud.email)
+      await prisma.user.update({ where: { id: cwtsStud.id }, data: { program: NstpType.CWTS } })
+
+      const rotcMerit = await app.request("/api/merits", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: rotcStud.id, type: "MERIT", points: 3, reason: "ROTC scope check" }),
+      })
+      meritIds.push((await rotcMerit.json()).data.id)
+
+      const cwtsMerit = await app.request("/api/merits", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: cwtsStud.id, type: "MERIT", points: 7, reason: "CWTS scope check" }),
+      })
+      meritIds.push((await cwtsMerit.json()).data.id)
+
+      const rotcList = await app.request(`/api/merits?studentId=${rotcStud.id}`, { headers: authHeader(rotcToken) })
+      expect(rotcList.status).toBe(200)
+      expect(((await rotcList.json()).data as unknown[]).length).toBeGreaterThan(0)
+
+      // Querying a CWTS student is scoped out — empty, never leaked
+      const crossList = await app.request(`/api/merits?studentId=${cwtsStud.id}`, { headers: authHeader(rotcToken) })
+      expect(crossList.status).toBe(200)
+      expect((await crossList.json()).data).toEqual([])
+
+      const cwtsList = await app.request("/api/merits", { headers: authHeader(cwtsToken) })
+      expect(cwtsList.status).toBe(403)
+    }, 60000)
+
+    it("PATCH/DELETE /api/merits/:id — ROTC implementor manages own program, blocked cross-program", async () => {
+      const rotcImpl = await createTestUser(RoleType.IMPLEMENTOR)
+      emails.push(rotcImpl.email)
+      await prisma.user.update({ where: { id: rotcImpl.id }, data: { program: NstpType.ROTC } })
+      const rotcToken = makeToken(rotcImpl.id, rotcImpl.role)
+
+      const rotcStud = await createTestUser(RoleType.STUDENT)
+      emails.push(rotcStud.email)
+      await prisma.user.update({ where: { id: rotcStud.id }, data: { program: NstpType.ROTC } })
+
+      const cwtsStud = await createTestUser(RoleType.STUDENT)
+      emails.push(cwtsStud.email)
+      await prisma.user.update({ where: { id: cwtsStud.id }, data: { program: NstpType.CWTS } })
+
+      const own = (await (await app.request("/api/merits", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: rotcStud.id, type: "MERIT", points: 2, reason: "Own program" }),
+      })).json()).data
+      meritIds.push(own.id)
+
+      const other = (await (await app.request("/api/merits", {
+        method: "POST",
+        headers: authHeader(adminToken),
+        body: json({ studentId: cwtsStud.id, type: "MERIT", points: 2, reason: "Other program" }),
+      })).json()).data
+      meritIds.push(other.id)
+
+      const patchOwn = await app.request(`/api/merits/${own.id}`, {
+        method: "PATCH",
+        headers: authHeader(rotcToken),
+        body: json({ points: 9 }),
+      })
+      expect(patchOwn.status).toBe(200)
+
+      const patchOther = await app.request(`/api/merits/${other.id}`, {
+        method: "PATCH",
+        headers: authHeader(rotcToken),
+        body: json({ points: 9 }),
+      })
+      expect(patchOther.status).toBe(403)
+
+      const deleteOther = await app.request(`/api/merits/${other.id}`, {
+        method: "DELETE",
+        headers: authHeader(rotcToken),
+      })
+      expect(deleteOther.status).toBe(403)
+
+      const deleteOwn = await app.request(`/api/merits/${own.id}`, {
+        method: "DELETE",
+        headers: authHeader(rotcToken),
+      })
+      expect(deleteOwn.status).toBe(200)
+      meritIds.splice(meritIds.indexOf(own.id), 1)
+    }, 60000)
   })
 })

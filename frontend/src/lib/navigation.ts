@@ -27,7 +27,7 @@ export const navItems: NavItem[] = [
   { label: "Training Monitoring", path: "/training", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Terms", path: "/terms", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Grades", path: "/grades", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
-  { label: "Merits/Demerits", path: "/merits", roles: ["ADMIN", "STUDENT"] },
+  { label: "Merits/Demerits", path: "/merits", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Exams", path: "/exams", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Submission Box", path: "/submissions", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
   { label: "Reports", path: "/reports", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
@@ -41,11 +41,16 @@ export const navItems: NavItem[] = [
 
 /* Filter navigation items for a user: role must match, and items constrained to a
    program (e.g. program dashboards / course lists) only show for that program.
-   Program-agnostic users (admins) see every item their role allows. */
+   Program-agnostic users (admins) see every item their role allows.
+   Merits are ROTC-only for implementors: CWTS implementors never see the entry,
+   while admins and students keep full access. */
 export function filterNavItems(user: AuthUser | null): NavItem[] {
   if (!user) return []
   return navItems.filter((item) => {
     if (!item.roles.includes(user.role)) return false
+    if (item.path === "/merits" && user.role === "IMPLEMENTOR") {
+      return getEffectiveProgram(user) === "ROTC"
+    }
     if (!item.programs) return true
     const program = getEffectiveProgram(user)
     if (!program) return true

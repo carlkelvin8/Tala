@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom"
-import { ScanLine, Users, ChevronRight } from "lucide-react"
+import { ScanLine, Users, ChevronRight, Award } from "lucide-react"
 import { cn } from "../lib/utils"
+import { getStoredUser } from "../lib/auth"
+import { getEffectiveProgram } from "../lib/programs"
 
-const shortcuts = [
+const baseShortcuts = [
   {
     path: "/scanner",
     label: "Attendance Scanner",
@@ -23,9 +25,22 @@ const shortcuts = [
   },
 ]
 
+const rotcShortcut = {
+  path: "/merits",
+  label: "Merits & Demerits",
+  description: "Assign ROTC merit points and discipline notes",
+  icon: Award,
+  iconBg: "bg-amber-50",
+  iconColor: "text-amber-600",
+  accent: "hover:border-amber-400/40",
+}
+
 export function ImplementorShortcuts() {
+  const user = getStoredUser()
+  const shortcuts = getEffectiveProgram(user) === "ROTC" ? [...baseShortcuts, rotcShortcut] : baseShortcuts
+  const gridCols = shortcuts.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2"
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className={cn("grid gap-4", gridCols)}>
       {shortcuts.map(({ path, label, description, icon: Icon, iconBg, iconColor, accent }) => (
         <Link
           key={path}

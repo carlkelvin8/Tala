@@ -9,6 +9,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { usePermissions } from "../hooks/usePermissions"
 import { getStoredUser } from "../lib/auth"
+import { getEffectiveProgram } from "../lib/programs"
 import { PageHeader } from "../components/ui/page-header"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
@@ -40,8 +41,11 @@ export function MeritsPage() {
   const perms = usePermissions()
   const currentUser = getStoredUser()
   const isStudent = currentUser?.role === "STUDENT"
-  // Merit write operations are ADMIN-only on the backend
-  const canManageMerits = perms.canDelete
+  const isRotcImplementor = currentUser?.role === "IMPLEMENTOR" && getEffectiveProgram(currentUser) === "ROTC"
+  const isCwtsImplementor = currentUser?.role === "IMPLEMENTOR" && !isRotcImplementor
+  // Merit write operations: ADMIN always, plus ROTC implementors (program-scoped on the backend).
+  // CWTS implementors never manage merits — CWTS does not track them.
+  const canManageMerits = perms.canDelete || isRotcImplementor
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { type: "MERIT" } })
   const [studentSearch, setStudentSearch] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -49,9 +53,10 @@ export function MeritsPage() {
   const [deletingMerit, setDeletingMerit] = useState<any | null>(null)
 
   const meritsQuery = useQuery({
-    queryKey: ["merits", currentUser?.id],
+    queryKey: ["merits", currentUser?.id, currentUser?.role, getEffectiveProgram(currentUser)],
     queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/merits?studentId=${currentUser?.id}` : "/api/merits"),
-    refetchInterval: 30000
+    refetchInterval: 30000,
+    enabled: !isCwtsImplementor,
   })
 
   const studentsQuery = useQuery({
@@ -60,7 +65,7 @@ export function MeritsPage() {
       apiRequest<ApiResponse<any[]>>(
         `/api/enrollments?search=${encodeURIComponent(studentSearch.trim())}`
       ),
-    enabled: studentSearch.trim().length >= 2
+    enabled: canManageMerits && studentSearch.trim().length >= 2
   })
 
   const mutation = useMutation({
@@ -200,6 +205,19 @@ export function MeritsPage() {
   } : null
 
   const allColumns = actionsColumn ? [...columns, actionsColumn] : columns
+
+  if (isCwtsImplementor) {
+    return (
+      <div className="space-y-6">
+        <SectionCard title="Merits & Demerits" description="ROTC-only feature">
+          <EmptyState
+            title="Not available for CWTS"
+            description="Merits and demerits are only tracked for the ROTC program. Switch to an ROTC instructor account to manage them."
+          />
+        </SectionCard>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

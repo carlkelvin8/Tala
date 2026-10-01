@@ -20,6 +20,7 @@ import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
 import { getAccessToken } from "../lib/auth"
 import { getStoredUser } from "../lib/auth"
+import { getEffectiveProgram } from "../lib/programs"
 import { toast } from "sonner"
 import { cn } from "../lib/utils"
 import { parseCsv, exportPdf, exportExcel } from "../lib/export"
@@ -37,8 +38,10 @@ const allReportTypes: { key: ReportType; label: string; icon: typeof FileSpreads
 
 export function ReportsPage() {
   const user = getStoredUser()
-  // Merits report is not available to implementors
-  const reportTypes = allReportTypes.filter((r) => !(user?.role === "IMPLEMENTOR" && r.key === "merits"))
+  // Merits report is ROTC-only for implementors: CWTS implementors never see it,
+  // ROTC implementors / admins keep full access.
+  const isCwtsImplementor = user?.role === "IMPLEMENTOR" && getEffectiveProgram(user) !== "ROTC"
+  const reportTypes = allReportTypes.filter((r) => !(isCwtsImplementor && r.key === "merits"))
 
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
@@ -126,7 +129,7 @@ export function ReportsPage() {
     toast.success(`${report.label} Excel exported successfully`)
   }
 
-  const activeReportConfig = reportTypes.find(r => r.key === activeReport)!
+  const activeReportConfig = reportTypes.find(r => r.key === activeReport) ?? reportTypes[0]
 
   return (
     <div className="space-y-6 animate-fade-in">
