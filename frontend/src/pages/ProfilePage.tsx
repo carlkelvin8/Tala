@@ -248,9 +248,13 @@ export function ProfilePage() {
   const createdAt = profile?.createdAt ? new Date(profile.createdAt) : null
   const formattedCreatedAt = createdAt ? createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : null
 
+  // Accounts without a saved name show their role (e.g. Implementer)
+  // instead of repeating the email address in the header.
   const displayName = roleProfile?.firstName && roleProfile?.lastName
     ? `${roleProfile.firstName} ${roleProfile.lastName}`
-    : storedUser ? getUserDisplayName(storedUser) : "Guest"
+    : storedUser && (storedUser.firstName || storedUser.lastName)
+      ? getUserDisplayName(storedUser)
+      : (roleLabels[role] ?? email)
 
   // Students: fetch enrollment (section + course) from the existing
   // student summary endpoint. Same query key as StudentDashboard so the
