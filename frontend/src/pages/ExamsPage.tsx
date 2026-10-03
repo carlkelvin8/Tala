@@ -275,7 +275,7 @@ export function ExamsPage() {
         )}
 
         {showCreateForm && isAdminOrImplementor && (
-          <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 p-5">
+          <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 dark:bg-slate-800/60 p-5">
             <h4 className="text-sm font-semibold text-black mb-4">New Exam Session</h4>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>

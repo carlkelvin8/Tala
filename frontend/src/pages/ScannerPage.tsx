@@ -189,7 +189,7 @@ export function ScannerPage() {
       <div className="rounded-2xl border border-silver/30 bg-white p-6 sm:p-8 shadow-card">
         <div className="flex flex-col items-center gap-6">
           {isScanning ? (
-            <div className="relative w-full max-w-[480px] overflow-hidden rounded-2xl border border-silver/30 bg-black shadow-elevated">
+            <div className="relative w-full max-w-[480px] overflow-hidden rounded-2xl border border-silver/30 bg-black dark:bg-slate-950 shadow-elevated">
               <video
                 ref={videoRef}
                 className="w-full"

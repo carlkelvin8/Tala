@@ -363,7 +363,7 @@ function StudentView() {
           <FormField label="File" required>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="flex h-11 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-silver/50 bg-white px-4 hover:border-navy/40 hover:bg-slate-50 transition-colors"
+              className="flex h-11 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-silver/50 bg-white px-4 hover:border-navy/40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <Upload className="h-4 w-4 text-darksilver" />
               <span className="text-sm text-darksilver truncate">

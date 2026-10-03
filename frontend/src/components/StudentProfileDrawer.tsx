@@ -41,7 +41,7 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
         ) : user ? ( // Only render the profile content if user data is available
           <div className="space-y-6"> {/* Vertical stack with spacing between sections */}
           {/* Profile Header */}
-          <div className="flex items-center gap-4 pb-6 border-b border-gray-200"> {/* Header row with avatar and basic info, bottom border */}
+          <div className="flex items-center gap-4 pb-6 border-b border-gray-200 dark:border-slate-700"> {/* Header row with avatar and basic info, bottom border */}
             {user.avatarUrl ? ( // Show the uploaded avatar if available
               <img
                 src={getApiFileUrl(user.avatarUrl) || undefined} // Convert the relative path to an absolute URL
@@ -163,7 +163,7 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
           </div>
 
           {/* Account Info */}
-          <div className="pt-6 border-t border-gray-200"> {/* Account info section with top border */}
+          <div className="pt-6 border-t border-gray-200 dark:border-slate-700"> {/* Account info section with top border */}
             <h4 className="text-sm font-medium text-black/80 mb-3">Account Information</h4> {/* Section title */}
             <div className="space-y-2 text-xs text-darksilver"> {/* Vertical stack of account timestamps */}
               <p>

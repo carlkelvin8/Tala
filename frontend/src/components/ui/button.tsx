@@ -3,14 +3,14 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-black text-white hover:bg-gray-800",
-        secondary: "bg-gray-100 text-black hover:bg-gray-200",
-        outline: "border border-gray-300 bg-white text-black hover:bg-gray-50",
-        ghost: "text-gray-700 hover:bg-gray-100",
+        default: "bg-black text-white hover:bg-gray-800 dark:bg-[#E2E8F0] dark:text-[#0B101A] dark:hover:bg-[#CBD5E1]",
+        secondary: "bg-gray-100 text-black hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+        outline: "border border-gray-300 bg-white text-black hover:bg-gray-50 dark:border-slate-600 dark:bg-transparent dark:text-slate-100 dark:hover:bg-slate-800",
+        ghost: "text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800",
         destructive: "bg-red-600 text-white hover:bg-red-700",
         link: "text-primary-600 underline-offset-4 hover:underline"
       },

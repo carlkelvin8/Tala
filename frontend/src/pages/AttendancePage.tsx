@@ -343,7 +343,7 @@ function ScannerView() {
     >
       <div className="flex flex-col items-center gap-4">
         {isScanning && (
-          <div className="relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-silver/30 bg-black shadow-card">
+          <div className="relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-silver/30 bg-black dark:bg-slate-950 shadow-card">
             <video
               ref={videoRef}
               className="w-full"

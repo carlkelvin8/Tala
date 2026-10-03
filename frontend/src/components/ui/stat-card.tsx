@@ -14,13 +14,13 @@ type StatCardProps = {
 
 export function StatCard({ label, value, description, badge, trend, trendVariant = "neutral", className }: StatCardProps) {
   const trendColor =
-    trendVariant === "up" ? "text-green-600" : trendVariant === "down" ? "text-red-600" : "text-gray-500"
+    trendVariant === "up" ? "text-green-600" : trendVariant === "down" ? "text-red-600" : "text-gray-500 dark:text-slate-400"
 
   return (
-    <Card className={cn("h-full border-gray-200 bg-white", className)}>
+    <Card className={cn("h-full border-gray-200 bg-white dark:border-slate-700", className)}>
       <CardHeader className="gap-2">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-gray-600">{label}</CardTitle>
-        {description && <CardDescription className="text-xs text-gray-600">{description}</CardDescription>}
+        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-400">{label}</CardTitle>
+        {description && <CardDescription className="text-xs text-gray-600 dark:text-slate-400">{description}</CardDescription>}
       </CardHeader>
       <CardContent className="flex items-end justify-between gap-4">
         <div>

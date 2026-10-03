@@ -9,8 +9,8 @@ const Sidebar = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "flex h-full w-72 flex-col border-r border-gray-200 bg-white",
-        variant === "inset" && "bg-gray-50",
+        "flex h-full w-72 flex-col border-r border-gray-200 bg-white dark:border-slate-700",
+        variant === "inset" && "bg-gray-50 dark:bg-white/5",
         className
       )}
       {...props}
@@ -26,7 +26,7 @@ const SidebarHeader = React.forwardRef<
   return (
     <div
       ref={ref}
-      className={cn("flex h-12 items-center border-b border-gray-200 px-4", className)}
+      className={cn("flex h-12 items-center border-b border-gray-200 px-4 dark:border-slate-700", className)}
       {...props}
     />
   )
@@ -54,7 +54,7 @@ const SidebarFooter = React.forwardRef<
   return (
     <div
       ref={ref}
-      className={cn("border-t border-gray-200 px-4 py-4", className)}
+      className={cn("border-t border-gray-200 px-4 py-4 dark:border-slate-700", className)}
       {...props}
     />
   )
@@ -82,7 +82,7 @@ const SidebarGroupLabel = React.forwardRef<
   return (
     <div
       ref={ref}
-      className={cn("px-2 text-xs font-semibold uppercase tracking-wide text-gray-600", className)}
+      className={cn("px-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-400", className)}
       {...props}
     />
   )
@@ -141,7 +141,7 @@ const SidebarMenuButton = React.forwardRef<
     <Comp
       ref={ref}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-black",
+        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-black dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
         size === "sm" && "px-2 py-1.5 text-xs",
         size === "lg" && "px-4 py-3",
         className
@@ -160,7 +160,7 @@ const SidebarTrigger = React.forwardRef<
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center rounded-md text-sm font-medium hover:bg-gray-100 hover:text-black focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-9 w-9",
+        "inline-flex items-center justify-center rounded-md text-sm font-medium hover:bg-gray-100 hover:text-black dark:hover:bg-slate-800 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-9 w-9",
         className
       )}
       {...props}

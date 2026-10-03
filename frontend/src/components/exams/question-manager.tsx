@@ -119,7 +119,7 @@ export function QuestionManager({ session, open, onOpenChange, onQuestionsChange
   return (
     <Drawer open={open} onOpenChange={onOpenChange} title={`Questions — ${session.title}`}>
       <div className="space-y-4 p-4">
-        <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-silver/30 px-4 py-3">
+        <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-silver/30 px-4 py-3">
           <div className="text-xs text-darksilver">
             <span className="font-semibold text-black">{questions.length}</span> question{questions.length === 1 ? "" : "s"}
             {totalPoints > 0 && (
@@ -137,7 +137,7 @@ export function QuestionManager({ session, open, onOpenChange, onQuestionsChange
         </div>
 
         {addMode && (
-          <div className="rounded-xl border border-silver/30 bg-slate-50 p-4 space-y-3">
+          <div className="rounded-xl border border-silver/30 bg-slate-50 dark:bg-slate-800/60 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-black">New Question</h4>
               <Button size="sm" variant="ghost" onClick={() => setAddMode(false)}>

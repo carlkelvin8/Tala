@@ -706,7 +706,7 @@ export function GradesPage() {
                     </FormField>
                   </div>
 
-                  <div className="rounded-xl border border-silver/20 bg-slate-50 p-4 text-sm text-darksilver space-y-1">
+                  <div className="rounded-xl border border-silver/20 bg-slate-50 dark:bg-slate-800/60 p-4 text-sm text-darksilver space-y-1">
                     <p className="font-medium text-black">How it works</p>
                     <ul className="list-disc pl-5 space-y-0.5">
                       <li><strong>Weighted by category:</strong> Each category contributes to the total by its assigned weight. Ungraded categories are ignored and do not lower the grade.</li>
