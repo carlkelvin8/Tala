@@ -45,7 +45,18 @@ export async function listAuditLogs(filters: { action?: string; entity?: string;
       skip,
       take,
       orderBy: { createdAt: "desc" },
-      include: { actor: { select: { id: true, email: true, role: true } } },
+      include: {
+        actor: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            studentProfile: { select: { firstName: true, lastName: true } },
+            implementorProfile: { select: { firstName: true, lastName: true } },
+            cadetOfficerProfile: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
     }),
     prisma.auditLog.count({ where }),
   ])

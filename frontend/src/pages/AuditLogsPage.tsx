@@ -8,6 +8,15 @@ import { Button } from "../components/ui/button"
 import { EmptyState } from "../components/ui/empty-state"
 import { cn } from "../lib/utils"
 
+type AuditActor = {
+  id: string
+  email: string
+  role: RoleType
+  studentProfile?: { firstName: string; lastName: string } | null
+  implementorProfile?: { firstName: string; lastName: string } | null
+  cadetOfficerProfile?: { firstName: string; lastName: string } | null
+}
+
 type AuditLog = {
   id: string
   action: string
@@ -15,7 +24,18 @@ type AuditLog = {
   entityId?: string | null
   meta?: unknown
   createdAt: string
-  actor?: { id: string; email: string; role: RoleType } | null
+  actor?: AuditActor | null
+}
+
+/* Display name for the acting user: real name when the account has one,
+   otherwise the email address. */
+export function auditActorName(log: AuditLog): string {
+  const actor = log.actor
+  if (!actor) return "System"
+  const profile =
+    actor.studentProfile ?? actor.implementorProfile ?? actor.cadetOfficerProfile
+  if (profile?.firstName && profile?.lastName) return `${profile.firstName} ${profile.lastName}`
+  return actor.email
 }
 
 /* Plain-language names for audited record types. */
@@ -71,7 +91,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
    decisions, section assignments, counts), those are woven into the
    sentence so the statement says what was actually done. */
 export function auditStatement(log: AuditLog): string {
-  const actor = log.actor?.email ?? "System"
+  const actor = auditActorName(log)
   const target = ENTITY_LABELS[log.entity] ?? log.entity.toLowerCase().replace(/_/g, " ")
 
   // Document submissions carry what/why details in meta.
@@ -147,12 +167,63 @@ const ACTION_STYLE: Record<string, { icon: typeof Activity; chip: string }> = {
   RESET_PASSWORD: { icon: KeyRound, chip: "bg-violet-50 text-violet-600" },
 }
 
+/* Friendly labels for known metadata fields; unknown keys fall back to
+   title-cased words so nothing renders as raw JSON keys. */
+const META_LABELS: Record<string, string> = {
+  docType: "Document type",
+  title: "Title",
+  status: "Status",
+  remarks: "Remarks",
+  reason: "Reason",
+  submissionId: "Submission",
+  removedAbsences: "Absences cleared",
+  dateFrom: "From",
+  dateTo: "To",
+  sectionId: "Section",
+  sectionCode: "Section",
+  count: "Count",
+  imported: "Imported",
+  source: "Source",
+}
+
+function prettyMetaKey(key: string): string {
+  if (META_LABELS[key]) return META_LABELS[key]
+  const words = key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ")
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+function formatMetaValue(key: string, value: unknown): string {
+  if (key === "docType" && typeof value === "string") return DOC_TYPE_LABELS[value] ?? value
+  if ((key === "dateFrom" || key === "dateTo") && typeof value === "string") {
+    const d = new Date(value)
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })
+    }
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No"
+  if (typeof value === "string" || typeof value === "number") return String(value)
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return "—"
+  }
+}
+
+function metaEntries(log: AuditLog): Array<[string, string]> | null {
+  if (typeof log.meta !== "object" || log.meta === null || Array.isArray(log.meta)) return null
+  const entries = Object.entries(log.meta as Record<string, unknown>)
+  if (entries.length === 0) return null
+  return entries.map(([key, value]) => [prettyMetaKey(key), formatMetaValue(key, value)])
+}
+
 function AuditLogRow({ log }: { log: AuditLog }) {
   const [expanded, setExpanded] = useState(false)
   const style = ACTION_STYLE[log.action] ?? { icon: Activity, chip: "bg-silver/20 text-darksilver" }
   const Icon = style.icon
-  const metaText =
-    log.meta !== undefined && log.meta !== null ? JSON.stringify(log.meta, null, 2) : null
+  const details = metaEntries(log)
+  const actorName = auditActorName(log)
+  const actorEmail = log.actor?.email
+  const showEmail = actorEmail && actorEmail !== actorName
 
   return (
     <div className="rounded-xl border border-silver/20 bg-white/50 px-4 py-3 transition-colors hover:bg-white">
@@ -163,16 +234,38 @@ function AuditLogRow({ log }: { log: AuditLog }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-black">{auditStatement(log)}</p>
           <p className="mt-1 text-[11px] text-darksilver">
-            {log.actor?.role ?? "SYSTEM"}
+            {actorName}
+            {showEmail ? ` (${actorEmail})` : ""}
+            {log.actor ? ` · ${log.actor.role}` : ""}
             {" · "}
             {new Date(log.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
           </p>
           {expanded && (
-            <div className="mt-2 space-y-1 rounded-lg bg-silver/10 p-3 text-[11px] text-darksilver">
-              <p><span className="font-semibold">Record:</span> <span className="font-mono">{log.entityId ?? "—"}</span></p>
-              <p><span className="font-semibold">Type:</span> {log.entity} · {log.action}</p>
-              {metaText && (
-                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[10px]">{metaText}</pre>
+            <div className="mt-2 space-y-2 rounded-lg bg-silver/10 p-3 text-[11px]">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">User</p>
+                <p className="mt-0.5 font-medium text-black">
+                  {actorName}
+                  {showEmail && <span className="font-normal text-darksilver"> · {actorEmail}</span>}
+                </p>
+                {log.actor && <p className="text-darksilver">Role: {log.actor.role}</p>}
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Action</p>
+                <p className="mt-0.5 text-darksilver">{log.action} · {log.entity}{log.entityId ? ` · ${log.entityId}` : ""}</p>
+              </div>
+              {details && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Details</p>
+                  <dl className="mt-0.5 space-y-0.5">
+                    {details.map(([label, value]) => (
+                      <div key={label} className="flex gap-2">
+                        <dt className="shrink-0 font-medium text-darksilver">{label}:</dt>
+                        <dd className="min-w-0 break-words font-mono text-[10px] text-black/80">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
               )}
             </div>
           )}
