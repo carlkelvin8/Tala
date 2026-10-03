@@ -57,8 +57,8 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
               </Avatar>
             )}
             <div className="flex-1"> {/* Text block next to the avatar */}
-              <h3 className="text-lg font-semibold text-black"> {/* User's full name or email */}
-                {profile ? `${profile.firstName} ${profile.lastName}` : user.email}
+              <h3 className="text-lg font-semibold text-black"> {/* User's full name, role name when no profile, or email */}
+                {profile ? `${profile.firstName} ${profile.lastName}` : (roleLabels[user.role as keyof typeof roleLabels] ?? user.email)}
               </h3>
               <p className="text-sm text-darksilver">{user.email}</p> {/* User's email address */}
               <div className="mt-2"> {/* Badge row */}
