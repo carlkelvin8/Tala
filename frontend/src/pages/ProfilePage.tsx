@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useRef, useState, useMemo } from "react"
 import * as React from "react"
 import {
-  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Globe, Key, LogOut, RefreshCw, Circle, GraduationCap
+  Camera, Trash2, Eye, EyeOff, Mail, Calendar, Hash, CheckCircle2, Lock, Edit, Save, X, Shield, Clock, Smartphone, MapPin, Cake, User, Sparkles, ChevronRight, Globe, Key, LogOut, RefreshCw, Circle, GraduationCap, BookOpen, Users
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { getStoredUser, updateStoredUser, getUserDisplayName } from "../lib/auth"
@@ -61,6 +61,20 @@ type ProfileResponse = {
     birthDate?: string | null
     gender?: string | null
     studentNo?: string | null
+  } | null
+}
+
+type StudentEnrollmentResponse = {
+  program: "CWTS" | "ROTC" | null
+  enrollment: {
+    id: string
+    status: string
+    section: {
+      id: string
+      code: string
+      name: string
+      course: { id: string; code: string; name: string; nstpType: string } | null
+    } | null
   } | null
 }
 
@@ -237,6 +251,20 @@ export function ProfilePage() {
   const displayName = roleProfile?.firstName && roleProfile?.lastName
     ? `${roleProfile.firstName} ${roleProfile.lastName}`
     : storedUser ? getUserDisplayName(storedUser) : "Guest"
+
+  // Students: fetch enrollment (section + course) from the existing
+  // student summary endpoint. Same query key as StudentDashboard so the
+  // cached result is shared. Disabled for non-student roles (the endpoint
+  // is STUDENT-only on the backend).
+  const { data: enrollmentData } = useQuery({
+    queryKey: ["my-dashboard"],
+    queryFn: () => apiRequest<ApiResponse<StudentEnrollmentResponse>>("/api/dashboard/my"),
+    enabled: role === "STUDENT",
+    retry: false,
+  })
+
+  const enrolledSection = enrollmentData?.data?.enrollment?.section ?? null
+  const enrolledCourse = enrolledSection?.course ?? null
 
   const accent = roleAccents[role] ?? roleAccents.STUDENT
   const RoleIcon = roleIcons[role] ?? Shield
@@ -585,6 +613,22 @@ export function ProfilePage() {
                           )}
                           {roleProfile?.studentNo && (
                             <FieldCard icon={Hash} label="Student ID No." value={roleProfile.studentNo} note="Cannot be changed" />
+                          )}
+                          {role === "STUDENT" && enrolledCourse && (
+                            <FieldCard
+                              icon={BookOpen}
+                              label="Enrolled course"
+                              value={`${enrolledCourse.code} — ${enrolledCourse.name}`}
+                              note="From your approved enrollment"
+                            />
+                          )}
+                          {role === "STUDENT" && enrolledSection && (
+                            <FieldCard
+                              icon={Users}
+                              label="Section"
+                              value={`${enrolledSection.code}${enrolledSection.name ? ` — ${enrolledSection.name}` : ""}`}
+                              note="Assigned section"
+                            />
                           )}
                           {roleProfile?.firstName && (
                             <FieldCard icon={User} label="First name" value={roleProfile.firstName} />
