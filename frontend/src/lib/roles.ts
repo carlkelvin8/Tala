@@ -1,6 +1,6 @@
 export const roleLabels = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Implementer",
+  IMPLEMENTOR: "Instructor",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student"
 } as const
