@@ -153,14 +153,14 @@ export function ScannerPage() {
               <Sparkles className="h-3.5 w-3.5" />
               <span>Attendance Scanner</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">QR Scanner</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Attendance Scanner</h1>
             <p className="mt-1 text-sm text-silver max-w-2xl">Scan student QR codes to record attendance quickly and reliably.</p>
           </div>
           <div className="shrink-0">
             <button
               type="button"
               aria-pressed={isScanning}
-              aria-label={isScanning ? "Stop QR scanner" : "Open QR scanner"}
+              aria-label={isScanning ? "Stop attendance scanner" : "Open attendance scanner"}
               onClick={isScanning ? stopScanning : startScanning}
               disabled={scanMutation.isPending || !isOnline}
               className={cn(

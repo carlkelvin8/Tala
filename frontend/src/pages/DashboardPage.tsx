@@ -49,18 +49,19 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
         } as React.CSSProperties
       }
     >
-      <PremiumAppSidebar variant="inset" className="hidden lg:block" />
-      <SidebarInset className="bg-white/50">
+      <PremiumAppSidebar variant="inset" className="hidden shrink-0 lg:flex" />
+      <SidebarInset className="bg-white/50 min-h-0 min-w-0 overflow-hidden">
         <SiteHeader onMenuClick={() => setSidebarOpen(true)} />
+        <div className="flex-1 min-h-0 overflow-y-auto">
         <motion.div
-          className="flex flex-1 flex-col gap-6 p-4 sm:p-6"
+          className="flex flex-col gap-4 p-4 sm:p-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
         >
           {/* Hero banner */}
           <motion.div
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-8 py-6 sm:py-7 shadow-card"
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-5 sm:px-6 py-4 sm:py-5 shadow-card"
             initial={{ opacity: 0, y: 32, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
@@ -72,12 +73,12 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
               transition={{ duration: 1 }}
             />
             <motion.div
-              className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-gold/10 blur-3xl"
+              className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-gold/10 blur-3xl"
               animate={{ scale: [1, 1.15, 1], opacity: [0.1, 0.18, 0.1] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
             <motion.div
-              className="absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-royal/10 blur-3xl"
+              className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-royal/10 blur-3xl"
               animate={{ scale: [1, 1.2, 1], opacity: [0.08, 0.15, 0.08] }}
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
             />
@@ -185,6 +186,7 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
             </>
           )}
         </motion.div>
+        </div>
       </SidebarInset>
       <Drawer open={sidebarOpen} onOpenChange={setSidebarOpen} title="Navigation">
         <PremiumAppSidebar onNavigate={() => setSidebarOpen(false)} className="border-none" />

@@ -314,7 +314,7 @@ function ScannerView() {
 
   return (
     <SectionCard
-      title="QR Scanner"
+      title="Attendance Scanner"
       description="Point camera at student QR code."
       className="shadow-card"
       actions={

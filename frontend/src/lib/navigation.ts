@@ -22,7 +22,7 @@ export const navItems: NavItem[] = [
   { label: "Learning Materials", path: "/materials", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] },
   { label: "Announcements", path: "/announcements", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"] },
   { label: "Attendance", path: "/attendance", roles: ["ADMIN", "IMPLEMENTOR", "STUDENT"] },
-  { label: "QR Scanner", path: "/scanner", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
+  { label: "Attendance Scanner", path: "/scanner", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
   { label: "Live Monitor", path: "/live-monitor", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
   { label: "Training Monitoring", path: "/training", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Terms", path: "/terms", roles: ["ADMIN", "IMPLEMENTOR"] },

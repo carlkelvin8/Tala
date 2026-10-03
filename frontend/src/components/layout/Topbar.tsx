@@ -20,7 +20,7 @@ const routeLabels: Record<string, string> = {
   "/students": "Students",
   "/materials": "Materials",
   "/attendance": "Attendance",
-  "/scanner": "QR Scanner",
+  "/scanner": "Attendance Scanner",
   "/audit-logs": "Audit Logs",
   "/training": "Training Monitoring",
   "/terms": "Terms",
