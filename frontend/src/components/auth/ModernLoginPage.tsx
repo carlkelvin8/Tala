@@ -67,6 +67,15 @@ export function ModernLoginPage() {
     await mutation.mutateAsync(values)
   })
 
+  /* One-click demo login: fills the account and signs in immediately,
+     so the user lands straight in as that account. */
+  const quickLogin = (email: string) => {
+    if (mutation.isPending) return
+    form.setValue("email", email)
+    form.setValue("password", "Password123!")
+    mutation.mutate({ email, password: "Password123!" } as FormValues)
+  }
+
   return (
     <ModernAuthLayout
       title="Welcome back"
@@ -172,10 +181,8 @@ export function ModernLoginPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => {
-                form.setValue("email", "admin@nstp.local")
-                form.setValue("password", "Password123!")
-              }}
+              onClick={() => quickLogin("admin@nstp.local")}
+              disabled={mutation.isPending}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
             >
               <div className="min-w-0">
@@ -186,10 +193,8 @@ export function ModernLoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                form.setValue("email", "implementor@nstp.local")
-                form.setValue("password", "Password123!")
-              }}
+              onClick={() => quickLogin("implementor@nstp.local")}
+              disabled={mutation.isPending}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
             >
               <div className="min-w-0">
@@ -200,10 +205,8 @@ export function ModernLoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                form.setValue("email", "coordinator@nstp.local")
-                form.setValue("password", "Password123!")
-              }}
+              onClick={() => quickLogin("coordinator@nstp.local")}
+              disabled={mutation.isPending}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
             >
               <div className="min-w-0">
@@ -214,10 +217,8 @@ export function ModernLoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                form.setValue("email", "cadet@nstp.local")
-                form.setValue("password", "Password123!")
-              }}
+              onClick={() => quickLogin("cadet@nstp.local")}
+              disabled={mutation.isPending}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
             >
               <div className="min-w-0">
@@ -228,10 +229,8 @@ export function ModernLoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                form.setValue("email", "student@nstp.local")
-                form.setValue("password", "Password123!")
-              }}
+              onClick={() => quickLogin("student@nstp.local")}
+              disabled={mutation.isPending}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
             >
               <div className="min-w-0">
