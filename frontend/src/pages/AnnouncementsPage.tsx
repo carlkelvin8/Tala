@@ -192,9 +192,12 @@ export function AnnouncementsPage() {
               <p className="text-xs text-darksilver mt-0.5 line-clamp-2 max-w-[380px]">{a.body}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {a.eventDate && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-royal/10 px-2 py-0.5 text-[10px] font-bold text-royal dark:text-sky-200">
+                  <span
+                    title={`Event date: ${new Date(a.eventDate).toLocaleString()}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-royal/10 px-2 py-0.5 text-[10px] font-bold text-royal dark:text-sky-200"
+                  >
                     <CalendarCheck className="h-3 w-3" />
-                    {formatAnnouncementDate(a.eventDate)}
+                    Event: {formatAnnouncementDate(a.eventDate)}
                   </span>
                 )}
                 {program && (
@@ -213,12 +216,16 @@ export function AnnouncementsPage() {
     },
     {
       header: "Posted By",
-      cell: (a: any) => (
-        <div className="leading-tight">
-          <p className="text-sm font-medium text-black">{getFullName(a.createdBy)}</p>
-          {a.createdBy?.email && <p className="text-xs text-darksilver">{a.createdBy.email}</p>}
-        </div>
-      ),
+      cell: (a: any) => {
+        const name = getFullName(a.createdBy)
+        const email = a.createdBy?.email
+        return (
+          <div className="leading-tight">
+            <p className="text-sm font-medium text-black">{name}</p>
+            {email && email !== name && <p className="text-xs text-darksilver">{email}</p>}
+          </div>
+        )
+      },
     },
     {
       header: "Date",
