@@ -80,7 +80,7 @@ type StudentEnrollmentResponse = {
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Instructor",
+  IMPLEMENTOR: "Implementer",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student",
 }
