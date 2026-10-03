@@ -6,6 +6,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { userRepository } from "../repositories/userRepository.js"
 import { prisma } from "../lib/prisma.js"
 import { validateAvatarDataUrl } from "../lib/imageData.js"
+import { RoleType } from "@prisma/client"
 
 /* POST /api/auth/register — create a new user account */
 export async function register(c: Context) {
@@ -39,7 +40,7 @@ export async function login(c: Context) {
         select: { sectionId: true }
       })
       sectionId = profile?.sectionId ?? null
-    } else if (result.user.role === "CADET_OFFICER") {
+    } else if (result.user.role === RoleType.CADET_OFFICER) {
       const enrollment = await prisma.enrollment.findFirst({
         where: { userId: result.user.id, status: "APPROVED" },
         select: { sectionId: true },
@@ -47,6 +48,22 @@ export async function login(c: Context) {
       })
       sectionId = enrollment?.sectionId ?? null
     }
+
+    // Attach the account's display name so the UI shows the real name
+    // (e.g. Maria Santos) instead of repeating the email address
+    const namedProfile = await prisma.user.findUnique({
+      where: { id: result.user.id },
+      select: {
+        studentProfile: { select: { firstName: true, lastName: true } },
+        implementorProfile: { select: { firstName: true, lastName: true } },
+        cadetOfficerProfile: { select: { firstName: true, lastName: true } },
+      },
+    })
+    const nameProfile =
+      namedProfile?.studentProfile ??
+      namedProfile?.implementorProfile ??
+      namedProfile?.cadetOfficerProfile ??
+      null
 
     return c.json(
       ok("Login successful", {
@@ -57,6 +74,8 @@ export async function login(c: Context) {
           program: result.user.program ?? null,
           avatarUrl: result.user.avatarUrl ?? null,
           avatarFrame: result.user.avatarFrame ?? "gradient",
+          firstName: nameProfile?.firstName ?? null,
+          lastName: nameProfile?.lastName ?? null,
           sectionId
         },
         accessToken: result.accessToken,
