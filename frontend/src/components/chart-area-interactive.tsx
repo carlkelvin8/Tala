@@ -100,8 +100,8 @@ export function ChartAreaInteractive({ program }: { program?: ProgramType }) {
               className={cn(
                 "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150",
                 range === value
-                  ? "bg-white text-black shadow-sm"
-                  : "text-darksilver hover:text-darksilver"
+                  ? "bg-white text-black shadow-sm dark:bg-white/10 dark:text-white"
+                  : "text-darksilver hover:text-black dark:hover:text-white"
               )}
             >
               {label}

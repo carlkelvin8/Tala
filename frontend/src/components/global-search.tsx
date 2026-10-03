@@ -58,6 +58,16 @@ const PAGE_META: Record<string, PageMeta> = {
 const RECENT_KEY = "nstp_recent_searches"
 const MAX_RECENT = 5
 
+/* Valid routes intentionally absent from the sidebar (e.g. the Attendance
+   Scanner, reachable via dashboard shortcut) stay searchable here. */
+const EXTRA_SEARCH_ENTRIES: Array<{
+  label: string
+  path: string
+  roles: Array<"ADMIN" | "IMPLEMENTOR" | "CADET_OFFICER" | "STUDENT">
+}> = [
+  { label: "Attendance Scanner", path: "/scanner", roles: ["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"] },
+]
+
 function loadRecent(): string[] {
   try {
     const raw = localStorage.getItem(RECENT_KEY)
@@ -86,15 +96,27 @@ type SearchEntry = {
   icon: typeof LayoutDashboard
 }
 
+/* Normalize user input for forgiving matching: case-insensitive,
+   trimmed, collapsed whitespace, diacritics stripped. Cheap string ops
+   only — no expensive fuzzy logic. */
+function normalize(text: string): string {
+  return text
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+}
+
 /* Rank a page against the query. Lower is better; null means no match. */
 function matchScore(entry: SearchEntry, q: string): number | null {
-  const label = entry.label.toLowerCase()
+  const label = normalize(entry.label)
   const path = entry.path.toLowerCase()
-  const desc = entry.description.toLowerCase()
+  const desc = normalize(entry.description)
   if (label.startsWith(q)) return 0
-  if (entry.keywords.some((k) => k.startsWith(q))) return 1
+  if (entry.keywords.some((k) => normalize(k).startsWith(q))) return 1
   if (label.includes(q)) return 2
-  if (entry.keywords.some((k) => k.includes(q))) return 3
+  if (entry.keywords.some((k) => normalize(k).includes(q))) return 3
   if (path.includes(q)) return 4
   if (desc.includes(q)) return 5
   return null
@@ -161,7 +183,11 @@ function GlobalSearchPalette({ onClose }: { onClose: () => void }) {
   // Every page the user's role/program may access, enriched with search metadata.
   const entries: SearchEntry[] = useMemo(() => {
     const items = filterNavItems(user)
-    return items.map((item) => {
+    const paths = new Set(items.map((i) => i.path))
+    const extras = EXTRA_SEARCH_ENTRIES.filter(
+      (e) => user && e.roles.includes(user.role) && !paths.has(e.path)
+    ).map((e) => ({ label: e.label, path: e.path }))
+    return [...items, ...extras].map((item) => {
       const meta = PAGE_META[item.path]
       return {
         label: item.label,
@@ -177,7 +203,7 @@ function GlobalSearchPalette({ onClose }: { onClose: () => void }) {
   const byPath = useMemo(() => new Map(entries.map((e) => [e.path, e])), [entries])
 
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = normalize(query)
     if (!q) return entries
     return entries
       .map((entry) => ({ entry, score: matchScore(entry, q) }))
@@ -193,7 +219,7 @@ function GlobalSearchPalette({ onClose }: { onClose: () => void }) {
 
   // Flat list actually rendered (recents and/or grouped results) for keyboard nav.
   const flatList = useMemo(() => {
-    if (query.trim()) return results
+    if (normalize(query)) return results
     return [...recentEntries, ...results.filter((r) => !recent.includes(r.path))]
   }, [query, results, recentEntries, recent])
 
@@ -320,7 +346,7 @@ function GlobalSearchPalette({ onClose }: { onClose: () => void }) {
                 No pages match “{query}”. Try “grades”, “qr”, “ranking” or “reports”.
               </p>
             </div>
-          ) : query.trim() ? (
+          ) : normalize(query) ? (
             renderGrouped()
           ) : (
             <>

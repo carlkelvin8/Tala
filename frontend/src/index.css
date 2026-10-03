@@ -37,6 +37,45 @@ body {
   color-scheme: dark;
 }
 
+/* Dark-mode surface remaps for hardcoded light pastel fills.
+   Extends the existing --c-* variable theme (no second architecture):
+   deep tints keep the colored text/icons readable on dark surfaces. */
+.dark .bg-sky-50 { background-color: #0d2a44; }
+.dark .bg-violet-50 { background-color: #241a45; }
+.dark .bg-violet-100 { background-color: #2e2358; }
+.dark .bg-amber-50 { background-color: #3a2a0e; }
+.dark .bg-amber-100 { background-color: #4a3510; }
+.dark .bg-emerald-50 { background-color: #0b2e23; }
+.dark .bg-emerald-100 { background-color: #0f3d2e; }
+.dark .bg-green-50 { background-color: #0e3524; }
+.dark .bg-green-100 { background-color: #123f2b; }
+.dark .bg-teal-50 { background-color: #0b2e2a; }
+.dark .bg-teal-100 { background-color: #10403a; }
+.dark .bg-rose-50 { background-color: #3b1420; }
+.dark .bg-red-50 { background-color: #3a151d; }
+.dark .bg-red-100 { background-color: #4c1b24; }
+.dark .bg-blue-50 { background-color: #10294d; }
+.dark .bg-blue-100 { background-color: #15335f; }
+.dark .bg-purple-100 { background-color: #2a1b4d; }
+.dark .bg-yellow-50 { background-color: #3a2e0c; }
+.dark .bg-yellow-100 { background-color: #4a3a0e; }
+.dark .bg-orange-50 { background-color: #3d2110; }
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-gray-50,
+.dark .bg-gray-100 { background-color: #161c29; }
+
+/* Brand text colors that are unreadable on dark surfaces. */
+.dark .text-navy { color: #8fb8e8; }
+.dark .text-royal { color: #7aa8dd; }
+
+/* Recharts dark support (SVG attrs can't use the `dark:` variant). */
+.dark .recharts-cartesian-grid line { stroke: #243145; }
+.dark .recharts-cartesian-axis-tick text { fill: #8e939a; }
+.dark .recharts-area-curve { stroke: #7dd3fc; }
+.dark .recharts-area .recharts-area-area { fill-opacity: 0.25; }
+.dark .recharts-tooltip-cursor { stroke: #334155; }
+
 @layer utilities {
   .bg-grid {
     background-image:

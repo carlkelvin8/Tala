@@ -1,7 +1,8 @@
 import { SidebarTrigger } from "../components/ui/sidebar"
 import { GlobalSearchButton } from "../components/global-search"
+import { NotificationsButton } from "../components/notifications-button"
+import { ThemeToggle } from "../components/ThemeToggle"
 import { getStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
-import { Bell } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
 import * as React from "react"
 
@@ -73,10 +74,10 @@ export function SiteHeader({ onMenuClick }: SiteHeaderProps) {
       
       <div className="flex items-center gap-3">
         <GlobalSearchButton />
-        
-        <button aria-label="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-darksilver hover:text-black hover:bg-silver/20 transition-colors">
-          <Bell className="h-4 w-4" />
-        </button>
+
+        <ThemeToggle />
+
+        <NotificationsButton />
 
         <button 
           onClick={() => navigate("/profile")}

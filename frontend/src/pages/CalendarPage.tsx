@@ -174,14 +174,14 @@ export function CalendarPage() {
                   {events.slice(0, 2).map((event, i) => (
                     <div
                       key={i}
-                      title={`${event.title} — ${event.time}`}
+                      title={`${event.title} — ${new Date(event.dateKey + "T00:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}${event.time ? ` at ${event.time}` : ""}`}
                       className={cn(
                         "truncate rounded px-1 py-0.5 text-[9px] font-medium leading-tight",
                         event.type === "live"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-green-100 text-green-700 dark:text-green-300"
                           : event.type === "exam"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-blue-100 text-blue-700"
+                            ? "bg-purple-100 text-purple-700 dark:text-purple-300"
+                            : "bg-blue-100 text-blue-700 dark:text-blue-300"
                       )}
                     >
                       {event.type === "live" && "• LIVE "}
@@ -212,7 +212,7 @@ export function CalendarPage() {
                 <span
                   className={cn(
                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                    event.type === "exam" ? "bg-purple-100 text-purple-600" : event.type === "live" ? "bg-green-100 text-green-600" : "bg-blue-100 text-blue-600"
+                    event.type === "exam" ? "bg-purple-100 text-purple-600 dark:text-purple-300" : event.type === "live" ? "bg-green-100 text-green-600 dark:text-green-300" : "bg-blue-100 text-blue-600 dark:text-blue-300"
                   )}
                 >
                   {event.type === "exam" ? <GraduationCap className="h-4 w-4" /> : <Radio className="h-4 w-4" />}

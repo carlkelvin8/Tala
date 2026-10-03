@@ -99,7 +99,7 @@ export function LeaderboardPage() {
                 </div>
                 <p className="mt-3 truncate text-base font-bold text-black">{entry.name}</p>
                 <p className="text-xs text-darksilver">{entry.studentNo}</p>
-                <p className="mt-2 text-3xl font-extrabold tabular-nums bg-gradient-to-r from-navy to-royal bg-clip-text text-transparent">
+                <p className="mt-2 text-3xl font-extrabold tabular-nums bg-gradient-to-r from-navy to-royal dark:from-sky-300 dark:to-blue-400 bg-clip-text text-transparent">
                   {entry.points}
                 </p>
                 <p className="text-[11px] uppercase tracking-wider text-darksilver font-medium">points</p>

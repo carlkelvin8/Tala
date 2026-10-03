@@ -58,6 +58,11 @@ export function GradesPage() {
   const perms = usePermissions()
   const currentUser = getStoredUser()
   const isStudent = currentUser?.role === "STUDENT"
+
+  // Students see only their final/displayed grades. Internal management
+  // (grade items catalog, category weights, computation config) stays
+  // staff-only — backend grade logic is untouched.
+  const visibleTabs = isStudent ? tabs.filter((t) => t.id === "grades") : tabs
   const [activeTab, setActiveTab] = useState<TabId>("grades")
   const gradeForm = useForm<GradeFormValues>({ resolver: zodResolver(gradeSchema) })
   const categoryForm = useForm<CategoryFormValues>({ resolver: zodResolver(categorySchema) })
@@ -437,7 +442,7 @@ export function GradesPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.42, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          {tabs.map(({ id, label, icon: TabIcon }) => (
+          {visibleTabs.map(({ id, label, icon: TabIcon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -458,7 +463,7 @@ export function GradesPage() {
       {activeTab === "grades" && (
         <>
           {isStudent && (totalQuery.data?.data ?? null) && (
-            <SectionCard title="Total Grade — This Semester" description={`Combined grade across all categories (${computationMode === "weighted" ? "weighted by category weight" : "simple average of all scores"}).`} className="shadow-card">
+            <SectionCard title="Total Grade — This Semester" description="Your combined grade across all categories." className="shadow-card">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="flex items-center gap-4">
                   <div className={cn(
@@ -477,26 +482,6 @@ export function GradesPage() {
                       <span className="mt-2 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">Failing (&lt;{passingGrade}%)</span>
                     )}
                   </div>
-                </div>
-                <div className="flex-1 space-y-2">
-                  {(totalQuery.data?.data?.breakdown ?? []).map((cat) => {
-                    const pct = cat.percent
-                    const good = pct != null && pct >= passingGrade
-                    return (
-                      <div key={cat.name} className="flex items-center gap-3">
-                        <span className="w-32 shrink-0 truncate text-xs font-medium text-darksilver">{cat.name}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-silver/30">
-                          <div
-                            className={cn("h-full rounded-full", good ? "bg-emerald-500" : "bg-rose-500")}
-                            style={{ width: `${pct ?? 0}%` }}
-                          />
-                        </div>
-                        <span className={cn("w-14 shrink-0 text-right text-xs font-bold", good ? "text-emerald-600" : "text-rose-500")}>
-                          {pct != null ? `${pct}%` : "—"}
-                        </span>
-                      </div>
-                    )
-                  })}
                 </div>
               </div>
             </SectionCard>

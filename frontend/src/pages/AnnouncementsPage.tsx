@@ -4,7 +4,6 @@ import { ApiResponse } from "../types"
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
 import { Button } from "../components/ui/button"
-import { Select } from "../components/ui/select"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -18,7 +17,7 @@ import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
-import { Megaphone, Sparkles, Plus, Edit, Trash2, Save, X, RefreshCw, Clock, CalendarCheck, Users, Filter } from "lucide-react"
+import { Megaphone, Sparkles, Plus, Edit, Trash2, Save, X, RefreshCw, Clock, CalendarCheck, Filter } from "lucide-react"
 import { useState, useMemo } from "react"
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
@@ -31,6 +30,51 @@ const schema = z.object({
   program: z.enum(["CWTS", "ROTC"]).optional(),
 })
 type FormValues = z.infer<typeof schema>
+
+const PROGRAM_SCOPE_OPTIONS = [
+  { value: "", label: "All programs", hint: "Everyone sees it" },
+  { value: "CWTS", label: "CWTS", hint: "CWTS members" },
+  { value: "ROTC", label: "ROTC", hint: "ROTC members" },
+] as const
+
+/* Human-readable date, e.g. "Oct 3, 2026". Central here so list, drawer
+   and tooltips stay consistent. */
+export function formatAnnouncementDate(iso: string | null | undefined): string {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })
+}
+
+/* Segmented program-scope picker. Same values as the old dropdown
+   ("" | "CWTS" | "ROTC") so saved data and validation are unchanged. */
+function ProgramScopePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Program scope" className="grid grid-cols-3 gap-2">
+      {PROGRAM_SCOPE_OPTIONS.map((opt) => {
+        const selected = value === opt.value
+        return (
+          <button
+            key={opt.value || "all"}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "rounded-xl border px-3 py-2.5 text-left transition-all",
+              selected
+                ? "border-navy bg-navy/[0.06] ring-1 ring-navy/30 dark:border-sky-400 dark:bg-sky-400/10 dark:ring-sky-400/30"
+                : "border-silver/30 bg-white hover:border-silver/50 hover:bg-silver/10"
+            )}
+          >
+            <span className={cn("block text-xs font-bold", selected ? "text-navy dark:text-sky-200" : "text-black")}>
+              {opt.label}
+            </span>
+            <span className="mt-0.5 block text-[10px] text-darksilver">{opt.hint}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export function AnnouncementsPage() {
   const perms = usePermissions()
@@ -186,11 +230,14 @@ export function AnnouncementsPage() {
     {
       header: "Date",
       cell: (a: any) => (
-        <div className="flex items-center gap-1.5 text-sm text-darksilver whitespace-nowrap">
-          <Clock className="h-3.5 w-3.5 text-darksilver shrink-0" />
-          <span title={new Date(a.createdAt).toLocaleString()}>
-            {a.createdAt ? relativeTime(a.createdAt) : "—"}
-          </span>
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <Clock className="h-3.5 w-3.5 shrink-0 text-darksilver" />
+          <div className="leading-tight">
+            <p className="text-sm font-medium text-black" title={a.createdAt ? new Date(a.createdAt).toLocaleString() : undefined}>
+              {formatAnnouncementDate(a.createdAt)}
+            </p>
+            {a.createdAt && <p className="text-[11px] text-darksilver">{relativeTime(a.createdAt)}</p>}
+          </div>
         </div>
       ),
     },
@@ -302,14 +349,7 @@ export function AnnouncementsPage() {
                   </div>
                 </FormField>
                 <FormField label="Program Scope">
-                  <div className="relative">
-                    <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-                    <Select {...form.register("program")} className="h-11 pl-10">
-                      <option value="">All programs</option>
-                      <option value="CWTS">CWTS</option>
-                      <option value="ROTC">ROTC</option>
-                    </Select>
-                  </div>
+                  <ProgramScopePicker value={form.watch("program") ?? ""} onChange={(v) => form.setValue("program", (v || undefined) as "CWTS" | "ROTC" | undefined, { shouldDirty: true })} />
                 </FormField>
               </div>
               <FormField label="Message" required error={form.formState.errors.body?.message}>
@@ -425,7 +465,7 @@ export function AnnouncementsPage() {
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-black truncate">{editingAnnouncement.title}</p>
-                <p className="text-xs text-darksilver">Posted {editingAnnouncement.createdAt ? relativeTime(editingAnnouncement.createdAt) : ""}</p>
+                <p className="text-xs text-darksilver">Posted {formatAnnouncementDate(editingAnnouncement.createdAt)}{editingAnnouncement.createdAt ? ` · ${relativeTime(editingAnnouncement.createdAt)}` : ""}</p>
               </div>
             </div>
           )}
@@ -435,11 +475,7 @@ export function AnnouncementsPage() {
           </FormField>
 
           <FormField label="Program Scope">
-            <Select value={editProgram} onChange={(e) => setEditProgram(e.target.value)} className="h-11">
-              <option value="">All programs</option>
-              <option value="CWTS">CWTS</option>
-              <option value="ROTC">ROTC</option>
-            </Select>
+            <ProgramScopePicker value={editProgram} onChange={setEditProgram} />
           </FormField>
 
           <FormField label="Message" required>
