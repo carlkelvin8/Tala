@@ -71,7 +71,7 @@ export function getUserDisplayName(user: AuthUser): string {
   if (user.firstName && user.lastName) { // If both first and last name are available
     return `${user.firstName} ${user.lastName}` // Return the full name as "First Last"
   }
-  if (user.firstName) { // Some accounts have a single display name (e.g. "Instructor")
+  if (user.firstName) { // Some accounts have a single display name (e.g. "Coordinator")
     return user.firstName
   }
   return user.email // Fall back to the email address if name is not set
