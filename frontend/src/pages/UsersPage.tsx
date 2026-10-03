@@ -11,6 +11,7 @@ import { useState, useMemo } from "react"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
+import { SearchInput } from "../components/ui/search-input"
 import { StatusBadge } from "../components/ui/status-badge"
 import { toast } from "sonner"
 import { FormSection } from "../components/ui/form-section"
@@ -249,15 +250,10 @@ export function UsersPage() {
 
       <SectionCard title="Users" description="Active accounts across the system" className="shadow-card">
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-            <Input
-              placeholder="Search by email"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="h-10 pl-10"
-            />
-          </div>
+          <SearchInput
+            placeholder="Search by email (Enter to search)"
+            onSearch={setSearch}
+          />
           {usersQuery.isError && <Alert variant="danger">Unable to load users.</Alert>}
           {usersQuery.isLoading ? (
             <LoadingSkeleton rows={3} columns={3} />

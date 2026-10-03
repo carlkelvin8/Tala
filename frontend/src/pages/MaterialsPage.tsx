@@ -14,6 +14,7 @@ import { PageHeader } from "../components/ui/page-header"
 import { FormField } from "../components/ui/form-field"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
+import { SearchInput } from "../components/ui/search-input"
 import { toast } from "sonner"
 import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
@@ -592,15 +593,10 @@ export function MaterialsPage() {
             </div>
 
             <div className="px-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-                <Input
-                  placeholder="Search by title or description..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-10"
-                />
-              </div>
+              <SearchInput
+                placeholder="Search by title or description... (Enter to search)"
+                onSearch={setSearchQuery}
+              />
             </div>
           </div>
         )}

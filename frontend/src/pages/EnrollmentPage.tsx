@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input"
 import { Select } from "../components/ui/select"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
+import { SearchInput } from "../components/ui/search-input"
 import { StatusBadge } from "../components/ui/status-badge"
 import { toast } from "sonner"
 import { SectionCard } from "../components/ui/section-card"
@@ -588,15 +589,10 @@ export function EnrollmentPage() {
             </div>
 
             <div className="px-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-                <Input
-                  placeholder="Search by name, email, or student ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-10"
-                />
-              </div>
+              <SearchInput
+                placeholder="Search by name, email, or student ID... (Enter to search)"
+                onSearch={setSearchQuery}
+              />
             </div>
           </div>
         )}

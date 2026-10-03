@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input"
 import { Select } from "../components/ui/select"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
+import { SearchInput } from "../components/ui/search-input"
 import { StatusBadge } from "../components/ui/status-badge"
 import { toast } from "sonner"
 import { SectionCard } from "../components/ui/section-card"
@@ -715,12 +716,9 @@ function StaffView() {
                 ))}
               </Select>
               <div className="relative flex-1 min-w-[220px]">
-                <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                <Input
-                  placeholder="Search by name, email, title, or file name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-10"
+                <SearchInput
+                  placeholder="Search by name, email, title, or file name... (Enter to search)"
+                  onSearch={setSearchQuery}
                 />
               </div>
             </div>

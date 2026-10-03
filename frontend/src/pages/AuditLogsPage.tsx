@@ -1,9 +1,9 @@
-import { useDeferredValue, useState } from "react"
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Search, ShieldCheck, Plus, Pencil, Trash2, LogIn, KeyRound, Activity, ChevronDown } from "lucide-react"
+import { ShieldCheck, Plus, Pencil, Trash2, LogIn, KeyRound, Activity, ChevronDown } from "lucide-react"
 import { apiRequest } from "../lib/api"
 import type { ApiResponse, RoleType } from "../types"
-import { Input } from "../components/ui/input"
+import { SearchInput } from "../components/ui/search-input"
 import { Button } from "../components/ui/button"
 import { EmptyState } from "../components/ui/empty-state"
 import { cn } from "../lib/utils"
@@ -284,15 +284,15 @@ function AuditLogRow({ log }: { log: AuditLog }) {
 }
 
 export function AuditLogsPage() {
+  // Applied only when the user presses Enter — typing alone never searches.
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
-  const deferredSearch = useDeferredValue(search)
   const pageSize = 25
 
   const query = useQuery({
-    queryKey: ["audit-logs", deferredSearch, page],
+    queryKey: ["audit-logs", search, page],
     queryFn: () => apiRequest<ApiResponse<AuditLog[]>>(
-      `/api/audit-logs?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(deferredSearch)}`
+      `/api/audit-logs?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`
     ),
   })
 
@@ -310,10 +310,12 @@ export function AuditLogsPage() {
       </header>
 
       <section className="rounded-2xl border border-silver/30 bg-white p-4 shadow-card sm:p-6">
-        <label htmlFor="audit-search" className="sr-only">Search audit logs</label>
-        <div className="relative mb-5 max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-          <Input id="audit-search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search action, entity, or actor…" className="pl-9" />
+        <div className="mb-5 max-w-md">
+          <SearchInput
+            placeholder="Search action, entity, or actor… (Enter to search)"
+            ariaLabel="Search audit logs"
+            onSearch={(term) => { setSearch(term); setPage(1) }}
+          />
         </div>
 
         {query.isLoading ? <div className="h-64 animate-pulse rounded-xl bg-slate-100" aria-label="Loading audit logs" /> :

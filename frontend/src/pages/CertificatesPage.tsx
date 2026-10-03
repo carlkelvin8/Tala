@@ -7,6 +7,7 @@ import { Input } from "../components/ui/input"
 import { FormField } from "../components/ui/form-field"
 import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
+import { SearchInput } from "../components/ui/search-input"
 import { toast } from "sonner"
 import { jsPDF } from "jspdf"
 import { Award, Search, Download, Medal, CalendarDays, MapPin, PenLine } from "lucide-react"
@@ -221,16 +222,10 @@ export function CertificatesPage() {
 
       <SectionCard title="Select Student" description="Choose an approved student to generate a certificate">
         <FormField label="Search">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name, student number, or email..."
-              className="pl-10"
-            />
-          </div>
+          <SearchInput
+            placeholder="Name, student number, or email... (Enter to search)"
+            onSearch={setSearch}
+          />
         </FormField>
 
         <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
