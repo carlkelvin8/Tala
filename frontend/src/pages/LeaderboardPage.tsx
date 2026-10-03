@@ -37,6 +37,8 @@ export function LeaderboardPage() {
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["leaderboard", tick],
     queryFn: () => apiRequest<ApiResponse<LeaderboardEntry[]>>("/api/leaderboard"),
+    // Rankings change slowly; avoid refetching on every visit/focus.
+    staleTime: 60_000,
   })
 
   useEffect(() => {

@@ -52,16 +52,20 @@ export function CalendarPage() {
       apiRequest<ApiResponse<CalendarSession[]>>(
         `/api/attendance-sessions/calendar?from=${monthStart.toISOString()}&to=${monthEnd.toISOString()}`
       ),
+    // Schedule data changes slowly; avoid refetching on every visit/focus.
+    staleTime: 60_000,
   })
 
   const { data: examsData } = useQuery({
     queryKey: ["calendar-exams"],
     queryFn: () => apiRequest<ApiResponse<ExamSession[]>>("/api/exams"),
+    staleTime: 60_000,
   })
 
   const { data: announcementsData } = useQuery({
     queryKey: ["calendar-announcements", year, month],
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/announcements?pageSize=100"),
+    staleTime: 60_000,
   })
 
   const eventsByDate = useMemo(() => {

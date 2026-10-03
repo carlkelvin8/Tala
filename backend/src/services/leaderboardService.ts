@@ -60,14 +60,28 @@ export async function getLeaderboard(filters?: { sectionId?: string }, scopeProg
     },
   })
 
+  if (students.length === 0) return []
+
+  // One query for every student's records (most recent first per student).
+  // Previously this looped one query per student (N+1), which made the
+  // leaderboard page slow as enrollment grew.
+  const allRecords = await prisma.attendanceRecord.findMany({
+    where: { userId: { in: students.map((s) => s.userId) }, ...recordWindow },
+    orderBy: [{ userId: "asc" }, { date: "desc" }],
+    select: { userId: true, status: true, checkInAt: true },
+  })
+
+  const recordsByUser = new Map<string, typeof allRecords>()
+  for (const record of allRecords) {
+    const list = recordsByUser.get(record.userId)
+    if (list) list.push(record)
+    else recordsByUser.set(record.userId, [record])
+  }
+
   const entries: LeaderboardEntry[] = []
 
   for (const student of students) {
-    const records = await prisma.attendanceRecord.findMany({
-      where: { userId: student.userId, ...recordWindow },
-      orderBy: { date: "desc" },
-      select: { status: true, checkInAt: true },
-    })
+    const records = recordsByUser.get(student.userId) ?? []
 
     if (records.length === 0) continue
 
