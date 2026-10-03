@@ -167,7 +167,7 @@ export function ModernLoginPage() {
           )}
         </Button>
 
-        {(import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === "true") && <div className="pt-6">
+        <div className="pt-6">
           <p className="text-xs text-darksilver mb-3 font-medium uppercase tracking-wider">Demo accounts</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
@@ -241,7 +241,7 @@ export function ModernLoginPage() {
               <ArrowRight className="h-3 w-3 text-silver shrink-0 ml-2" />
             </button>
           </div>
-        </div>}
+        </div>
       </form>
     </ModernAuthLayout>
   )
