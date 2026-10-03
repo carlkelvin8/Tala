@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
@@ -14,7 +14,7 @@ import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { QuestionManager, QuestionCountBadge } from "../components/exams/question-manager"
 import { getStoredUser } from "../lib/auth"
-import { FileText, Sparkles, Camera, CameraOff, Video, VideoOff, Clock, Shield, AlertTriangle, Plus, X, RefreshCw, ListChecks } from "lucide-react"
+import { FileText, Sparkles, Clock, Plus, X, RefreshCw, ListChecks } from "lucide-react"
 import { motion } from "framer-motion"
 
 export function ExamsPage() {
@@ -24,10 +24,6 @@ export function ExamsPage() {
 
   const [timeLeft, setTimeLeft] = useState(0)
   const [running, setRunning] = useState(false)
-  const [cameraEnabled, setCameraEnabled] = useState(false)
-  const [cameraError, setCameraError] = useState<string | null>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
 
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -96,106 +92,7 @@ export function ExamsPage() {
     }
   }, [timeLeft, running, currentAttemptId])
 
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [])
-
-  const ensureCameraActive = useCallback(async () => {
-    if (streamRef.current && streamRef.current.active) {
-      if (videoRef.current && !videoRef.current.srcObject) {
-        videoRef.current.srcObject = streamRef.current
-      }
-      return true
-    }
-    return false
-  }, [])
-
-  const startCamera = async () => {
-    try {
-      setCameraError(null)
-      if (streamRef.current && streamRef.current.active) {
-        if (videoRef.current) {
-          videoRef.current.srcObject = streamRef.current
-        }
-        setCameraEnabled(true)
-        return
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-      setCameraEnabled(true)
-      toast.success("Camera enabled successfully")
-    } catch (error) {
-      let errorMessage = "Unable to access camera"
-      if (error instanceof Error) {
-        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-          errorMessage = "Camera permission denied. Please allow camera access in your browser settings."
-        } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-          errorMessage = "No camera found. Please connect a camera and try again."
-        } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-          errorMessage = "Camera is already in use by another application."
-        }
-      }
-      setCameraError(errorMessage)
-      toast.error(errorMessage)
-    }
-  }
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-    setCameraEnabled(false)
-    toast.info("Camera disabled")
-  }
-
-  useEffect(() => {
-    if (!videoRef.current || !streamRef.current) return
-    const video = videoRef.current
-    const stream = streamRef.current
-    if (video.srcObject !== stream) {
-      video.srcObject = stream
-    }
-    const handleTrackEnded = () => {
-      setCameraEnabled(false)
-      setCameraError("Camera stream was interrupted. Please re-enable the camera.")
-    }
-    stream.getTracks().forEach(track => {
-      track.addEventListener("ended", handleTrackEnded)
-    })
-    return () => {
-      stream.getTracks().forEach(track => {
-        track.removeEventListener("ended", handleTrackEnded)
-      })
-    }
-  }, [cameraEnabled])
-
   const startExam = async (durationMin: number, examSessionId: string) => {
-    if (!cameraEnabled) {
-      toast.error("Please enable camera before starting the exam")
-      return
-    }
-    const isActive = await ensureCameraActive()
-    if (!isActive) {
-      toast.error("Camera is not active. Please re-enable it.")
-      setCameraEnabled(false)
-      return
-    }
     try {
       const result = await attemptMutation.mutateAsync(examSessionId)
       // Never start the countdown unless the server returned a real attempt id —
@@ -325,7 +222,7 @@ export function ExamsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
             >
-              Monitor sessions and launch supervised exams with camera-based proctoring.
+              Monitor sessions and launch timed supervised exams.
             </motion.p>
           </div>
         </div>
@@ -336,107 +233,30 @@ export function ExamsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
       >
-      <SectionCard title="Exam Monitoring" description="Enable camera for proctored exam sessions" className="shadow-card">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {!cameraEnabled ? (
-              <Button onClick={startCamera} className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-royal hover:to-navy text-white">
-                <Camera className="h-4 w-4" />
-                Enable Camera
-              </Button>
-            ) : (
-              <Button onClick={stopCamera} variant="outline" className="flex items-center gap-2">
-                <CameraOff className="h-4 w-4" />
-                Disable Camera
-              </Button>
-            )}
-
-            {running && (
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-royal/10 px-4 py-1.5">
-                <Video className="h-4 w-4 text-royal" />
-                <span className="text-sm font-semibold text-royal">
-                  Time Remaining: {formatTime(Math.max(timeLeft, 0))}
-                </span>
-              </div>
-            )}
-
-            {running && currentAttemptId && (
-              <Button onClick={finishExam} variant="outline" className="flex items-center gap-2 border-green-200 text-green-700 hover:bg-green-50">
-                Submit Exam
-              </Button>
-            )}
-
-            {cameraEnabled && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-semibold text-green-700">Camera Active</span>
-              </div>
-            )}
-
-            {running && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
-                <Shield className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-xs font-semibold text-amber-700">Proctoring Active</span>
-              </div>
-            )}
+      {running && (
+      <SectionCard title="Active Exam" description="Timer and submission for your current attempt" className="shadow-card">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-royal/10 px-4 py-1.5">
+            <Clock className="h-4 w-4 text-royal" />
+            <span className="text-sm font-semibold text-royal">
+              Time Remaining: {formatTime(Math.max(timeLeft, 0))}
+            </span>
           </div>
 
-          {cameraError && (
-            <Alert variant="danger">
-              {cameraError}
-            </Alert>
-          )}
-
-          <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-navy border-2 border-silver/30">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-full w-full object-cover"
-            />
-            {!cameraEnabled && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy text-white">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-royal/80 ring-1 ring-white/10 mb-4">
-                  <VideoOff className="h-8 w-8 text-darksilver" />
-                </div>
-                <p className="text-sm font-medium text-silver">Camera is disabled</p>
-                <p className="text-xs text-darksilver mt-1">Click "Enable Camera" to start</p>
-              </div>
-            )}
-            {cameraEnabled && running && (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-red-500/90 px-2.5 py-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                <span className="text-[10px] font-bold text-white uppercase tracking-wider">REC</span>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-5">
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-amber-900">Anti-Cheat Guidelines</h4>
-                <ul className="mt-2 text-xs text-amber-800 space-y-1">
-                  <li>• Keep your camera enabled throughout the entire exam</li>
-                  <li>• Do not switch tabs or minimize the browser</li>
-                  <li>• Ensure you are in a well-lit, quiet environment</li>
-                  <li>• Keep your face visible in the camera frame at all times</li>
-                  <li>• The camera feed is continuously monitored during the exam</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {attemptMutation.isError && (
-            <Alert variant="danger">
-              Unable to start the exam attempt. Please try again.
-            </Alert>
+          {currentAttemptId && (
+            <Button onClick={finishExam} variant="outline" className="flex items-center gap-2 border-green-200 text-green-700 hover:bg-green-50">
+              Submit Exam
+            </Button>
           )}
         </div>
+
+        {attemptMutation.isError && (
+          <Alert variant="danger" className="mt-4">
+            Unable to start the exam attempt. Please try again.
+          </Alert>
+        )}
       </SectionCard>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -523,7 +343,7 @@ export function ExamsPage() {
                 <Button
                   size="sm"
                   onClick={() => startExam(session.durationMin, session.id)}
-                  disabled={!cameraEnabled || running}
+                  disabled={running}
                 >
                   {running ? "In Progress" : "Start Exam"}
                 </Button>
