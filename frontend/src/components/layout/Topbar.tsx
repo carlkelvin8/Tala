@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { getStoredUser, getUserDisplayName } from "../../lib/auth"
 import { logoutSession } from "../../lib/api"
 import { ConfirmDialog } from "../ui/confirm-dialog"
+import { GlobalSearchButton } from "../global-search"
 import { useNavigate, useLocation } from "react-router-dom"
 import { LogOut, Menu, Bell, CheckCheck } from "lucide-react"
 import { cn } from "../../lib/utils"
@@ -147,6 +148,8 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
           <div className="h-4 w-px bg-silver/20 hidden sm:block" />
 
           <ThemeToggle />
+
+          <GlobalSearchButton className="h-8 w-8" />
 
           <div ref={notifRef} className="relative">
             <button
