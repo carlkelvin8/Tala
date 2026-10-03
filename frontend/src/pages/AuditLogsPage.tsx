@@ -50,22 +50,77 @@ function indefiniteArticle(word: string): string {
   return /^[aeiou]/i.test(word) ? "an" : "a"
 }
 
+/* Safely read a string/number field from the log's meta JSON.
+   Returns undefined for missing or wrongly-typed values so malformed
+   metadata can never crash rendering. */
+function metaField(log: AuditLog, key: string): string | number | undefined {
+  if (typeof log.meta !== "object" || log.meta === null) return undefined
+  const value = (log.meta as Record<string, unknown>)[key]
+  return typeof value === "string" || typeof value === "number" ? value : undefined
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  EXCUSE_LETTER: "excuse letter",
+  MEDICAL_CERTIFICATE: "medical certificate",
+  OTHER_OFFICIAL_DOCUMENT: "official document",
+}
+
 /* Convert a raw audit record into a human-readable statement.
-   Driven entirely by actual log data — nothing is hardcoded per record. */
+   Driven entirely by actual log data — nothing is hardcoded per record.
+   Where the backend stored specifics in `meta` (document titles, review
+   decisions, section assignments, counts), those are woven into the
+   sentence so the statement says what was actually done. */
 export function auditStatement(log: AuditLog): string {
   const actor = log.actor?.email ?? "System"
   const target = ENTITY_LABELS[log.entity] ?? log.entity.toLowerCase().replace(/_/g, " ")
+
+  // Document submissions carry what/why details in meta.
+  if (log.entity === "DocumentSubmission") {
+    const docTypeRaw = metaField(log, "docType")
+    const docKind =
+      (typeof docTypeRaw === "string" && DOC_TYPE_LABELS[docTypeRaw]) || "document"
+    const title = metaField(log, "title")
+    const titled = typeof title === "string" && title ? ` titled "${title}"` : ""
+    if (log.action === "CREATE") {
+      return `${actor} submitted ${indefiniteArticle(docKind)} ${docKind}${titled} for review.`
+    }
+    if (log.action === "UPDATE") {
+      const status = metaField(log, "status")
+      if (status === "APPROVED") return `${actor} approved the ${docKind}${titled}.`
+      if (status === "REJECTED") return `${actor} rejected the ${docKind}${titled}.`
+      return `${actor} reviewed the ${docKind}${titled}.`
+    }
+  }
+
+  // Approving a document clears absences — meta records how many.
+  if (log.entity === "AttendanceRecord" && log.action === "UPDATE") {
+    const removed = metaField(log, "removedAbsences")
+    if (typeof removed === "number") {
+      return removed === 1
+        ? `${actor} cleared 1 absence after approving a document.`
+        : `${actor} cleared ${removed} absences after approving a document.`
+    }
+  }
+
+  // Auto-sectioning records the destination section in meta.
+  if (log.entity === "Enrollment" && log.action === "UPDATE") {
+    const sectionCode = metaField(log, "sectionCode")
+    if (typeof sectionCode === "string" && sectionCode) {
+      return `${actor === "System" ? "The system" : actor} assigned an enrollment to section ${sectionCode}.`
+    }
+  }
+
   switch (log.action) {
     case "CREATE":
       return `${actor} added a new ${target}.`
     case "BULK_CREATE": {
-      const count =
-        typeof log.meta === "object" && log.meta !== null && "count" in log.meta
-          ? (log.meta as { count?: unknown }).count
-          : undefined
-      return typeof count === "number"
-        ? `${actor} added ${count} ${target}s in bulk.`
-        : `${actor} added multiple ${target}s in bulk.`
+      const count = metaField(log, "count") ?? metaField(log, "imported")
+      const source = metaField(log, "source")
+      if (typeof count === "number") {
+        const via = source === "csv" ? " via CSV import" : " in bulk"
+        return `${actor} added ${count} ${target}${count === 1 ? "" : "s"}${via}.`
+      }
+      return `${actor} added multiple ${target}s in bulk.`
     }
     case "UPDATE":
       return `${actor} updated ${indefiniteArticle(target)} ${target}.`
