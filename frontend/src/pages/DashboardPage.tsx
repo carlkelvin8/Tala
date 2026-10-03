@@ -37,11 +37,13 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
     return <Navigate to={program === "ROTC" ? "/dashboard/rotc" : "/dashboard/cwts"} replace />
   }
 
-  const program = programProp ?? (getEffectiveProgram(user) as ProgramType | null) ?? (user?.role === "CADET_OFFICER" ? "ROTC" : null)
-  // Cadet officers are an ROTC-only concept (flights, merits and cadet nav
-  // are all ROTC-scoped; registration mandates a program, so this fallback
-  // only covers legacy null-program accounts). It keeps CWTS-grouped content
-  // off their dashboard without touching database records or admin pages.
+  // Cadet officers are ROTC by definition (flights, merits and cadet nav are
+  // all ROTC-scoped), so their dashboard is always ROTC-scoped. This keeps
+  // every CWTS section off their dashboard regardless of any stored program
+  // value, without touching database records or admin pages.
+  const program = user?.role === "CADET_OFFICER"
+    ? ("ROTC" as ProgramType)
+    : (programProp ?? (getEffectiveProgram(user) as ProgramType | null))
   const programLabel = program ? programFullLabels[program] : null
 
   return (
