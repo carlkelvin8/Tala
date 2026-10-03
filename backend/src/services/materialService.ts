@@ -25,17 +25,23 @@ export async function createMaterial(data: {
   title: string              // Material title
   description?: string       // Optional longer description
   category: MaterialCategory // Material category (MODULE, LECTURE, ANNOUNCEMENT, ACTIVITY)
+  program?: NstpType | null  // Optional program scope (null = all programs)
   fileUrl?: string           // Optional URL or path to the uploaded file
   createdById: string        // UUID of the staff member creating the material
   sectionId?: string         // Optional UUID to scope the material to a section
   flightId?: string          // Optional UUID to scope the material to a flight
   scopeProgram?: NstpType | null // Program the caller is locked to (ROTC for implementors)
 }) {
+  // The caller's scope wins; otherwise honor the requested program scope
+  const program = data.scopeProgram ?? data.program ?? null
   // Scoped staff may only author materials that belong to their own program
-  await assertMaterialProgram({ sectionId: data.sectionId, flightId: data.flightId }, data.scopeProgram)
+  await assertMaterialProgram(
+    { program, sectionId: data.sectionId, flightId: data.flightId },
+    data.scopeProgram
+  )
   const { scopeProgram: _scopeProgram, ...createData } = data
   // Insert a new learning material record with the provided data
-  const material = await prisma.learningMaterial.create({ data: createData })
+  const material = await prisma.learningMaterial.create({ data: { ...createData, program } })
   // Log the material creation event to the audit trail with the creator's ID
   await logAudit("CREATE", "LearningMaterial", material.id, data.createdById)
   // Return the created material object
@@ -44,7 +50,7 @@ export async function createMaterial(data: {
 
 /* Return a paginated list of learning materials with optional filters */
 export async function listMaterials(
-  filters: { category?: MaterialCategory; sectionId?: string; flightId?: string }, // Optional filter criteria
+  filters: { category?: MaterialCategory; program?: NstpType; sectionId?: string; flightId?: string }, // Optional filter criteria
   skip: number, // Number of records to skip (pagination offset)
   take: number,  // Maximum number of records to return (page size)
   scopeProgram?: NstpType | null // Program the caller is locked to
@@ -53,12 +59,24 @@ export async function listMaterials(
   const where: Record<string, unknown> = {}
   // Add category filter if provided
   if (filters.category) where.category = filters.category
+  // Add program filter if provided (explicit audience targeting)
+  if (filters.program) where.program = filters.program
   // Add section ID filter if provided
   if (filters.sectionId) where.sectionId = filters.sectionId
   // Add flight ID filter if provided
   if (filters.flightId) where.flightId = filters.flightId
-  // Scoped staff only see materials of their own program (section-derived)
-  if (scopeProgram) where.OR = [{ section: { course: { nstpType: scopeProgram } } }]
+  // Scoped staff only see materials of their own program: section-derived
+  // matches plus explicitly program-targeted matches (fail closed on mismatch)
+  if (scopeProgram) {
+    where.AND = [
+      {
+        OR: [
+          { section: { course: { nstpType: scopeProgram } } },
+          { program: scopeProgram },
+        ],
+      },
+    ]
+  }
 
   // Run the count and data queries in parallel for performance
   const [items, total] = await Promise.all([
@@ -84,6 +102,7 @@ export async function updateMaterial(
     title?: string              // Optional new title
     description?: string        // Optional new description
     category?: MaterialCategory // Optional new category
+    program?: NstpType | null   // Optional new program scope (null = all programs)
     fileUrl?: string            // Optional new file URL
   },
   userId: string, // UUID of the staff member making the update (for audit logging)
@@ -92,10 +111,14 @@ export async function updateMaterial(
   // Scoped staff may only modify materials that belong to their own program
   const existing = await prisma.learningMaterial.findUnique({
     where: { id },
-    select: { sectionId: true, flightId: true },
+    select: { program: true, sectionId: true, flightId: true },
   })
   if (!existing) throw new Error("Material not found")
   await assertMaterialProgram(existing, scopeProgram)
+  // A scoped caller can never retarget a material to another program
+  if (scopeProgram && data.program !== undefined && data.program !== null && data.program !== scopeProgram) {
+    throw new Error("Material must stay within your program")
+  }
   // Update the learning material record with the provided fields
   const material = await prisma.learningMaterial.update({
     where: { id }, // Target the specific material by ID
@@ -112,7 +135,7 @@ export async function deleteMaterial(id: string, userId: string, scopeProgram?: 
   // Scoped staff may only delete materials that belong to their own program
   const existing = await prisma.learningMaterial.findUnique({
     where: { id },
-    select: { sectionId: true, flightId: true },
+    select: { program: true, sectionId: true, flightId: true },
   })
   if (!existing) throw new Error("Material not found")
   await assertMaterialProgram(existing, scopeProgram)

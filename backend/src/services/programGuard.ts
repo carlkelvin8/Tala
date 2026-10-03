@@ -30,11 +30,15 @@ export async function assertSectionProgram(sectionId: string, program: NstpType 
   }
 }
 
-/* Extract the program from an optionally section- or flight-scoped target. Sections
-   resolve through their course; flights have no program link and resolve to null. */
+/* Extract the program from an optionally program-, section- or flight-scoped
+   target. An explicit program wins; sections resolve through their course;
+   flights have no program link and resolve to null. */
 export async function materialProgram(
-  target: { sectionId?: string | null; flightId?: string | null }
+  target: { program?: NstpType | null; sectionId?: string | null; flightId?: string | null }
 ): Promise<NstpType | null> {
+  if (target.program === "CWTS" || target.program === "ROTC") {
+    return target.program
+  }
   if (target.sectionId) {
     return resolveSectionProgram(target.sectionId)
   }
@@ -46,7 +50,7 @@ export async function materialProgram(
    program from resolveScopeProgram → program is null, which we treat as un-scoped)
    may operate on it. `program` being null means the caller is un-scoped. */
 export async function assertMaterialProgram(
-  target: { sectionId?: string | null; flightId?: string | null },
+  target: { program?: NstpType | null; sectionId?: string | null; flightId?: string | null },
   program: NstpType | null | undefined
 ) {
   if (!program) return

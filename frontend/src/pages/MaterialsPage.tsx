@@ -25,6 +25,7 @@ import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { Paperclip, X, FileText, ExternalLink, Edit, Trash2, Upload, BookOpen, BookMarked, Megaphone, ClipboardList, FileImage, File, Search, Clock, Sparkles } from "lucide-react"
 import { usePermissions } from "../hooks/usePermissions"
+import { ProgramScopePicker } from "../components/program-scope-picker"
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
 
@@ -55,6 +56,7 @@ const schema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   category: z.enum(["MODULE", "LECTURE", "ANNOUNCEMENT", "ACTIVITY"]),
+  program: z.enum(["CWTS", "ROTC"]).optional(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -79,6 +81,7 @@ export function MaterialsPage() {
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editCategory, setEditCategory] = useState<string>("MODULE")
+  const [editProgram, setEditProgram] = useState<string>("")
   const [editFile, setEditFile] = useState<File | null>(null)
   const [editFileUrl, setEditFileUrl] = useState<string | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL")
@@ -162,7 +165,7 @@ export function MaterialsPage() {
         fileUrl = json.data?.fileUrl
       }
       await mutation.mutateAsync({ ...values, fileUrl })
-      form.reset({ title: "", description: "", category: "MODULE" })
+      form.reset({ title: "", description: "", category: "MODULE", program: undefined })
       setSelectedFile(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to submit material")
@@ -176,6 +179,7 @@ export function MaterialsPage() {
     setEditTitle(material.title)
     setEditDescription(material.description || "")
     setEditCategory(material.category)
+    setEditProgram(material.program ?? "")
     setEditFileUrl(material.fileUrl || null)
     setEditFile(null)
   }
@@ -208,6 +212,7 @@ export function MaterialsPage() {
           title: editTitle,
           description: editDescription,
           category: editCategory,
+          program: editProgram || null,
           fileUrl,
         },
       })
@@ -274,6 +279,14 @@ export function MaterialsPage() {
               <p className="text-sm font-semibold text-black truncate">{m.title}</p>
               {m.description && (
                 <p className="text-xs text-darksilver truncate mt-0.5 max-w-[240px]">{m.description}</p>
+              )}
+              {m.program && (
+                <span className={cn(
+                  "mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                  m.program === "CWTS" ? "bg-teal-50 text-teal-600" : "bg-amber-50 text-amber-600"
+                )}>
+                  {m.program}
+                </span>
               )}
             </div>
           </div>
@@ -446,6 +459,10 @@ export function MaterialsPage() {
                 <option value="ANNOUNCEMENT">Announcement</option>
                 <option value="ACTIVITY">Activity</option>
               </Select>
+            </FormField>
+
+            <FormField label="Program Scope">
+              <ProgramScopePicker value={form.watch("program") ?? ""} onChange={(v) => form.setValue("program", (v || undefined) as "CWTS" | "ROTC" | undefined, { shouldDirty: true })} />
             </FormField>
 
             <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)">
@@ -657,6 +674,10 @@ export function MaterialsPage() {
               <option value="ANNOUNCEMENT">Announcement</option>
               <option value="ACTIVITY">Activity</option>
             </Select>
+          </FormField>
+
+          <FormField label="Program Scope">
+            <ProgramScopePicker value={editProgram} onChange={setEditProgram} />
           </FormField>
 
           <FormField label="Attachment" hint="PDF, DOCX, or JPG (max 10 MB)">

@@ -48,6 +48,32 @@ describe("Material Routes", () => {
     expect(res.status).toBe(403)
   })
 
+  it("POST /api/materials — persists a program scope and filters by it", async () => {
+    const res = await app.request("/api/materials", {
+      method: "POST",
+      headers: authHeader(adminToken),
+      body: json({ title: "ROTC Field Manual", category: "MODULE", program: "ROTC" }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.data.program).toBe("ROTC")
+    materialIds.push(body.data.id)
+
+    const filtered = await app.request("/api/materials?program=ROTC", { headers: authHeader(adminToken) })
+    const filteredBody = await filtered.json()
+    expect(filtered.status).toBe(200)
+    expect(filteredBody.data.map((m: any) => m.id)).toContain(body.data.id)
+
+    const patched = await app.request(`/api/materials/${body.data.id}`, {
+      method: "PATCH",
+      headers: authHeader(adminToken),
+      body: json({ program: "CWTS" }),
+    })
+    const patchedBody = await patched.json()
+    expect(patched.status).toBe(200)
+    expect(patchedBody.data.program).toBe("CWTS")
+  })
+
   it("GET /api/materials — lists materials", async () => {
     const res = await app.request("/api/materials", { headers: authHeader(adminToken) })
     const body = await res.json()

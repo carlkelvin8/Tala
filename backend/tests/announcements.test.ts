@@ -48,6 +48,27 @@ describe("Announcement Routes", () => {
     expect(res.status).toBe(403)
   })
 
+  it("POST /api/announcements — persists an event date", async () => {
+    const res = await app.request("/api/announcements", {
+      method: "POST",
+      headers: authHeader(adminToken),
+      body: json({ title: "Foundation Day", body: "See you there.", eventDate: "2026-11-20T00:00:00.000Z" }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(new Date(body.data.eventDate).toISOString()).toBe("2026-11-20T00:00:00.000Z")
+    announcementIds.push(body.data.id)
+
+    const patchRes = await app.request(`/api/announcements/${body.data.id}`, {
+      method: "PATCH",
+      headers: authHeader(adminToken),
+      body: json({ eventDate: null }),
+    })
+    const patchBody = await patchRes.json()
+    expect(patchRes.status).toBe(200)
+    expect(patchBody.data.eventDate).toBeNull()
+  })
+
   it("GET /api/announcements — lists announcements", async () => {
     const res = await app.request("/api/announcements", { headers: authHeader(adminToken) })
     const body = await res.json()

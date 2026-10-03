@@ -23,57 +23,32 @@ import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
 import { usePermissions } from "../hooks/usePermissions"
 import { getFullName, relativeTime } from "../lib/display"
+import { ProgramScopePicker } from "../components/program-scope-picker"
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
   body: z.string().min(1, "Body is required"),
   program: z.enum(["CWTS", "ROTC"]).optional(),
+  eventDate: z.string().optional(),
 })
 type FormValues = z.infer<typeof schema>
 
-const PROGRAM_SCOPE_OPTIONS = [
-  { value: "", label: "All programs", hint: "Everyone sees it" },
-  { value: "CWTS", label: "CWTS", hint: "CWTS members" },
-  { value: "ROTC", label: "ROTC", hint: "ROTC members" },
-] as const
+/* "2026-10-05" for <input type="date"> from a stored ISO datetime.
+   Uses local date parts so the day never shifts across timezones. */
+function toDateInputValue(iso: string | null | undefined): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
 
 /* Human-readable date, e.g. "Oct 3, 2026". Central here so list, drawer
    and tooltips stay consistent. */
 export function formatAnnouncementDate(iso: string | null | undefined): string {
   if (!iso) return "—"
   return new Date(iso).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })
-}
-
-/* Segmented program-scope picker. Same values as the old dropdown
-   ("" | "CWTS" | "ROTC") so saved data and validation are unchanged. */
-function ProgramScopePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <div role="radiogroup" aria-label="Program scope" className="grid grid-cols-3 gap-2">
-      {PROGRAM_SCOPE_OPTIONS.map((opt) => {
-        const selected = value === opt.value
-        return (
-          <button
-            key={opt.value || "all"}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              "rounded-xl border px-3 py-2.5 text-left transition-all",
-              selected
-                ? "border-navy bg-navy/[0.06] ring-1 ring-navy/30 dark:border-sky-400 dark:bg-sky-400/10 dark:ring-sky-400/30"
-                : "border-silver/30 bg-white hover:border-silver/50 hover:bg-silver/10"
-            )}
-          >
-            <span className={cn("block text-xs font-bold", selected ? "text-navy dark:text-sky-200" : "text-black")}>
-              {opt.label}
-            </span>
-            <span className="mt-0.5 block text-[10px] text-darksilver">{opt.hint}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
 }
 
 export function AnnouncementsPage() {
@@ -83,6 +58,7 @@ export function AnnouncementsPage() {
   const [editTitle, setEditTitle] = useState("")
   const [editBody, setEditBody] = useState("")
   const [editProgram, setEditProgram] = useState<string>("")
+  const [editEventDate, setEditEventDate] = useState<string>("")
   const [programFilter, setProgramFilter] = useState<string>("ALL")
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -142,8 +118,11 @@ export function AnnouncementsPage() {
   })
 
   const onSubmit = form.handleSubmit(async (values) => {
-    await mutation.mutateAsync(values)
-    form.reset({ title: "", body: "", program: undefined })
+    await mutation.mutateAsync({
+      ...values,
+      eventDate: values.eventDate ? new Date(`${values.eventDate}T00:00:00`).toISOString() : undefined,
+    })
+    form.reset({ title: "", body: "", program: undefined, eventDate: undefined })
   })
 
   const handleEdit = (a: any) => {
@@ -151,13 +130,19 @@ export function AnnouncementsPage() {
     setEditTitle(a.title)
     setEditBody(a.body)
     setEditProgram(a.program ?? "")
+    setEditEventDate(toDateInputValue(a.eventDate))
   }
 
   const handleSaveEdit = () => {
     if (!editingAnnouncement) return
     updateMutation.mutate({
       id: editingAnnouncement.id,
-      data: { title: editTitle, body: editBody, program: editProgram || null },
+      data: {
+        title: editTitle,
+        body: editBody,
+        program: editProgram || null,
+        eventDate: editEventDate ? new Date(`${editEventDate}T00:00:00`).toISOString() : null,
+      },
     })
   }
 
@@ -205,14 +190,22 @@ export function AnnouncementsPage() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-black truncate">{a.title}</p>
               <p className="text-xs text-darksilver mt-0.5 line-clamp-2 max-w-[380px]">{a.body}</p>
-              {program && (
-                <span className={cn(
-                  "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                  program === "CWTS" ? "bg-teal-50 text-teal-600" : "bg-amber-50 text-amber-600"
-                )}>
-                  {program}
-                </span>
-              )}
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {a.eventDate && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-royal/10 px-2 py-0.5 text-[10px] font-bold text-royal dark:text-sky-200">
+                    <CalendarCheck className="h-3 w-3" />
+                    {formatAnnouncementDate(a.eventDate)}
+                  </span>
+                )}
+                {program && (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                    program === "CWTS" ? "bg-teal-50 text-teal-600" : "bg-amber-50 text-amber-600"
+                  )}>
+                    {program}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )
@@ -351,6 +344,9 @@ export function AnnouncementsPage() {
                 <FormField label="Program Scope">
                   <ProgramScopePicker value={form.watch("program") ?? ""} onChange={(v) => form.setValue("program", (v || undefined) as "CWTS" | "ROTC" | undefined, { shouldDirty: true })} />
                 </FormField>
+                <FormField label="Event Date" hint="Optional — shows on the calendar">
+                  <Input type="date" {...form.register("eventDate")} className="h-11" />
+                </FormField>
               </div>
               <FormField label="Message" required error={form.formState.errors.body?.message}>
                 <Textarea placeholder="Write the announcement details here..." {...form.register("body")} className="min-h-[120px]" />
@@ -476,6 +472,10 @@ export function AnnouncementsPage() {
 
           <FormField label="Program Scope">
             <ProgramScopePicker value={editProgram} onChange={setEditProgram} />
+          </FormField>
+
+          <FormField label="Event Date" hint="Optional — shows on the calendar">
+            <Input type="date" value={editEventDate} onChange={(e) => setEditEventDate(e.target.value)} className="h-11" />
           </FormField>
 
           <FormField label="Message" required>

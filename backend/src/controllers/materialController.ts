@@ -3,7 +3,7 @@ import { ok, fail } from "../lib/response.js"
 import { createMaterial, listMaterials, updateMaterial, deleteMaterial } from "../services/materialService.js"
 import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
-import { MaterialCategory, RoleType } from "@prisma/client"
+import { MaterialCategory, NstpType, RoleType } from "@prisma/client"
 import { resolveScopeProgram } from "../services/programScope.js"
 import { writeFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
@@ -118,6 +118,7 @@ export async function list(c: Context) {
   const result = await listMaterials(
     {
       category: query.category as MaterialCategory | undefined,
+      program: query.program as NstpType | undefined,
       sectionId,
       flightId: query.flightId,
     },

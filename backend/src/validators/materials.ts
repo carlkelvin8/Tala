@@ -6,6 +6,7 @@ export const materialCreateSchema = z.object({
   title: z.string().min(1),                                                          // Material title must not be empty
   description: z.string().optional(),                                                // Optional longer description
   category: z.enum(["MODULE", "LECTURE", "ANNOUNCEMENT", "ACTIVITY"]),              // Must be one of the four valid categories
+  program: z.enum(["CWTS", "ROTC"]).optional(),                                      // Optional program scope (null = all programs)
   fileUrl: z.string().min(1).optional(),                                             // Optional URL or path to the uploaded file
   sectionId: z.string().uuid().optional(),                                           // Optional UUID to scope the material to a section
   flightId: z.string().uuid().optional()                                             // Optional UUID to scope the material to a flight
@@ -14,6 +15,7 @@ export const materialCreateSchema = z.object({
 /* Schema for query parameters when listing learning materials */
 export const materialQuerySchema = z.object({
   category: z.enum(["MODULE", "LECTURE", "ANNOUNCEMENT", "ACTIVITY"]).optional(),   // Filter by material category
+  program: z.enum(["CWTS", "ROTC"]).optional(),                                     // Filter by program scope
   sectionId: z.string().uuid().optional(),                                           // Filter by section UUID
   flightId: z.string().uuid().optional(),                                            // Filter by flight UUID
   page: z.string().optional(),                                                       // Page number for pagination

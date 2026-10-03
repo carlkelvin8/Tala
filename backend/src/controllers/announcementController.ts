@@ -31,6 +31,7 @@ export async function create(c: Context) {
       title: body.title,
       body: body.body,
       program: body.program as NstpType | undefined,
+      eventDate: body.eventDate as string | undefined,
       createdById: authUser.id,
       scopeProgram: resolveScopeProgram(authUser),
     })
@@ -48,7 +49,7 @@ export async function update(c: Context) {
     const body = await c.req.json()
     const announcement = await updateAnnouncement(
       id,
-      { title: body.title, body: body.body, program: body.program },
+      { title: body.title, body: body.body, program: body.program, eventDate: body.eventDate },
       authUser.id,
       resolveScopeProgram(authUser)
     )

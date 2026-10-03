@@ -4,7 +4,7 @@ import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
 import { SectionCard } from "../components/ui/section-card"
 import { cn } from "../lib/utils"
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, GraduationCap, Radio } from "lucide-react"
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, GraduationCap, Megaphone, Radio } from "lucide-react"
 
 type CalendarSession = {
   id: string
@@ -28,7 +28,7 @@ type CalendarEvent = {
   dateKey: string
   title: string
   time: string
-  type: "session" | "exam" | "live"
+  type: "session" | "exam" | "live" | "announcement"
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -59,6 +59,11 @@ export function CalendarPage() {
     queryFn: () => apiRequest<ApiResponse<ExamSession[]>>("/api/exams"),
   })
 
+  const { data: announcementsData } = useQuery({
+    queryKey: ["calendar-announcements", year, month],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/announcements?pageSize=100"),
+  })
+
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
     const add = (event: CalendarEvent) => {
@@ -87,8 +92,22 @@ export function CalendarPage() {
         })
       }
     }
+    // Announcements with an event date set (already program-scoped by the API)
+    for (const announcement of announcementsData?.data ?? []) {
+      if (!announcement.eventDate) continue
+      const d = new Date(announcement.eventDate)
+      if (Number.isNaN(d.getTime())) continue
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        add({
+          dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+          title: announcement.title,
+          time: "",
+          type: "announcement",
+        })
+      }
+    }
     return map
-  }, [sessionsData, examsData, year, month])
+  }, [sessionsData, examsData, announcementsData, year, month])
 
   const gridDays = useMemo(() => {
     const firstDayOfWeek = new Date(year, month, 1).getDay()
@@ -174,18 +193,21 @@ export function CalendarPage() {
                   {events.slice(0, 2).map((event, i) => (
                     <div
                       key={i}
-                      title={`${event.title} — ${new Date(event.dateKey + "T00:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}${event.time ? ` at ${event.time}` : ""}`}
+                      title={`${event.title} — ${new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}${event.time ? ` at ${event.time}` : ""}`}
                       className={cn(
                         "truncate rounded px-1 py-0.5 text-[9px] font-medium leading-tight",
                         event.type === "live"
                           ? "bg-green-100 text-green-700 dark:text-green-300"
                           : event.type === "exam"
                             ? "bg-purple-100 text-purple-700 dark:text-purple-300"
-                            : "bg-blue-100 text-blue-700 dark:text-blue-300"
+                            : event.type === "announcement"
+                              ? "bg-amber-100 text-amber-700 dark:text-amber-300"
+                              : "bg-blue-100 text-blue-700 dark:text-blue-300"
                       )}
                     >
                       {event.type === "live" && "• LIVE "}
                       {event.type === "exam" && "📝 "}
+                      {event.type === "announcement" && "📢 "}
                       {event.title}
                     </div>
                   ))}
@@ -201,6 +223,7 @@ export function CalendarPage() {
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-blue-400" /> Training session</span>
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-500" /> Live now</span>
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-purple-400" /> Exam</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-400" /> Announcement</span>
         </div>
       </SectionCard>
 
@@ -212,10 +235,10 @@ export function CalendarPage() {
                 <span
                   className={cn(
                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                    event.type === "exam" ? "bg-purple-100 text-purple-600 dark:text-purple-300" : event.type === "live" ? "bg-green-100 text-green-600 dark:text-green-300" : "bg-blue-100 text-blue-600 dark:text-blue-300"
+                    event.type === "exam" ? "bg-purple-100 text-purple-600 dark:text-purple-300" : event.type === "live" ? "bg-green-100 text-green-600 dark:text-green-300" : event.type === "announcement" ? "bg-amber-100 text-amber-600 dark:text-amber-300" : "bg-blue-100 text-blue-600 dark:text-blue-300"
                   )}
                 >
-                  {event.type === "exam" ? <GraduationCap className="h-4 w-4" /> : <Radio className="h-4 w-4" />}
+                  {event.type === "exam" ? <GraduationCap className="h-4 w-4" /> : event.type === "announcement" ? <Megaphone className="h-4 w-4" /> : <Radio className="h-4 w-4" />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-black">{event.title}</p>

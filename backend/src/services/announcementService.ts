@@ -8,12 +8,19 @@ export async function createAnnouncement(data: {
   title: string
   body: string
   program?: NstpType | null
+  eventDate?: string | null
   createdById: string
   scopeProgram?: NstpType | null
 }) {
   const program = data.scopeProgram ?? data.program ?? null
   const announcement = await prisma.announcement.create({
-    data: { title: data.title, body: data.body, program, createdById: data.createdById },
+    data: {
+      title: data.title,
+      body: data.body,
+      program,
+      eventDate: data.eventDate ? new Date(data.eventDate) : null,
+      createdById: data.createdById,
+    },
   })
   await logAudit("CREATE", "Announcement", announcement.id, data.createdById)
   return announcement
@@ -63,7 +70,7 @@ export async function listAnnouncements(
    that belong to (or are not restricted from) their own program. */
 export async function updateAnnouncement(
   id: string,
-  data: { title?: string; body?: string; program?: NstpType | null },
+  data: { title?: string; body?: string; program?: NstpType | null; eventDate?: string | null },
   userId: string,
   scopeProgram?: NstpType | null
 ) {
@@ -80,6 +87,7 @@ export async function updateAnnouncement(
   if (data.title !== undefined) updateData.title = data.title
   if (data.body !== undefined) updateData.body = data.body
   if (data.program !== undefined) updateData.program = data.program
+  if (data.eventDate !== undefined) updateData.eventDate = data.eventDate ? new Date(data.eventDate) : null
   const announcement = await prisma.announcement.update({ where: { id }, data: updateData })
   await logAudit("UPDATE", "Announcement", id, userId)
   return announcement
