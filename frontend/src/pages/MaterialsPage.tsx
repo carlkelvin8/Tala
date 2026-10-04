@@ -480,10 +480,10 @@ export function MaterialsPage() {
                       if (["jpg", "jpeg"].includes(ext || "")) return <FileImage className="h-4 w-4 shrink-0 text-emerald-400" />
                       return <Paperclip className="h-4 w-4 shrink-0" />
                     })()}
-                    <span className="flex-1 truncate text-black/80">{selectedFile.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-black/80" title={selectedFile.name}>{selectedFile.name}</span>
                     <button
                       type="button"
-                      className="text-darksilver hover:text-red-500 transition-colors"
+                      className="shrink-0 text-darksilver hover:text-red-500 transition-colors"
                       onClick={(e) => { e.stopPropagation(); setSelectedFile(null) }}
                     >
                       <X className="h-4 w-4" />
@@ -684,10 +684,10 @@ export function MaterialsPage() {
               {editFile ? (
                 <>
                   <FileText className="h-4 w-4 shrink-0 text-sky-500" />
-                  <span className="flex-1 truncate text-black/80">{editFile.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-black/80" title={editFile.name}>{editFile.name}</span>
                   <button
                     type="button"
-                    className="text-darksilver hover:text-red-500 transition-colors"
+                    className="shrink-0 text-darksilver hover:text-red-500 transition-colors"
                     onClick={(e) => { e.stopPropagation(); setEditFile(null) }}
                   >
                     <X className="h-4 w-4" />
