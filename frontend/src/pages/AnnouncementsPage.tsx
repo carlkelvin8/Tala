@@ -62,6 +62,8 @@ export function AnnouncementsPage() {
   const [editEventDate, setEditEventDate] = useState<string>("")
   const [programFilter, setProgramFilter] = useState<string>("ALL")
   const [searchQuery, setSearchQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 8
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -69,7 +71,7 @@ export function AnnouncementsPage() {
 
   const announcementsQuery = useQuery({
     queryKey: ["announcements"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/announcements"),
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/announcements?pageSize=100"),
     refetchInterval: 30000,
   })
 
@@ -177,6 +179,12 @@ export function AnnouncementsPage() {
     }
     return result
   }, [rows, programFilter, searchQuery])
+
+  // Client-side pagination over the filtered rows (the list endpoint has no
+  // text-search param, so filtering stays client-side for correctness)
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const columns = [
     {
@@ -392,7 +400,7 @@ export function AnnouncementsPage() {
                   return (
                     <button
                       key={prog}
-                      onClick={() => setProgramFilter(isActive ? "ALL" : prog)}
+                      onClick={() => { setProgramFilter(isActive ? "ALL" : prog); setPage(1) }}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
                         isActive
@@ -415,7 +423,7 @@ export function AnnouncementsPage() {
               <div className="px-6">
                 <SearchInput
                   placeholder="Search announcements... (Enter to search)"
-                  onSearch={setSearchQuery}
+                  onSearch={(term) => { setSearchQuery(term); setPage(1) }}
                 />
               </div>
             </div>
@@ -440,11 +448,23 @@ export function AnnouncementsPage() {
               </div>
             ) : (
               <ResponsiveTableCards
-                data={filteredRows}
+                data={pagedRows}
                 columns={columns}
                 rowKey={(a) => a.id}
                 renderTitle={(a) => a.title}
               />
+            )}
+            {filteredRows.length > 0 && (
+              <div className="flex items-center justify-between px-6 pt-4 text-sm">
+                <span className="text-xs text-darksilver">
+                  Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={safePage === 1} onClick={() => setPage((v) => v - 1)}>Previous</Button>
+                  <span className="text-xs text-darksilver">Page {safePage} of {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage((v) => v + 1)}>Next</Button>
+                </div>
+              </div>
             )}
           </div>
         </SectionCard>
