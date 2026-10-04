@@ -18,7 +18,8 @@ import { cn } from "../../lib/utils"
 import {
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
   FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine,
-  Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower, Inbox
+  Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower, Inbox,
+  Megaphone, ClipboardList, CalendarDays
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
 import { roleTextColors, roleBgColors, roleLabels } from "../../lib/roles"
@@ -36,6 +37,7 @@ const iconMap = {
   "/courses/rotc": BookOpen,
   "/flights": Plane,
   "/materials": BookMarked,
+  "/announcements": Megaphone,
   "/attendance": CalendarCheck,
   "/grades": GraduationCap,
   "/merits": Award,
@@ -47,6 +49,8 @@ const iconMap = {
   "/calendar": Calendar,
   "/scanner": ScanLine,
   "/live-monitor": RadioTower,
+  "/training": ClipboardList,
+  "/terms": CalendarDays,
   "/users": Shield,
   "/audit-logs": ShieldCheck,
   "/profile": User2,
