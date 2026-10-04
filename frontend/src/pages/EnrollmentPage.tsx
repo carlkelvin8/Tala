@@ -40,12 +40,14 @@ export function EnrollmentPage() {
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [selectedFlight, setSelectedFlight] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 8
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCourseForSectioning, setSelectedCourseForSectioning] = useState<string>("")
 
   const enrollmentsQuery = useQuery({
     queryKey: ["enrollments"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/enrollments"),
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/enrollments?pageSize=100"),
     retry: false,
     refetchInterval: 30000
   })
@@ -211,6 +213,11 @@ export function EnrollmentPage() {
     }
     return result
   }, [rows, statusFilter, searchQuery])
+
+  // Client-side pagination over the filtered rows
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const columns = [
     {
@@ -565,7 +572,7 @@ export function EnrollmentPage() {
                 return (
                   <button
                     key={s}
-                    onClick={() => setStatusFilter(isActive ? "ALL" : s)}
+                    onClick={() => { setStatusFilter(isActive ? "ALL" : s); setPage(1) }}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
                       isActive
@@ -591,7 +598,7 @@ export function EnrollmentPage() {
             <div className="px-6">
               <SearchInput
                 placeholder="Search by name, email, or student ID... (Enter to search)"
-                onSearch={setSearchQuery}
+                onSearch={(term) => { setSearchQuery(term); setPage(1) }}
               />
             </div>
           </div>
@@ -623,7 +630,7 @@ export function EnrollmentPage() {
             </div>
           ) : (
             <ResponsiveTableCards
-              data={filteredRows}
+              data={pagedRows}
               columns={columns}
               rowKey={(enrollment) => enrollment.id}
               renderTitle={(enrollment) => {
@@ -631,6 +638,18 @@ export function EnrollmentPage() {
                 return p?.firstName && p?.lastName ? `${p.firstName} ${p.lastName}` : (enrollment.user?.email ?? "Student")
               }}
             />
+          )}
+          {filteredRows.length > 0 && (
+            <div className="flex items-center justify-between px-6 pt-4 text-sm">
+              <span className="text-xs text-darksilver">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={safePage === 1} onClick={() => setPage((v) => v - 1)}>Previous</Button>
+                <span className="text-xs text-darksilver">Page {safePage} of {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage((v) => v + 1)}>Next</Button>
+              </div>
+            </div>
           )}
         </div>
       </SectionCard>
