@@ -14,7 +14,8 @@ export function getFullName(user?: {
 // Build an absolute URL for a file path stored in the backend
 export function getApiFileUrl(path?: string | null): string | null {
   if (!path) return null
-  if (path.startsWith("http")) return path
+  // Absolute and embedded URLs are used as-is (data URLs live in the DB)
+  if (path.startsWith("http") || path.startsWith("data:")) return path
   const base = import.meta.env.VITE_API_URL ?? ""
   if (base) {
     return `${base.replace(/\/$/, "")}${path}`

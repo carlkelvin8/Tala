@@ -5,9 +5,6 @@ import { getPagination } from "../lib/pagination.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { MaterialCategory, NstpType, RoleType } from "@prisma/client"
 import { resolveScopeProgram } from "../services/programScope.js"
-import { writeFile, mkdir } from "node:fs/promises"
-import { join } from "node:path"
-import { randomUUID } from "node:crypto"
 
 // Set of MIME types that are allowed for file uploads — rejects all other types
 const ALLOWED_TYPES = new Set([
@@ -35,14 +32,7 @@ function detectUploadType(buffer: Uint8Array): string | null {
   return null
 }
 
-// Safe extension for a validated MIME type — never derived from a client-controlled filename
-const EXT_BY_TYPE: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-  "image/jpeg": ".jpg",
-}
-
-/* POST /api/materials/upload — handle multipart file upload and save to disk */
+/* POST /api/materials/upload — validate an uploaded file and return it for storage */
 export async function upload(c: Context) {
   try {
     // Parse the multipart form data from the request body
@@ -68,18 +58,13 @@ export async function upload(c: Context) {
     if (detected !== file.type) {
       return c.json(fail("File content does not match its declared type"), 400)
     }
-    // Use a fixed safe extension derived from the validated content
-    const ext = EXT_BY_TYPE[file.type]
-    // Generate a unique filename using the current timestamp and a UUID to prevent collisions
-    const filename = `${Date.now()}-${randomUUID()}${ext}`
-    // Build the absolute path to the uploads directory relative to the process working directory
-    const uploadsDir = join(process.cwd(), "uploads")
-    // Create the uploads directory if it doesn't already exist (recursive: true prevents errors)
-    await mkdir(uploadsDir, { recursive: true })
-    // Write the file to disk at the generated path
-    await writeFile(join(uploadsDir, filename), Buffer.from(buffer))
-    // Return the public URL path, original filename, and file size in the response
-    return c.json(ok("File uploaded", { fileUrl: `/uploads/${filename}`, originalName: file.name, size: file.size }))
+    // Serverless-safe storage: embed the validated file as a data URL in the
+    // database instead of writing to disk (serverless filesystems are
+    // read-only and ephemeral, so disk writes always fail in production)
+    const base64 = Buffer.from(buffer).toString("base64")
+    const fileUrl = `data:${file.type};base64,${base64}`
+    // Return the data URL, original filename, and file size in the response
+    return c.json(ok("File uploaded", { fileUrl, originalName: file.name, size: file.size }))
   } catch (error) {
     // Return 500 for unexpected server-side errors during file handling
     return c.json(fail(error instanceof Error ? error.message : "Upload failed"), 500)
