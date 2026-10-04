@@ -51,9 +51,9 @@ async function main() {
   })
 
   const impl1 = await prisma.user.upsert({
-    where: { email: "implementor@nstp.local" },
+    where: { email: "implementer@nstp.local" },
     update: { program: NstpType.CWTS },
-    create: { email: "implementor@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.CWTS },
+    create: { email: "implementer@nstp.local", passwordHash: hash, role: RoleType.IMPLEMENTOR, program: NstpType.CWTS },
   })
 
   const impl2 = await prisma.user.upsert({
@@ -667,7 +667,7 @@ async function main() {
   console.log("")
   console.log("  🔑  All passwords: Password123!")
   console.log("  📧  Admin:         admin@nstp.local")
-  console.log("  📧  Implementor:   implementor@nstp.local (CWTS)")
+  console.log("  📧  Implementer:   implementer@nstp.local (CWTS)")
   console.log("  📧  Coordinator:   coordinator@nstp.local (Instructor, CWTS)")
   console.log("  📧  Instructor:    instructor@nstp.local (ROTC)")
   console.log("  📧  Cadet:         cadet@nstp.local")

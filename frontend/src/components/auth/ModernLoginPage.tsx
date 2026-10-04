@@ -193,13 +193,13 @@ export function ModernLoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => quickLogin("implementor@nstp.local")}
+              onClick={() => quickLogin("implementer@nstp.local")}
               disabled={mutation.isPending}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-silver/30 bg-white/50 hover:bg-silver/20 hover:border-silver/40 transition-all"
             >
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-black">Implementer</p>
-                <p className="text-[10px] text-darksilver truncate">implementor@nstp.local</p>
+                <p className="text-[10px] text-darksilver truncate">implementer@nstp.local</p>
               </div>
               <ArrowRight className="h-3 w-3 text-silver shrink-0 ml-2" />
             </button>
