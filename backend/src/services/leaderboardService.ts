@@ -45,20 +45,23 @@ export async function getLeaderboard(filters?: { sectionId?: string }, scopeProg
     if (scope) where.user = scope
   }
 
+  // Term lookup and student list are independent — run them together so
+  // the request costs ~2 sequential round trips instead of 3.
+  const [term, students] = await Promise.all([
+    prisma.academicTerm.findFirst({ where: { isActive: true } }),
+    prisma.studentProfile.findMany({
+      where,
+      select: {
+        userId: true,
+        firstName: true,
+        lastName: true,
+        studentNo: true,
+        section: { select: { name: true, code: true } },
+      },
+    }),
+  ])
   // Current active term bounds the aggregation window
-  const term = await prisma.academicTerm.findFirst({ where: { isActive: true } })
   const recordWindow = { ...(term ? { date: { gte: term.startDate, lte: term.endDate } } : {}) }
-
-  const students = await prisma.studentProfile.findMany({
-    where,
-    select: {
-      userId: true,
-      firstName: true,
-      lastName: true,
-      studentNo: true,
-      section: { select: { name: true, code: true } },
-    },
-  })
 
   if (students.length === 0) return []
 

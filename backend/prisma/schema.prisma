@@ -278,6 +278,7 @@ model AttendanceRecord {
   @@unique([userId, date])
   @@index([date])
   @@index([userId])
+  @@index([userId, date])
   @@index([sessionId])
 }
 

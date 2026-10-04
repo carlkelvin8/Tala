@@ -31,14 +31,17 @@ const rankStyles: Record<number, string> = {
   3: "from-amber-600 to-orange-400 text-white shadow-md",
 }
 
+const RANK_PAGE_SIZE = 20
+
 export function LeaderboardPage() {
   const [tick] = useState(0)
+  const [visibleCount, setVisibleCount] = useState(RANK_PAGE_SIZE)
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["leaderboard", tick],
     queryFn: () => apiRequest<ApiResponse<LeaderboardEntry[]>>("/api/leaderboard"),
     // Rankings change slowly; avoid refetching on every visit/focus.
-    staleTime: 60_000,
+    staleTime: 120_000,
   })
 
   useEffect(() => {
@@ -118,7 +121,7 @@ export function LeaderboardPage() {
 
           <SectionCard title="Full Rankings" description={`${entries.length} ranked students`}>
             <div className="space-y-2">
-              {rest.map((entry) => (
+              {rest.slice(0, visibleCount).map((entry) => (
                 <div key={entry.userId} className="rounded-xl border border-silver/30 bg-white/50 px-4 py-3 transition-colors hover:bg-white">
                   <div className="flex items-center gap-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-silver/20 text-sm font-bold text-darksilver tabular-nums">
@@ -163,6 +166,14 @@ export function LeaderboardPage() {
                 </div>
               ))}
             </div>
+            {visibleCount < rest.length && (
+              <button
+                onClick={() => setVisibleCount((c) => c + RANK_PAGE_SIZE)}
+                className="mt-3 w-full rounded-xl border border-silver/30 bg-white/50 px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white"
+              >
+                Show more ({rest.length - visibleCount} remaining)
+              </button>
+            )}
             {isFetching && <p className="pt-2 text-center text-xs text-darksilver"><RefreshCw className="inline h-3 w-3 animate-spin" /> refreshing…</p>}
           </SectionCard>
 
