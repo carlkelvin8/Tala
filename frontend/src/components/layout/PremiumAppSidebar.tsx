@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, GraduationCap, Award,
   FileBarChart, UserPlus, BookMarked, ClipboardCheck, ScanLine,
   Grid, Plane, BookOpen, Calendar, Medal, Trophy, RadioTower, Inbox,
-  Megaphone, ClipboardList, CalendarDays
+  Megaphone, CalendarDays
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
 import { roleTextColors, roleBgColors, roleLabels } from "../../lib/roles"
@@ -49,7 +49,6 @@ const iconMap = {
   "/calendar": Calendar,
   "/scanner": ScanLine,
   "/live-monitor": RadioTower,
-  "/training": ClipboardList,
   "/terms": CalendarDays,
   "/users": Shield,
   "/audit-logs": ShieldCheck,

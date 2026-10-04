@@ -126,7 +126,7 @@ export function LiveMonitorPage() {
       </div>
 
       {sessions.length === 0 && !sessionsLoading ? (
-        <SectionCard title="No Active Sessions" description="There are no active attendance sessions right now. Start one from the Training Monitoring page.">
+        <SectionCard title="No Active Sessions" description="There are no active attendance sessions right now. Start one from the Attendance page.">
           <div className="flex items-center gap-3 py-6 justify-center text-darksilver">
             <Users className="h-8 w-8 opacity-40" />
             <p className="text-sm">Waiting for a session to go live…</p>

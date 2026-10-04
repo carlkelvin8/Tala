@@ -21,7 +21,6 @@ const routeLabels: Record<string, string> = {
   "/attendance": "Attendance",
   "/scanner": "Attendance Scanner",
   "/audit-logs": "Audit Logs",
-  "/training": "Training Monitoring",
   "/terms": "Terms",
   "/sections": "Sections",
   "/courses/cwts": "CWTS Courses",

@@ -24,7 +24,6 @@ const FlightsPage = lazy(() => import("./pages/FlightsPage").then((module) => ({
 const SectionsPage = lazy(() => import("./pages/SectionsPage").then((module) => ({ default: module.SectionsPage })))
 const CoursesPage = lazy(() => import("./pages/CoursesPage").then((module) => ({ default: module.CoursesPage })))
 const ScannerPage = lazy(() => import("./pages/ScannerPage").then((module) => ({ default: module.ScannerPage })))
-const TrainingPage = lazy(() => import("./pages/TrainingPage").then((module) => ({ default: module.TrainingPage })))
 const TermsPage = lazy(() => import("./pages/TermsPage").then((module) => ({ default: module.TermsPage })))
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })))
 const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage").then((module) => ({ default: module.AuditLogsPage })))
@@ -107,7 +106,6 @@ export function App() {
         <Route path="/announcements" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><AnnouncementsPage /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><AttendancePage /></ProtectedRoute>} />
         <Route path="/scanner" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><ScannerPage /></ProtectedRoute>} />
-        <Route path="/training" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TrainingPage /></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TermsPage /></ProtectedRoute>} />
         <Route path="/grades" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><GradesPage /></ProtectedRoute>} />
         <Route path="/merits" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><MeritsPage /></ProtectedRoute>} />

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   Search, CornerDownLeft, LayoutDashboard, UserPlus, Users, Grid, Plane,
   BookOpen, BookMarked, GraduationCap, Award, ClipboardCheck, Inbox, Medal,
-  CalendarCheck, ScanLine, RadioTower, ClipboardList, FileBarChart, Trophy,
+  CalendarCheck, ScanLine, RadioTower, FileBarChart, Trophy,
   Megaphone, Calendar, Clock, Shield, ScrollText, User2, History,
 } from "lucide-react"
 import { getStoredUser } from "../lib/auth"
@@ -45,7 +45,6 @@ const PAGE_META: Record<string, PageMeta> = {
   "/attendance":     { description: "Attendance records and QR check-ins", category: "Tracking", keywords: ["present", "absent", "late", "records", "qr attendance", "check in"], icon: CalendarCheck },
   "/scanner":        { description: "Scan student QR codes with the camera", category: "Tracking", keywords: ["qr", "scan", "camera", "attendance scan", "qr scanner", "check in"], icon: ScanLine },
   "/live-monitor":   { description: "Watch live session activity in real time", category: "Tracking", keywords: ["live", "realtime", "monitor", "ongoing"], icon: RadioTower },
-  "/training":       { description: "Monitor training day compliance", category: "Tracking", keywords: ["monitoring", "sessions", "compliance", "training day"], icon: ClipboardList },
   "/reports":        { description: "Analytics, exports and summaries", category: "Tracking", keywords: ["analytics", "export", "csv", "pdf", "statistics"], icon: FileBarChart },
   "/leaderboard":    { description: "Rankings, streaks, points and badges", category: "Tracking", keywords: ["ranking", "rank", "top students", "points", "badges", "streak"], icon: Trophy },
   "/announcements":  { description: "Post and read program announcements", category: "General", keywords: ["notices", "posts", "updates", "news"], icon: Megaphone },
