@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
@@ -43,6 +43,36 @@ export function CertificatesPage() {
   const [place, setPlace] = useState("Manila")
   const [coordinatorName, setCoordinatorName] = useState("")
   const [directorName, setDirectorName] = useState("")
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
+
+  // Preload the official logo so the generated PDF always carries it.
+  // Falls back to the drawn seal if the image cannot be loaded.
+  useEffect(() => {
+    let cancelled = false
+    fetch("/image.png")
+      .then((res) => {
+        if (!res.ok) throw new Error("logo not found")
+        return res.blob()
+      })
+      .then(
+        (blob) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+      )
+      .then((dataUrl) => {
+        if (!cancelled) setLogoDataUrl(dataUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setLogoDataUrl(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const { data, isLoading } = useQuery({
     queryKey: ["certificates-enrollments"],
@@ -91,15 +121,30 @@ export function CertificatesPage() {
     doc.setLineWidth(0.7)
     doc.rect(12, 12, W - 24, H - 24)
 
-    doc.setFillColor(30, 41, 59)
-    doc.circle(W / 2, 34, 11, "F")
-    doc.setDrawColor(202, 138, 4)
-    doc.setLineWidth(1)
-    doc.circle(W / 2, 34, 13, "S")
-    doc.setTextColor(254, 253, 250)
-    doc.setFont("times", "bolditalic")
-    doc.setFontSize(14)
-    doc.text("N", W / 2, 38, { align: "center" })
+    if (logoDataUrl) {
+      // Official logo, aspect-fitted in a centered box at the top
+      const maxW = 44
+      const maxH = 24
+      const dims = doc.getImageProperties(logoDataUrl)
+      const scale = Math.min(maxW / dims.width, maxH / dims.height)
+      const logoW = dims.width * scale
+      const logoH = dims.height * scale
+      const logoFormat = logoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG"
+      doc.addImage(logoDataUrl, logoFormat, (W - logoW) / 2, 34 - logoH / 2, logoW, logoH)
+      doc.setDrawColor(202, 138, 4)
+      doc.setLineWidth(0.6)
+      doc.line(W / 2 - 40, 50, W / 2 + 40, 50)
+    } else {
+      doc.setFillColor(30, 41, 59)
+      doc.circle(W / 2, 34, 11, "F")
+      doc.setDrawColor(202, 138, 4)
+      doc.setLineWidth(1)
+      doc.circle(W / 2, 34, 13, "S")
+      doc.setTextColor(254, 253, 250)
+      doc.setFont("times", "bolditalic")
+      doc.setFontSize(14)
+      doc.text("N", W / 2, 38, { align: "center" })
+    }
 
     doc.setTextColor(30, 41, 59)
     doc.setFont("times", "normal")
