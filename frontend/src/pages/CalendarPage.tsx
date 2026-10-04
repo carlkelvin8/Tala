@@ -31,6 +31,12 @@ type CalendarEvent = {
   type: "session" | "exam" | "live" | "announcement"
 }
 
+type CalendarFeed = {
+  sessions: CalendarSession[]
+  exams: ExamSession[]
+  announcements: Array<{ id: string; title: string; eventDate: string | null; program: string | null }>
+}
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
@@ -46,27 +52,22 @@ export function CalendarPage() {
   const monthStart = new Date(year, month, 1)
   const monthEnd = new Date(year, month + 1, 0, 23, 59, 59)
 
-  const { data: sessionsData } = useQuery({
-    queryKey: ["calendar-sessions", year, month],
+  const { data: feedData, isLoading } = useQuery({
+    // Single combined request (sessions + exams + announcements) instead of
+    // three round trips. Cached per month; previous month stays visible while
+    // the next one loads.
+    queryKey: ["calendar-feed", year, month],
     queryFn: () =>
-      apiRequest<ApiResponse<CalendarSession[]>>(
-        `/api/attendance-sessions/calendar?from=${monthStart.toISOString()}&to=${monthEnd.toISOString()}`
+      apiRequest<ApiResponse<CalendarFeed>>(
+        `/api/calendar?from=${monthStart.toISOString()}&to=${monthEnd.toISOString()}`
       ),
-    // Schedule data changes slowly; avoid refetching on every visit/focus.
-    staleTime: 60_000,
+    staleTime: 120_000,
+    placeholderData: (prev) => prev,
   })
 
-  const { data: examsData } = useQuery({
-    queryKey: ["calendar-exams"],
-    queryFn: () => apiRequest<ApiResponse<ExamSession[]>>("/api/exams"),
-    staleTime: 60_000,
-  })
-
-  const { data: announcementsData } = useQuery({
-    queryKey: ["calendar-announcements", year, month],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/announcements?pageSize=100"),
-    staleTime: 60_000,
-  })
+  const sessionsList = feedData?.data?.sessions ?? []
+  const examsList = feedData?.data?.exams ?? []
+  const announcementsList = feedData?.data?.announcements ?? []
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
@@ -76,7 +77,7 @@ export function CalendarPage() {
       map.set(event.dateKey, list)
     }
 
-    for (const session of sessionsData?.data ?? []) {
+    for (const session of sessionsList) {
       const d = new Date(session.date)
       add({
         dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
@@ -85,7 +86,7 @@ export function CalendarPage() {
         type: session.isActive ? "live" : "session",
       })
     }
-    for (const exam of examsData?.data ?? []) {
+    for (const exam of examsList) {
       const d = new Date(exam.scheduledAt)
       if (d.getFullYear() === year && d.getMonth() === month) {
         add({
@@ -97,7 +98,7 @@ export function CalendarPage() {
       }
     }
     // Announcements with an event date set (already program-scoped by the API)
-    for (const announcement of announcementsData?.data ?? []) {
+    for (const announcement of announcementsList) {
       if (!announcement.eventDate) continue
       const d = new Date(announcement.eventDate)
       if (Number.isNaN(d.getTime())) continue
@@ -111,7 +112,7 @@ export function CalendarPage() {
       }
     }
     return map
-  }, [sessionsData, examsData, announcementsData, year, month])
+  }, [sessionsList, examsList, announcementsList, year, month])
 
   const gridDays = useMemo(() => {
     const firstDayOfWeek = new Date(year, month, 1).getDay()

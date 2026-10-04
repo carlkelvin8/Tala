@@ -29,6 +29,7 @@ import { submissionRoutes } from "./routes/submissionRoutes.js"
 import { notificationRoutes } from "./routes/notificationRoutes.js"
 import { autoSectioningRoutes } from "./routes/autoSectioningRoutes.js"
 import { leaderboardRoutes } from "./routes/leaderboardRoutes.js"
+import { calendarRoutes } from "./routes/calendarRoutes.js"
 import { fail, ok } from "./lib/response.js"
 
 export const app = new Hono()
@@ -109,3 +110,4 @@ app.route("/api/submissions", submissionRoutes)
 app.route("/api/notifications", notificationRoutes)
 app.route("/api/auto-sectioning", autoSectioningRoutes)
 app.route("/api/leaderboard", leaderboardRoutes)
+app.route("/api/calendar", calendarRoutes)
