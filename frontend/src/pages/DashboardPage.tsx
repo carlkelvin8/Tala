@@ -67,11 +67,18 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
         >
           {/* Hero banner */}
           <motion.div
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-5 sm:px-6 py-4 sm:py-5 shadow-card"
+            className="relative min-h-56 overflow-hidden rounded-2xl bg-navy px-5 py-6 shadow-card sm:min-h-64 sm:px-8 sm:py-8"
             initial={{ opacity: 0, y: 32, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
           >
+            <img
+              src="/dashboard-cover.png"
+              alt="Philippine State College of Aeronautics campus building"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-navy/95 via-navy/75 to-navy/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-navy/65 via-transparent to-black/10" />
             <motion.div
               className="absolute inset-0 bg-grid opacity-[0.08]"
               initial={{ opacity: 0 }}
@@ -88,7 +95,7 @@ export default function DashboardPage({ program: programProp }: { program?: Prog
               animate={{ scale: [1, 1.2, 1], opacity: [0.08, 0.15, 0.08] }}
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
             />
-            <div className="relative">
+            <div className="relative flex min-h-44 flex-col justify-end sm:min-h-48">
               <motion.div
                 className="flex items-center gap-2 text-gold text-xs font-medium uppercase tracking-wider mb-2"
                 initial={{ opacity: 0, x: -16 }}
