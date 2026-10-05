@@ -20,7 +20,7 @@ const pageTitles: Record<string, string> = {
   "/attendance": "Attendance Tracking",
   "/grades": "Grade Management",
   "/merits": "Merits & Demerits",
-  "/exams": "Examination System",
+  "/exams": "Coursework System",
   "/reports": "Reports & Analytics",
   "/users": "User Management",
   "/profile": "My Profile",

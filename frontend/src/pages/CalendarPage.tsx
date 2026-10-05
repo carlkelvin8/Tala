@@ -150,14 +150,14 @@ export function CalendarPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-            <p className="mt-1 text-sm text-silver">Training sessions and exams at a glance</p>
+            <p className="mt-1 text-sm text-silver">Training sessions and courseworks at a glance</p>
           </div>
         </div>
       </div>
 
       <SectionCard
         title={`${MONTHS[month]} ${year}`}
-        description="Training sessions and exams"
+        description="Training sessions and courseworks"
         actions={
           <div className="flex items-center gap-1">
             <button onClick={() => navigate(-1)} aria-label="Previous month" className="rounded-lg border border-silver/30 p-1.5 hover:bg-silver/10">
@@ -227,7 +227,7 @@ export function CalendarPage() {
         <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-darksilver">
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-blue-400" /> Training session</span>
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-500" /> Live now</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-purple-400" /> Exam</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-purple-400" /> Coursework</span>
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-400" /> Announcement</span>
         </div>
       </SectionCard>

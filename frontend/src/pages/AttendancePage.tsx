@@ -233,8 +233,8 @@ function ScannerView() {
       }),
     onSuccess: (data) => {
       const name = data.data?.student ? getFullName(data.data.student) : "Student"
-      setScanResult({ success: true, message: `${name} — marked PRESENT` })
-      toast.success("Attendance recorded")
+      setScanResult({ success: true, message: data.data?.action === "CHECK_OUT" ? `${name} — checked OUT` : `${name} — checked IN (PRESENT)` })
+      toast.success(data.data?.action === "CHECK_OUT" ? "Check-out recorded" : "Check-in recorded")
       processingRef.current = false
       setTimeout(() => setScanResult(null), 4000)
     },

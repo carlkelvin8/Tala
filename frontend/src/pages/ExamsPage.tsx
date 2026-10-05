@@ -49,7 +49,7 @@ export function ExamsPage() {
         body: JSON.stringify({ examSessionId })
       }),
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to start exam")
+      toast.error(error instanceof Error ? error.message : "Unable to start coursework")
     }
   })
 
@@ -60,13 +60,13 @@ export function ExamsPage() {
         body: JSON.stringify(values)
       }),
     onSuccess: () => {
-      toast.success("Exam created")
+      toast.success("Coursework created")
       setShowCreateForm(false)
       setCreateForm({ title: "", scheduledAt: "", durationMin: 60 })
       sessionsQuery.refetch()
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create exam")
+      toast.error(error instanceof Error ? error.message : "Failed to create coursework")
     }
   })
 
@@ -79,15 +79,15 @@ export function ExamsPage() {
   useEffect(() => {
     if (running && timeLeft <= 0 && currentAttemptId) {
       setRunning(false)
-      toast.warning("Time's up! Auto-submitting your exam...")
+      toast.warning("Time's up! Auto-submitting your coursework...")
       apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST" })
         .then(() => {
-          toast.success("Exam submitted successfully")
+          toast.success("Coursework submitted successfully")
           setCurrentAttemptId(null)
           sessionsQuery.refetch()
         })
         .catch((error) => {
-          toast.error(error instanceof Error ? error.message : "Failed to submit exam")
+          toast.error(error instanceof Error ? error.message : "Failed to submit coursework")
         })
     }
   }, [timeLeft, running, currentAttemptId])
@@ -98,13 +98,13 @@ export function ExamsPage() {
       // Never start the countdown unless the server returned a real attempt id —
       // an in-flight attempt that can never be submitted would strand the student.
       if (!result.data?.id) {
-        toast.error("Unable to start the exam attempt. Please try again.")
+        toast.error("Unable to start the coursework attempt. Please try again.")
         return
       }
       setCurrentAttemptId(result.data.id)
       setTimeLeft(durationMin * 60)
       setRunning(true)
-      toast.success("Exam started — timer is now counting down")
+      toast.success("Coursework started — timer is now counting down")
     } catch {
     }
   }
@@ -113,12 +113,12 @@ export function ExamsPage() {
     if (!currentAttemptId) return
     try {
       await apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST" })
-      toast.success("Exam submitted successfully")
+      toast.success("Coursework submitted successfully")
       setCurrentAttemptId(null)
       setRunning(false)
       sessionsQuery.refetch()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to submit exam")
+      toast.error(error instanceof Error ? error.message : "Failed to submit coursework")
     }
   }
 
@@ -206,7 +206,7 @@ export function ExamsPage() {
               <motion.span animate={{ rotate: [0, 20, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}>
                 <Sparkles className="h-3.5 w-3.5" />
               </motion.span>
-              <span>Exam Proctoring</span>
+              <span>Coursework Proctoring</span>
             </motion.div>
             <motion.h1
               className="text-xl sm:text-2xl font-bold text-white tracking-tight"
@@ -234,7 +234,7 @@ export function ExamsPage() {
         transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const }}
       >
       {running && (
-      <SectionCard title="Active Exam" description="Timer and submission for your current attempt" className="shadow-card">
+      <SectionCard title="Active Coursework" description="Timer and submission for your current attempt" className="shadow-card">
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-royal/10 px-4 py-1.5">
             <Clock className="h-4 w-4 text-royal" />
@@ -263,27 +263,27 @@ export function ExamsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
       >
-      <SectionCard title="Exams" description="Upcoming exams and availability" className="shadow-card">
+      <SectionCard title="Courseworks" description="Upcoming courseworks and availability" className="shadow-card">
         {isAdminOrImplementor && (
           <div className="mb-4 flex items-center justify-between">
             <div />
             <Button onClick={() => setShowCreateForm(!showCreateForm)} className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-royal hover:to-navy text-white">
               {showCreateForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {showCreateForm ? "Cancel" : "Create Exam"}
+              {showCreateForm ? "Cancel" : "Create Coursework"}
             </Button>
           </div>
         )}
 
         {showCreateForm && isAdminOrImplementor && (
           <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 dark:bg-slate-800/60 p-5">
-            <h4 className="text-sm font-semibold text-black mb-4">New Exam</h4>
+            <h4 className="text-sm font-semibold text-black mb-4">New Coursework</h4>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="text-xs font-medium text-darksilver mb-1 block">Title</label>
                 <Input
                   value={createForm.title}
                   onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                  placeholder="e.g. Midterm Exam"
+                  placeholder="e.g. Midterm Coursework"
                 />
               </div>
               <div>
@@ -310,17 +310,17 @@ export function ExamsPage() {
                 disabled={!createForm.title || !createForm.scheduledAt || createExamMutation.isPending}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
-                {createExamMutation.isPending ? "Creating..." : "Create Exam"}
+                {createExamMutation.isPending ? "Creating..." : "Create Coursework"}
               </Button>
             </div>
           </div>
         )}
 
-        {sessionsQuery.isError && <Alert variant="danger">Unable to load exams.</Alert>}
+        {sessionsQuery.isError && <Alert variant="danger">Unable to load courseworks.</Alert>}
         {sessionsQuery.isLoading ? (
           <LoadingSkeleton rows={3} columns={3} />
         ) : rows.length === 0 ? (
-          <EmptyState title="No exams scheduled" description="Create an exam to begin monitoring." />
+          <EmptyState title="No courseworks scheduled" description="Create a coursework to begin monitoring." />
         ) : (
           <ResponsiveTableCards
             data={rows}
@@ -345,7 +345,7 @@ export function ExamsPage() {
                   onClick={() => startExam(session.durationMin, session.id)}
                   disabled={running}
                 >
-                  {running ? "In Progress" : "Start Exam"}
+                  {running ? "In Progress" : "Start Coursework"}
                 </Button>
               </div>
             )}
@@ -354,16 +354,16 @@ export function ExamsPage() {
       </SectionCard>
 
       {isStudent && (
-        <SectionCard title="My Exam Results" description="View your past exam attempts and scores" className="shadow-card">
+        <SectionCard title="My Coursework Results" description="View your past coursework attempts and scores" className="shadow-card">
           {myAttemptsQuery.isLoading ? (
             <LoadingSkeleton rows={3} columns={4} />
           ) : (myAttemptsQuery.data?.data ?? []).length === 0 ? (
-            <EmptyState title="No exam attempts yet" description="Start an exam above to see your results here." />
+            <EmptyState title="No coursework attempts yet" description="Start a coursework above to see your results here." />
           ) : (
             <ResponsiveTableCards
               data={myAttemptsQuery.data?.data ?? []}
               columns={[
-                { header: "Exam", cell: (a: any) => <span className="font-semibold text-black">{a.examSession?.title ?? "—"}</span> },
+                { header: "Coursework", cell: (a: any) => <span className="font-semibold text-black">{a.examSession?.title ?? "—"}</span> },
                 { header: "Started", cell: (a: any) => <span className="text-sm text-darksilver">{new Date(a.startedAt).toLocaleString()}</span> },
                 { header: "Duration", cell: (a: any) => {
                   const end = a.endedAt ? new Date(a.endedAt) : null
@@ -386,7 +386,7 @@ export function ExamsPage() {
                 }
               ]}
               rowKey={(a: any) => a.id}
-              renderTitle={(a: any) => a.examSession?.title ?? "Exam Attempt"}
+              renderTitle={(a: any) => a.examSession?.title ?? "Coursework Attempt"}
             />
           )}
         </SectionCard>

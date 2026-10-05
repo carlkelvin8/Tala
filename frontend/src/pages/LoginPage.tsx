@@ -56,7 +56,7 @@ export function LoginPage() {
         "Real-time enrollment visibility",
         "Centralized learning materials",
         "Merit and demerit tracking",
-        "Exam monitoring overview"
+        "Coursework monitoring overview"
       ]}
       footer={
         <span>

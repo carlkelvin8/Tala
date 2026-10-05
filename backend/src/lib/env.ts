@@ -26,8 +26,13 @@ export const env = {
   accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",
   refreshTokenExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
   qrTokenSecret: secret("QR_TOKEN_SECRET", "tala-qr-token-secret-dev"),
+  smtpUser: process.env.SMTP_USER,
+  // Gmail app passwords are shown with spaces; strip them
+  smtpPass: process.env.SMTP_PASS?.replace(/\s+/g, ""),
+  smtpHost: process.env.SMTP_HOST ?? "smtp.gmail.com",
+  smtpPort: Number(process.env.SMTP_PORT ?? 465),
   resendApiKey: process.env.RESEND_API_KEY,
-  mailFrom: process.env.MAIL_FROM ?? "Tala <onboarding@resend.dev>"
+  mailFrom: process.env.MAIL_FROM ?? (process.env.SMTP_USER ? `Tala <${process.env.SMTP_USER}>` : "Tala <onboarding@resend.dev>")
 }
 
 if (isProduction && new Set([env.accessTokenSecret, env.refreshTokenSecret, env.qrTokenSecret]).size !== 3) {

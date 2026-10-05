@@ -39,7 +39,7 @@ const PAGE_META: Record<string, PageMeta> = {
   "/materials":      { description: "Modules, lectures and learning files", category: "Academics", keywords: ["modules", "files", "learning", "lectures", "downloads"], icon: BookMarked },
   "/grades":         { description: "Encode and view student grades", category: "Academics", keywords: ["marks", "scores", "grading", "report card"], icon: GraduationCap },
   "/merits":         { description: "Assign merits, demerits and discipline notes", category: "Academics", keywords: ["demerits", "points", "discipline", "rotc merits", "awards"], icon: Award },
-  "/exams":          { description: "Create exams and track attempts", category: "Academics", keywords: ["test", "quiz", "assessment", "exam results"], icon: ClipboardCheck },
+  "/exams":          { description: "Create courseworks and track attempts", category: "Academics", keywords: ["test", "quiz", "assessment", "coursework results"], icon: ClipboardCheck },
   "/submissions":    { description: "Excuse letters and official documents", category: "Academics", keywords: ["documents", "excuse letter", "medical", "submit files"], icon: Inbox },
   "/certificates":   { description: "Generate completion certificates", category: "Academics", keywords: ["completion", "award", "certificate"], icon: Medal },
   "/attendance":     { description: "Attendance records and QR check-ins", category: "Tracking", keywords: ["present", "absent", "late", "records", "qr attendance", "check in"], icon: CalendarCheck },

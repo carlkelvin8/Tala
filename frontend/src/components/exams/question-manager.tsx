@@ -223,7 +223,7 @@ export function QuestionManager({ session, open, onOpenChange, onQuestionsChange
             ))}
           </div>
         ) : questions.length === 0 && !addMode ? (
-          <EmptyState title="No questions yet" description="Add identification or multiple choice questions to this exam." />
+          <EmptyState title="No questions yet" description="Add identification or multiple choice questions to this coursework." />
         ) : (
           <div className="space-y-2">
             {questions.map((q, index) => (

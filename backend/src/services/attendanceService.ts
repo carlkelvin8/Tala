@@ -26,6 +26,9 @@ const userInclude = {
   },
 } as const
 
+// Minimum time between a check-in and the check-out scan
+const MIN_CHECKOUT_GAP_MS = 60_000
+
 export async function generateQRToken(userId: string) {
   const expiresAt = Date.now() + TOKEN_VALIDITY_MS
   const token = `${userId}:${expiresAt}:${sign(userId, expiresAt)}`
@@ -86,12 +89,32 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
     where: { userId_date: { userId, date } },
   })
 
+  const now = new Date()
+  let record
+  let action: "CHECK_IN" | "CHECK_OUT" = "CHECK_IN"
+
   if (existing) {
-    throw new Error(`${user.email} already scanned for today (${existing.status})`)
+    // First scan of the day checks in, the second scan checks out. Any later scan is rejected.
+    if (!existing.checkInAt || existing.status === AttendanceStatus.ABSENT) {
+      throw new Error(`${user.email} already has an attendance record for today (${existing.status})`)
+    }
+    if (existing.checkOutAt) {
+      throw new Error(`${user.email} already checked in and out today`)
+    }
+    // Guard against an accidental double scan being read as a check-out
+    if (now.getTime() - existing.checkInAt.getTime() < MIN_CHECKOUT_GAP_MS) {
+      throw new Error(`${user.email} just checked in. Wait a minute before scanning to check out.`)
+    }
+    action = "CHECK_OUT"
+    record = await prisma.attendanceRecord.update({
+      where: { id: existing.id },
+      data: { checkOutAt: now },
+    })
+    await logAudit("UPDATE", "AttendanceRecord", record.id, scannerId)
+    return { record, action, student: await findScannedStudent(userId) }
   }
 
-  const now = new Date()
-  const record = await prisma.attendanceRecord.create({
+  record = await prisma.attendanceRecord.create({
     data: {
       userId,
       date,
@@ -104,20 +127,21 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
   await logAudit("CREATE", "AttendanceRecord", record.id, scannerId)
   await checkAndMarkAbsences(userId)
 
-  return {
-    record,
-    student: await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        studentProfile: { select: { firstName: true, lastName: true } },
-        implementorProfile: { select: { firstName: true, lastName: true } },
-        cadetOfficerProfile: { select: { firstName: true, lastName: true } },
-      },
-    }),
-  }
+  return { record, action, student: await findScannedStudent(userId) }
+}
+
+function findScannedStudent(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      studentProfile: { select: { firstName: true, lastName: true } },
+      implementorProfile: { select: { firstName: true, lastName: true } },
+      cadetOfficerProfile: { select: { firstName: true, lastName: true } },
+    },
+  })
 }
 
 export async function listAttendance(
