@@ -18,7 +18,7 @@ import { RefreshIndicator } from "../components/ui/refresh-indicator"
 import { Drawer } from "../components/ui/drawer"
 import { FormField } from "../components/ui/form-field"
 import { useState, useMemo, useRef } from "react"
-import { Check, X, Eye, Edit, Search, Sparkles, Users, UserPlus, Ban, Save, BookOpen, Plane, Upload, Wand2 } from "lucide-react"
+import { Check, X, Eye, Edit, Search, Sparkles, Users, UserPlus, Ban, Save, BookOpen, Plane, Upload } from "lucide-react"
 import { cn } from "../lib/utils"
 import { parseCsv } from "../lib/export"
 import { motion } from "framer-motion"
@@ -43,7 +43,6 @@ export function EnrollmentPage() {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 8
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCourseForSectioning, setSelectedCourseForSectioning] = useState<string>("")
 
   const enrollmentsQuery = useQuery({
     queryKey: ["enrollments"],
@@ -87,27 +86,6 @@ export function EnrollmentPage() {
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Update failed")
     }
-  })
-
-  const autoSectionMutation = useMutation({
-    mutationFn: (courseId: string) =>
-      apiRequest<ApiResponse<any>>("/api/auto-sectioning", {
-        method: "POST",
-        body: JSON.stringify({ courseId })
-      }),
-    onSuccess: (data) => {
-      enrollmentsQuery.refetch()
-      toast.success(`Auto-sectioning complete: ${data.data?.assigned ?? 0} students assigned`)
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Auto-sectioning failed")
-    }
-  })
-
-  const coursesQuery = useQuery({
-    queryKey: ["courses"],
-    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/courses"),
-    retry: false
   })
 
   const importFileRef = useRef<HTMLInputElement>(null)
@@ -384,7 +362,7 @@ export function EnrollmentPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
             >
-              Manage student enrollment records, approve requests, and auto-section students.
+              Manage student enrollment records and approve requests.
             </motion.p>
           </div>
           <motion.div
@@ -433,57 +411,6 @@ export function EnrollmentPage() {
               </motion.div>
             )
           })}
-        </motion.div>
-      )}
-
-      {canApprove && (
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.18, ease: [0.16, 1, 0.3, 1] as const }}
-        >
-          <SectionCard title="Auto-Sectioning" description="Automatically assign approved students to sections (28 per section, alphabetical)" className="shadow-card">
-            <div className="flex flex-wrap items-center gap-3 px-6 pb-4">
-              <Select
-                value={selectedCourseForSectioning}
-                onChange={(e) => setSelectedCourseForSectioning(e.target.value)}
-                className="h-10 w-64"
-              >
-                <option value="">Select a course</option>
-                {(coursesQuery.data?.data ?? []).map((course: any) => (
-                  <option key={course.id} value={course.id}>
-                    {course.code} — {course.name}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                onClick={() => {
-                  if (selectedCourseForSectioning) {
-                    autoSectionMutation.mutate(selectedCourseForSectioning)
-                  } else {
-                    toast.error("Please select a course first")
-                  }
-                }}
-                disabled={autoSectionMutation.isPending || !selectedCourseForSectioning}
-                className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white"
-              >
-                {autoSectionMutation.isPending ? (
-                  <>
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Sectioning...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4" />
-                    Auto-Section Students
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-darksilver">
-                Sorts students alphabetically and assigns them to sections of 28.
-              </p>
-            </div>
-          </SectionCard>
         </motion.div>
       )}
 
