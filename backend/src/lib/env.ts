@@ -25,7 +25,9 @@ export const env = {
   refreshTokenSecret: secret("JWT_REFRESH_SECRET", "dev-refresh-secret"),
   accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",
   refreshTokenExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
-  qrTokenSecret: secret("QR_TOKEN_SECRET", "tala-qr-token-secret-dev")
+  qrTokenSecret: secret("QR_TOKEN_SECRET", "tala-qr-token-secret-dev"),
+  resendApiKey: process.env.RESEND_API_KEY,
+  mailFrom: process.env.MAIL_FROM ?? "Tala <onboarding@resend.dev>"
 }
 
 if (isProduction && new Set([env.accessTokenSecret, env.refreshTokenSecret, env.qrTokenSecret]).size !== 3) {

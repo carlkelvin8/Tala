@@ -49,15 +49,15 @@ export function ForgotPasswordPage() {
 
   const forgotPasswordMutation = useMutation({
     mutationFn: (values: EmailFormValues) =>
-      apiRequest<ApiResponse<{ otp: string; ticket: string }>>(
+      apiRequest<ApiResponse<{ otp?: string; ticket?: string }>>(
         "/api/auth/forgot-password",
         { method: "POST", body: JSON.stringify(values) }
       ),
     onSuccess: (response) => {
-      if (response.data?.otp && response.data.ticket) {
-        setOtp(response.data.otp)
+      if (response.data?.ticket) {
+        setOtp(response.data.otp ?? "")
         setTicket(response.data.ticket)
-        toast.success("Verification code generated")
+        toast.success(response.data.otp ? "Verification code generated" : "If an account exists, a code was emailed to you")
         setStep("otp")
       } else {
         toast.info("If an account exists with this email, a reset code has been generated.")

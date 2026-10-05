@@ -7,6 +7,7 @@ import { logAudit } from "./auditService.js"
 import jwt from "jsonwebtoken"
 import { createHash, randomInt } from "crypto"
 import { env } from "../lib/env.js"
+import { mailConfigured, sendMail } from "../lib/mailer.js"
 
 /* Register a new user account and create the appropriate role-specific profile */
 export async function registerUser(data: {
@@ -176,18 +177,27 @@ function hashResetCode(code: string) {
 export async function forgotPassword(email: string) {
   const genericMessage = "If an account exists with this email, a reset code has been generated."
   const user = await userRepository.findByEmail(email)
-  if (!user) {
-    return { message: genericMessage }
-  }
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0")
+  // Unknown emails get an equivalent ticket (for a non-existent user) so responses do not reveal account existence.
   const ticket = jwt.sign(
-    { sub: user.id, type: "password-reset", codeHash: hashResetCode(code) },
+    { sub: user?.id ?? "none", type: "password-reset", codeHash: hashResetCode(code) },
     env.refreshTokenSecret,
     { expiresIn: "10m" }
   )
+  if (!user) {
+    return { message: genericMessage, ticket }
+  }
   await logAudit("FORGOT_PASSWORD", "User", user.id, user.id)
+  if (mailConfigured) {
+    await sendMail(
+      user.email,
+      "Your Tala password reset code",
+      `Your verification code is ${code}. It expires in 10 minutes. If you did not request this, ignore this email.`
+    )
+    return { message: genericMessage, ticket }
+  }
   if (process.env.NODE_ENV === "production") {
-    return { message: genericMessage }
+    throw new Error("Password reset email is not configured. Contact an administrator.")
   }
   return { message: genericMessage, otp: code, ticket }
 }
