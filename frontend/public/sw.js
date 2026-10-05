@@ -1,6 +1,6 @@
 /* Tala NSTP — service worker: offline shell + runtime caching */
 const CACHE_NAME = "tala-cache-v1"
-const OFFLINE_URLS = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"]
+const OFFLINE_URLS = ["/", "/index.html", "/manifest.webmanifest", "/icon.png", "/icon-maskable.png", "/image.png"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
