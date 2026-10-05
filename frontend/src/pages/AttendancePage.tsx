@@ -457,10 +457,18 @@ function AttendanceHistory() {
       cell: (record: any) => <StatusBadge status={record.status} />,
     },
     {
-      header: "Scanned At",
+      header: "Time In",
       cell: (record: any) => (
-        <span className="text-sm text-darksilver whitespace-nowrap">
+        <span className="text-sm text-darksilver whitespace-nowrap tabular-nums">
           {record.checkInAt ? new Date(record.checkInAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Time Out",
+      cell: (record: any) => (
+        <span className="text-sm text-darksilver whitespace-nowrap tabular-nums">
+          {record.checkOutAt ? new Date(record.checkOutAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "—"}
         </span>
       ),
     },
