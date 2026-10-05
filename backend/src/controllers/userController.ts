@@ -3,7 +3,7 @@ import { Context } from "hono"
 // Import the ok and fail response helpers for standardised API envelopes
 import { ok, fail } from "../lib/response.js"
 // Import the user service functions for business logic
-import { createUser, listUsers, updateUser, getUserById } from "../services/userService.js"
+import { createUser, listUsers, updateUser, getUserById, softDeleteUser, listArchivedStudents, restoreUser } from "../services/userService.js"
 // Import the program scope helper to lock implementors to ROTC
 import { resolveScopeProgram } from "../services/programScope.js"
 // Import the pagination helper to parse and bound page/pageSize query params
@@ -79,5 +79,32 @@ export async function getById(c: Context) {
     return c.json(ok("User fetched", user))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Fetch failed"), 400)
+  }
+}
+
+/* DELETE /api/users/:id — soft-delete a user (admin only) */
+export async function remove(c: Context) {
+  try {
+    await softDeleteUser(c.req.param("id"), getAuthUser(c).id)
+    return c.json(ok("User deleted"))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Delete failed"
+    return c.json(fail(message), message === "User not found" ? 404 : 400)
+  }
+}
+
+/* GET /api/users/archived — list soft-deleted students (admin only) */
+export async function listArchived(c: Context) {
+  return c.json(ok("Archived students fetched", await listArchivedStudents()))
+}
+
+/* POST /api/users/:id/restore — restore an archived user (admin only) */
+export async function restore(c: Context) {
+  try {
+    await restoreUser(c.req.param("id"), getAuthUser(c).id)
+    return c.json(ok("User restored"))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Restore failed"
+    return c.json(fail(message), message === "User not found" ? 404 : 400)
   }
 }

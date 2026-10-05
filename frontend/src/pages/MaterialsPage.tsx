@@ -44,13 +44,35 @@ function validateFile(file: File): string | null {
   return null
 }
 
+/* Original filename embedded in the data URL (";name=<encoded>"); null for older uploads or plain URLs */
+function getFileName(fileUrl: string | null): string | null {
+  const match = fileUrl?.match(/^data:[^,;]*;name=([^;,]*)[;,]/)
+  if (!match) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
+function getFileExt(fileUrl: string): string {
+  if (fileUrl.startsWith("data:")) {
+    const mime = fileUrl.slice(5).split(/[;,]/)[0]
+    if (mime === "application/pdf") return "pdf"
+    if (mime.includes("wordprocessingml")) return "docx"
+    if (mime === "image/jpeg") return "jpg"
+    return ""
+  }
+  return fileUrl.split("?")[0].split(".").pop()?.toLowerCase() ?? ""
+}
+
 function getFileIcon(fileUrl: string | null) {
   if (!fileUrl) return null
-  const ext = fileUrl.split(".").pop()?.toLowerCase()
+  const ext = getFileExt(fileUrl)
   if (ext === "pdf") return { icon: FileText, color: "text-red-500", bg: "bg-red-50", label: "PDF" }
   if (ext === "docx") return { icon: FileText, color: "text-blue-600", bg: "bg-blue-50", label: "DOCX" }
-  if (["jpg", "jpeg"].includes(ext || "")) return { icon: FileImage, color: "text-emerald-500", bg: "bg-emerald-50", label: "IMG" }
-  return { icon: File, color: "text-darksilver", bg: "bg-white", label: ext?.toUpperCase() || "FILE" }
+  if (["jpg", "jpeg"].includes(ext)) return { icon: FileImage, color: "text-emerald-500", bg: "bg-emerald-50", label: "IMG" }
+  return { icon: File, color: "text-darksilver", bg: "bg-white", label: ext ? ext.toUpperCase() : "FILE" }
 }
 
 const schema = z.object({
@@ -343,7 +365,7 @@ export function MaterialsPage() {
               className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors", fileInfo?.bg ?? "bg-white", fileInfo?.color ?? "text-darksilver", "hover:brightness-90")}
             >
               <ExtIcon className="h-3.5 w-3.5" strokeWidth={2} />
-              {fileInfo?.label}
+              <span className="max-w-[180px] truncate">{getFileName(m.fileUrl) ?? fileInfo?.label}</span>
             </button>
           </div>
         )
@@ -696,7 +718,7 @@ export function MaterialsPage() {
               ) : editFileUrl ? (
                 <>
                   <FileText className="h-4 w-4 shrink-0 text-sky-500" />
-                  <span className="flex-1 truncate text-black/80">Current file attached</span>
+                  <span className="flex-1 truncate text-black/80">{getFileName(editFileUrl) ?? "Current file attached"}</span>
                   <button
                     type="button"
                     className="text-royal hover:text-sky-700 text-xs font-medium shrink-0"

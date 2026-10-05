@@ -62,7 +62,9 @@ export async function upload(c: Context) {
     // database instead of writing to disk (serverless filesystems are
     // read-only and ephemeral, so disk writes always fail in production)
     const base64 = Buffer.from(buffer).toString("base64")
-    const fileUrl = `data:${file.type};base64,${base64}`
+    // The original filename rides along as a data-URL parameter so the UI can show it
+    // without a schema change (older records simply lack it)
+    const fileUrl = `data:${file.type};name=${encodeURIComponent(file.name)};base64,${base64}`
     // Return the data URL, original filename, and file size in the response
     return c.json(ok("File uploaded", { fileUrl, originalName: file.name, size: file.size }))
   } catch (error) {

@@ -1,7 +1,7 @@
 // Import the Hono router class to create a modular sub-router for user management endpoints
 import { Hono } from "hono"
 // Import the user controller functions
-import { create, list, update, getById } from "../controllers/userController.js"
+import { create, list, update, getById, remove, listArchived, restore } from "../controllers/userController.js"
 // Import the authentication middleware to protect all user routes
 import { authMiddleware } from "../middlewares/auth.js"
 // Import the role guard factory to restrict admin-only operations
@@ -21,9 +21,15 @@ userRoutes.use(authMiddleware)
 
 // GET /api/users/ — admin only; validate query params then return a paginated list of users
 userRoutes.get("/", roleGuard([RoleType.ADMIN]), validateQuery(userQuerySchema), list)
+// GET /api/users/archived — admin only; soft-deleted students (must precede /:id)
+userRoutes.get("/archived", roleGuard([RoleType.ADMIN]), listArchived)
 // GET /api/users/:id — staff roles only (student PII is not public data)
 userRoutes.get("/:id", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.CADET_OFFICER]), getById)
 // POST /api/users/ — admin only; validate body then create a new user account
 userRoutes.post("/", roleGuard([RoleType.ADMIN]), validateBody(userCreateSchema), create)
 // PATCH /api/users/:id — admin only; validate body then update a user's role or active status
 userRoutes.patch("/:id", roleGuard([RoleType.ADMIN]), validateBody(userUpdateSchema), update)
+// DELETE /api/users/:id — admin only; soft-delete (sets deletedAt, deactivates the account)
+userRoutes.delete("/:id", roleGuard([RoleType.ADMIN]), remove)
+// POST /api/users/:id/restore — admin only; bring an archived account back
+userRoutes.post("/:id/restore", roleGuard([RoleType.ADMIN]), restore)

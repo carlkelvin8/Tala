@@ -68,7 +68,7 @@ export async function createUser(data: {
 /* Return a paginated list of users with optional role and search filters */
 export async function listUsers(filters: { role?: RoleType; search?: string }, skip: number, take: number) {
   // Build the Prisma where clause dynamically based on provided filters
-  const where: Record<string, unknown> = {}
+  const where: Record<string, unknown> = { deletedAt: null }
   // Add role filter if provided
   if (filters.role) {
     where.role = filters.role
@@ -86,6 +86,47 @@ export async function listUsers(filters: { role?: RoleType; search?: string }, s
   ])
   // Return both the page of items and the total count
   return { items, total }
+}
+
+/* Soft-delete a user: keeps the row and its history, blocks login, and hides it from listings */
+export async function softDeleteUser(id: string, actorId: string) {
+  if (id === actorId) {
+    throw new Error("You cannot delete your own account")
+  }
+  const existing = await prisma.user.findUnique({ where: { id }, select: { deletedAt: true } })
+  if (!existing || existing.deletedAt) {
+    throw new Error("User not found")
+  }
+  await prisma.user.update({
+    where: { id },
+    data: { deletedAt: new Date(), isActive: false, refreshTokenVersion: { increment: 1 } }
+  })
+  await logAudit("DELETE", "User", id, actorId)
+}
+
+/* List soft-deleted (archived) student accounts, most recently archived first */
+export async function listArchivedStudents() {
+  return prisma.user.findMany({
+    where: { deletedAt: { not: null }, role: RoleType.STUDENT },
+    orderBy: { deletedAt: "desc" },
+    select: {
+      id: true,
+      email: true,
+      program: true,
+      deletedAt: true,
+      studentProfile: { select: { firstName: true, lastName: true, studentNo: true } }
+    }
+  })
+}
+
+/* Restore an archived user: clears deletedAt and re-activates the account */
+export async function restoreUser(id: string, actorId: string) {
+  const existing = await prisma.user.findUnique({ where: { id }, select: { deletedAt: true } })
+  if (!existing || !existing.deletedAt) {
+    throw new Error("User not found")
+  }
+  await prisma.user.update({ where: { id }, data: { deletedAt: null, isActive: true } })
+  await logAudit("RESTORE", "User", id, actorId)
 }
 
 /* Update a user's role, program, and/or active status */

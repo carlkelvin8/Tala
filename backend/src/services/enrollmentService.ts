@@ -161,20 +161,23 @@ export async function listEnrollments(filters: {
   search?: string
   program?: NstpType
 }, skip: number, take: number) {
+  // Soft-deleted users never appear in enrollment listings
   const where: Record<string, unknown> = {}
+  const userScope: Record<string, unknown>[] = [{ deletedAt: null }]
   if (filters.status) where.status = filters.status
   if (filters.sectionId) where.sectionId = filters.sectionId
   if (filters.flightId) where.flightId = filters.flightId
   // Scope to a program: match students carrying the program on their account, or
   // enrolled in a section of that program (covers legacy students without a program).
   if (filters.program) {
-    where.user = {
+    userScope.push({
       OR: [
         { program: filters.program },
         { studentProfile: { section: { course: { nstpType: filters.program } } } }
       ]
-    }
+    })
   }
+  where.user = { AND: userScope }
   if (filters.search && filters.search.trim()) {
     where.OR = [
       {

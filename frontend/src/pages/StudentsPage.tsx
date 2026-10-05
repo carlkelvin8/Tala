@@ -1,4 +1,6 @@
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { getStoredUser } from "../lib/auth"
 import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
 import { Input } from "../components/ui/input"
@@ -10,7 +12,7 @@ import { StatusBadge } from "../components/ui/status-badge"
 import { SectionCard } from "../components/ui/section-card"
 import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
-import { Search, Sparkles, Users, UserCheck, UserPlus, Eye, BookOpen, Plane, GraduationCap } from "lucide-react"
+import { Search, Sparkles, ArchiveRestore, Trash2, Users, UserCheck, UserPlus, Eye, BookOpen, Plane, GraduationCap } from "lucide-react"
 import { StudentProfileDrawer } from "../components/StudentProfileDrawer"
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
@@ -31,9 +33,44 @@ export function StudentsPage() {
 
   const query = useQuery({
     queryKey: ["enrollments", search],
-    queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/enrollments?search=${encodeURIComponent(search)}`)
+    queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/enrollments?search=${encodeURIComponent(search)}`),
+    // Keep the previous rows while a new search loads so the search box never unmounts
+    placeholderData: keepPreviousData
   })
   const rows = query.data?.data ?? []
+  const canDelete = getStoredUser()?.role === "ADMIN"
+
+  const [showArchive, setShowArchive] = useState(false)
+  const archiveQuery = useQuery({
+    queryKey: ["archived-students"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/users/archived"),
+    enabled: canDelete && showArchive
+  })
+  const archivedRows = archiveQuery.data?.data ?? []
+
+  const restoreMutation = useMutation({
+    mutationFn: (userId: string) => apiRequest<ApiResponse<void>>(`/api/users/${userId}/restore`, { method: "POST" }),
+    onSuccess: () => {
+      toast.success("Student restored")
+      archiveQuery.refetch()
+      query.refetch()
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to restore student")
+    }
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => apiRequest<ApiResponse<void>>(`/api/users/${userId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Student archived")
+      query.refetch()
+      archiveQuery.refetch()
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to delete student")
+    }
+  })
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { ALL: rows.length, APPROVED: 0, PENDING: 0, REJECTED: 0 }
@@ -81,6 +118,20 @@ export function StudentsPage() {
             >
               <Eye className="h-4 w-4" />
             </button>
+            {canDelete && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Delete ${name || enrollment.user?.email || "this student"}? They will no longer be able to sign in.`)) {
+                    deleteMutation.mutate(enrollment.userId)
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-darksilver hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
+                title="Delete student"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )
       }
@@ -221,7 +272,7 @@ export function StudentsPage() {
         transition={{ duration: 0.5, delay: 0.22, ease: [0.16, 1, 0.3, 1] as const }}
       >
       <SectionCard title="Enrollment Directory" description="Search and filter enrolled students" className="shadow-card">
-        {rows.length > 0 && (
+        {(rows.length > 0 || search !== "") && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2 px-6 pt-2">
               {STATUSES.map((s) => {
@@ -297,6 +348,51 @@ export function StudentsPage() {
         </div>
       </SectionCard>
       </motion.div>
+
+      {canDelete && (
+        <SectionCard title="Archived Students" description="Deleted accounts are kept here and can be restored" className="shadow-card">
+          <div className="px-6 pt-3 pb-4 space-y-3">
+            <button
+              onClick={() => setShowArchive(!showArchive)}
+              className="text-sm font-semibold text-royal hover:text-navy transition-colors"
+            >
+              {showArchive ? "Hide archive" : "Show archive"}
+            </button>
+            {showArchive && (
+              archiveQuery.isLoading ? (
+                <LoadingSkeleton rows={2} columns={3} />
+              ) : archivedRows.length === 0 ? (
+                <EmptyState title="No archived students" description="Deleted students will appear here." />
+              ) : (
+                <ul className="divide-y divide-silver/20">
+                  {archivedRows.map((u: any) => {
+                    const p = u.studentProfile
+                    const name = p?.firstName ? `${p.firstName} ${p.lastName ?? ""}`.trim() : u.email
+                    return (
+                      <li key={u.id} className="flex items-center justify-between gap-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-black truncate">{name}</p>
+                          <p className="text-xs text-darksilver truncate">
+                            {u.email} · archived {new Date(u.deletedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => restoreMutation.mutate(u.id)}
+                          disabled={restoreMutation.isPending}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors shrink-0"
+                        >
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                          Restore
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )
+            )}
+          </div>
+        </SectionCard>
+      )}
 
       <StudentProfileDrawer userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
     </div>
