@@ -95,7 +95,7 @@ export async function gradesReportCsv(c: Context) {
   const data = await gradesReport({ sectionId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
-    const csv = studentColumnHeaders.join(",") + ",Category,Item,Score,Max Score"
+    const csv = studentColumnHeaders.join(",") + ",Category,Item,Score,Max Score,Remarks"
     c.header("Content-Type", "text/csv")
     c.header("Content-Disposition", 'attachment; filename="grades.csv"')
     return c.body(csv)
@@ -107,6 +107,7 @@ export async function gradesReportCsv(c: Context) {
     item: row.gradeItem.title,
     score: row.score,
     maxScore: row.gradeItem.maxScore,
+    remarks: row.remarks ?? "",
   }))
 
   const csv = toCsv(rows)

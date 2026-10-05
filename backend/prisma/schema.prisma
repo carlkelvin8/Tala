@@ -346,6 +346,7 @@ model StudentGrade {
   studentId  String
   gradeItemId String
   score      Float
+  remarks    String?
   encodedById String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -65,7 +65,7 @@ export async function encode(c: Context) {
     // Parse the JSON body containing studentId, gradeItemId, and score
     const body = await c.req.json()
     // Delegate to the grade service to create the student grade record
-    const grade = await encodeStudentGrade(body.studentId, body.gradeItemId, body.score, authUser.id, resolveScopeProgram(authUser))
+    const grade = await encodeStudentGrade(body.studentId, body.gradeItemId, body.score, authUser.id, resolveScopeProgram(authUser), body.remarks)
     // Return the created student grade object
     return c.json(ok("Grade encoded", grade))
   } catch (error) {
@@ -162,7 +162,7 @@ export async function updateGrade(c: Context) {
     // Parse the JSON body containing the new score
     const body = await c.req.json()
     // Delegate to the grade service to update the score and log the audit event
-    const grade = await updateGradeRecord(id, body.score, authUser.id, resolveScopeProgram(authUser))
+    const grade = await updateGradeRecord(id, body.score, authUser.id, resolveScopeProgram(authUser), body.remarks)
     // Return the updated grade object
     return c.json(ok("Grade updated", grade))
   } catch (error) {

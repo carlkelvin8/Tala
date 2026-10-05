@@ -27,7 +27,8 @@ import { motion } from "framer-motion"
 const gradeSchema = z.object({
   studentId: z.string().uuid(),
   gradeItemId: z.string().uuid(),
-  score: z.coerce.number().nonnegative()
+  score: z.coerce.number().nonnegative(),
+  remarks: z.string().max(500, "Remarks must be 500 characters or less").optional()
 })
 
 const categorySchema = z.object({
@@ -73,6 +74,7 @@ export function GradesPage() {
   const [editingGrade, setEditingGrade] = useState<any | null>(null)
   const [deletingGrade, setDeletingGrade] = useState<any | null>(null)
   const [editGradeScore, setEditGradeScore] = useState<number>(0)
+  const [editGradeRemarks, setEditGradeRemarks] = useState("")
 
   const [editingItem, setEditingItem] = useState<any | null>(null)
   const [deletingItem, setDeletingItem] = useState<any | null>(null)
@@ -180,8 +182,8 @@ export function GradesPage() {
   })
 
   const updateGradeMutation = useMutation({
-    mutationFn: ({ id, score }: { id: string; score: number }) =>
-      apiRequest<ApiResponse<any>>(`/api/grades/${id}`, { method: "PATCH", body: JSON.stringify({ score }) }),
+    mutationFn: ({ id, score, remarks }: { id: string; score: number; remarks: string }) =>
+      apiRequest<ApiResponse<any>>(`/api/grades/${id}`, { method: "PATCH", body: JSON.stringify({ score, remarks }) }),
     onSuccess: () => { gradesQuery.refetch(); toast.success("Grade updated"); setEditingGrade(null) },
     onError: (error) => { toast.error(error instanceof Error ? error.message : "Update failed") }
   })
@@ -234,8 +236,8 @@ export function GradesPage() {
     itemForm.reset()
   })
 
-  const handleEditGrade = (grade: any) => { setEditingGrade(grade); setEditGradeScore(grade.score) }
-  const handleSaveGrade = () => { if (editingGrade) updateGradeMutation.mutate({ id: editingGrade.id, score: editGradeScore }) }
+  const handleEditGrade = (grade: any) => { setEditingGrade(grade); setEditGradeScore(grade.score); setEditGradeRemarks(grade.remarks ?? "") }
+  const handleSaveGrade = () => { if (editingGrade) updateGradeMutation.mutate({ id: editingGrade.id, score: editGradeScore, remarks: editGradeRemarks }) }
   const handleDeleteGrade = (grade: any) => { setDeletingGrade(grade) }
   const confirmDeleteGrade = () => { if (deletingGrade) { deleteGradeMutation.mutate(deletingGrade.id); setDeletingGrade(null) } }
 
@@ -304,6 +306,12 @@ export function GradesPage() {
           </div>
         )
       }
+    },
+    {
+      header: "Remarks",
+      cell: (grade: any) => grade.remarks
+        ? <span className="block max-w-[220px] truncate text-sm text-black/80" title={grade.remarks}>{grade.remarks}</span>
+        : <span className="text-xs text-darksilver">—</span>
     },
     {
       header: "Category",
@@ -554,6 +562,9 @@ export function GradesPage() {
                     </div>
                   </FormField>
                 </div>
+                <FormField label="Remarks" error={gradeForm.formState.errors.remarks?.message}>
+                  <Input placeholder="Optional remarks (e.g. Needs improvement on drills)" maxLength={500} {...gradeForm.register("remarks")} className="h-11" />
+                </FormField>
                 {gradeMutation.isError && <Alert variant="danger">{(gradeMutation.error as Error).message}</Alert>}
                 <Button type="submit" disabled={gradeMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
                   {gradeMutation.isPending ? (
@@ -754,6 +765,9 @@ export function GradesPage() {
               <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
               <Input type="number" value={editGradeScore} onChange={(e) => setEditGradeScore(Number(e.target.value))} placeholder="0" className="h-11 pl-10" />
             </div>
+          </FormField>
+          <FormField label="Remarks">
+            <Input value={editGradeRemarks} onChange={(e) => setEditGradeRemarks(e.target.value)} maxLength={500} placeholder="Optional remarks" className="h-11" />
           </FormField>
           {updateGradeMutation.isError && <Alert variant="danger">{(updateGradeMutation.error as Error).message}</Alert>}
           <div className="flex gap-2">

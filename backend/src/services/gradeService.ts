@@ -165,7 +165,7 @@ export async function createGradeItem(title: string, maxScore: number, categoryI
 }
 
 /* Record a student's score for a specific grade item */
-export async function encodeStudentGrade(studentId: string, gradeItemId: string, score: number, encodedById: string, scopeProgram?: NstpType | null) {
+export async function encodeStudentGrade(studentId: string, gradeItemId: string, score: number, encodedById: string, scopeProgram?: NstpType | null, remarks?: string) {
   // A score can never be negative
   if (score < 0) throw new Error("Score cannot be negative")
   // Check for existing grade for this student and grade item
@@ -187,7 +187,7 @@ export async function encodeStudentGrade(studentId: string, gradeItemId: string,
   await assertUserInProgram(studentId, scopeProgram)
   // Insert a new student grade record with the score and the encoder's ID
   const grade = await prisma.studentGrade.create({
-    data: { studentId, gradeItemId, score, encodedById } // Link to student, item, and encoder
+    data: { studentId, gradeItemId, score, encodedById, remarks: remarks || null } // Link to student, item, and encoder
   })
   // Log the grade encoding event to the audit trail with the encoder's ID
   await logAudit("CREATE", "StudentGrade", grade.id, encodedById)
@@ -245,7 +245,7 @@ export async function listGrades(filters: { studentId?: string; sectionId?: stri
 }
 
 /* Update a student's score for a grade record */
-export async function updateGrade(id: string, score: number, userId: string, scopeProgram?: NstpType | null) {
+export async function updateGrade(id: string, score: number, userId: string, scopeProgram?: NstpType | null, remarks?: string) {
   // A score can never be negative
   if (score < 0) throw new Error("Score cannot be negative")
   // Fetch the grade record to validate score against max
@@ -259,7 +259,8 @@ export async function updateGrade(id: string, score: number, userId: string, sco
   // Update the student grade record with the new score
   const grade = await prisma.studentGrade.update({
     where: { id }, // Target the specific grade record by ID
-    data: { score }, // Set the new score value
+    // An omitted remarks field leaves the existing remark untouched; an empty string clears it
+    data: { score, ...(remarks !== undefined ? { remarks: remarks || null } : {}) },
   })
   // Log the grade update event to the audit trail
   await logAudit("UPDATE", "StudentGrade", grade.id, userId)

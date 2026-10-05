@@ -31,12 +31,14 @@ export const gradeItemUpdateSchema = z.object({
 export const studentGradeSchema = z.object({
   studentId: z.string().uuid(),   // UUID of the student receiving the grade
   gradeItemId: z.string().uuid(), // UUID of the grade item being scored
-  score: z.number().nonnegative() // Score must be zero or positive (cannot be negative)
+  score: z.number().nonnegative(), // Score must be zero or positive (cannot be negative)
+  remarks: z.string().trim().max(500).optional() // Optional instructor remarks on this grade
 })
 
 /* Schema for updating a student's grade */
 export const studentGradeUpdateSchema = z.object({
-  score: z.number().nonnegative()
+  score: z.number().nonnegative(),
+  remarks: z.string().trim().max(500).optional()
 })
 
 export const gradeQuerySchema = z.object({
