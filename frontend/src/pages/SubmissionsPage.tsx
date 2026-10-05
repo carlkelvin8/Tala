@@ -17,11 +17,12 @@ import { Drawer } from "../components/ui/drawer"
 import { FormField } from "../components/ui/form-field"
 import { RefreshIndicator } from "../components/ui/refresh-indicator"
 import { useState, useMemo, useRef } from "react"
-import { Inbox, Sparkles, Check, X, Upload, CalendarDays, FileText } from "lucide-react"
+import { Inbox, Sparkles, Check, X, Upload, CalendarDays, FileText, Eye } from "lucide-react"
 import { cn } from "../lib/utils"
 import { motion } from "framer-motion"
 import { cardContainerVariants, cardItemVariants } from "../components/ui/page-transition"
 import { Link } from "react-router-dom"
+import { openStoredFile } from "../lib/display"
 
 const STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const
 
@@ -261,6 +262,19 @@ function StudentView() {
           </div>
         </div>
       ),
+    },
+    {
+      header: "File",
+      cell: (s: any) => s.fileUrl ? (
+        <button
+          onClick={() => openStoredFile(s.fileUrl)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-royal hover:brightness-95 transition-colors"
+          title={`View ${s.fileName ?? "file"}`}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          View
+        </button>
+      ) : <span className="text-xs text-darksilver">—</span>,
     },
     {
       header: "Date Range",
@@ -564,6 +578,19 @@ function StaffView() {
           </div>
         </div>
       ),
+    },
+    {
+      header: "File",
+      cell: (s: any) => s.fileUrl ? (
+        <button
+          onClick={() => openStoredFile(s.fileUrl)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-royal hover:brightness-95 transition-colors"
+          title={`View ${s.fileName ?? "file"}`}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          View
+        </button>
+      ) : <span className="text-xs text-darksilver">—</span>,
     },
     {
       header: "Date Range",

@@ -20,7 +20,7 @@ import { FormSection } from "../components/ui/form-section"
 import { SectionCard } from "../components/ui/section-card"
 import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
-import { getFullName, getApiFileUrl, relativeTime } from "../lib/display"
+import { getFullName, openStoredFile, relativeTime } from "../lib/display"
 import { useRef, useState, useMemo } from "react"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
@@ -258,10 +258,7 @@ export function MaterialsPage() {
   }
 
   const handleViewFile = (fileUrl: string) => {
-    const url = getApiFileUrl(fileUrl)
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer")
-    }
+    openStoredFile(fileUrl)
   }
 
   const rows = materialsQuery.data?.data ?? []

@@ -44,3 +44,23 @@ export function relativeTime(dateStr: string): string {
 export function getInitials(name: string): string {
   return name.charAt(0).toUpperCase()
 }
+
+/* Open a stored file in a new tab. Browsers block top-level navigation to data: URLs,
+   so embedded files are converted to a temporary blob: URL first. */
+export function openStoredFile(path?: string | null) {
+  const url = getApiFileUrl(path)
+  if (!url) return
+  if (!url.startsWith("data:")) {
+    window.open(url, "_blank", "noopener,noreferrer")
+    return
+  }
+  const comma = url.indexOf(",")
+  const meta = url.slice(5, comma)
+  const mime = meta.split(";")[0] || "application/octet-stream"
+  const binary = atob(url.slice(comma + 1))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }))
+  window.open(blobUrl, "_blank", "noopener,noreferrer")
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+}
