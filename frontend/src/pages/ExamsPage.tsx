@@ -60,7 +60,7 @@ export function ExamsPage() {
         body: JSON.stringify(values)
       }),
     onSuccess: () => {
-      toast.success("Exam session created")
+      toast.success("Exam created")
       setShowCreateForm(false)
       setCreateForm({ title: "", scheduledAt: "", durationMin: 60 })
       sessionsQuery.refetch()
@@ -222,7 +222,7 @@ export function ExamsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
             >
-              Monitor sessions and launch timed supervised exams.
+              Monitor and launch timed supervised exams.
             </motion.p>
           </div>
         </div>
@@ -263,20 +263,20 @@ export function ExamsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
       >
-      <SectionCard title="Exam Sessions" description="Upcoming sessions and availability" className="shadow-card">
+      <SectionCard title="Exams" description="Upcoming exams and availability" className="shadow-card">
         {isAdminOrImplementor && (
           <div className="mb-4 flex items-center justify-between">
             <div />
             <Button onClick={() => setShowCreateForm(!showCreateForm)} className="flex items-center gap-2 bg-gradient-to-r from-navy to-royal hover:from-royal hover:to-navy text-white">
               {showCreateForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {showCreateForm ? "Cancel" : "Create Session"}
+              {showCreateForm ? "Cancel" : "Create Exam"}
             </Button>
           </div>
         )}
 
         {showCreateForm && isAdminOrImplementor && (
           <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 dark:bg-slate-800/60 p-5">
-            <h4 className="text-sm font-semibold text-black mb-4">New Exam Session</h4>
+            <h4 className="text-sm font-semibold text-black mb-4">New Exam</h4>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="text-xs font-medium text-darksilver mb-1 block">Title</label>
@@ -310,17 +310,17 @@ export function ExamsPage() {
                 disabled={!createForm.title || !createForm.scheduledAt || createExamMutation.isPending}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
-                {createExamMutation.isPending ? "Creating..." : "Create Session"}
+                {createExamMutation.isPending ? "Creating..." : "Create Exam"}
               </Button>
             </div>
           </div>
         )}
 
-        {sessionsQuery.isError && <Alert variant="danger">Unable to load exam sessions.</Alert>}
+        {sessionsQuery.isError && <Alert variant="danger">Unable to load exams.</Alert>}
         {sessionsQuery.isLoading ? (
           <LoadingSkeleton rows={3} columns={3} />
         ) : rows.length === 0 ? (
-          <EmptyState title="No exam sessions scheduled" description="Create an exam session to begin monitoring." />
+          <EmptyState title="No exams scheduled" description="Create an exam to begin monitoring." />
         ) : (
           <ResponsiveTableCards
             data={rows}

@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok } from "../lib/response.js"
-import { enrollmentReport, attendanceReport, gradesReport, meritsReport, toCsv } from "../services/reportService.js"
+import { enrollmentReport, attendanceReport, gradesReport, meritsReport, toCsv, studentColumns, studentColumnHeaders } from "../services/reportService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { RoleType } from "@prisma/client"
 import { resolveScopeProgram } from "../services/programScope.js"
@@ -36,7 +36,7 @@ export async function enrollmentReportCsv(c: Context) {
   const sectionId = resolveSectionId(authUser, query.sectionId)
   const data = await enrollmentReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId }, resolveScopeProgram(authUser))
   
-  const headers = ["ID", "Student Email", "Status", "Section", "Flight", "Created At"]
+  const headers = ["ID", ...studentColumnHeaders, "Status", "Section", "Flight", "Created At"]
   
   if (data.length === 0) {
     const csv = headers.join(",")
@@ -47,7 +47,7 @@ export async function enrollmentReportCsv(c: Context) {
   
   const rows = data.map((row) => ({
     id: row.id,
-    studentEmail: row.user.email,
+    ...studentColumns(row.user.email, row.user.studentProfile),
     status: row.status,
     section: row.section?.code ?? "",
     flight: row.flight?.code ?? "",
@@ -67,14 +67,14 @@ export async function attendanceReportCsv(c: Context) {
   const data = await attendanceReport({ ...parseDateFilters(query), sectionId, flightId: query.flightId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
-    const csv = "Student Email,Date,Status,Check-In Time,Latitude,Longitude"
+    const csv = studentColumnHeaders.join(",") + ",Date,Status,Check-In Time,Latitude,Longitude"
     c.header("Content-Type", "text/csv")
     c.header("Content-Disposition", 'attachment; filename="attendance.csv"')
     return c.body(csv)
   }
 
   const rows = data.map((row) => ({
-    studentEmail: row.user.email,
+    ...studentColumns(row.user.email, row.user.studentProfile),
     date: row.date.toISOString().split("T")[0],
     status: row.status,
     checkInAt: row.checkInAt?.toISOString() ?? "",
@@ -95,14 +95,14 @@ export async function gradesReportCsv(c: Context) {
   const data = await gradesReport({ sectionId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
-    const csv = "Student Email,Category,Item,Score,Max Score"
+    const csv = studentColumnHeaders.join(",") + ",Category,Item,Score,Max Score"
     c.header("Content-Type", "text/csv")
     c.header("Content-Disposition", 'attachment; filename="grades.csv"')
     return c.body(csv)
   }
 
   const rows = data.map((row) => ({
-    studentEmail: row.student.email,
+    ...studentColumns(row.student.email, row.student.studentProfile),
     category: row.gradeItem.category?.name ?? "",
     item: row.gradeItem.title,
     score: row.score,
@@ -122,14 +122,14 @@ export async function meritsReportCsv(c: Context) {
   const data = await meritsReport({ ...parseDateFilters(query), sectionId }, resolveScopeProgram(authUser))
 
   if (data.length === 0) {
-    const csv = "Student Email,Type,Points,Reason,Created At"
+    const csv = studentColumnHeaders.join(",") + ",Type,Points,Reason,Created At"
     c.header("Content-Type", "text/csv")
     c.header("Content-Disposition", 'attachment; filename="merits.csv"')
     return c.body(csv)
   }
 
   const rows = data.map((row) => ({
-    studentEmail: row.student.email,
+    ...studentColumns(row.student.email, row.student.studentProfile),
     type: row.type,
     points: row.points,
     reason: row.reason,

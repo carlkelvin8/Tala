@@ -2,6 +2,32 @@ import { prisma } from "../lib/prisma.js"
 import { programUserScope } from "./programScope.js"
 import { NstpType } from "@prisma/client"
 
+/* Profile fields every student-level report carries */
+const reportProfileSelect = {
+  firstName: true, lastName: true, studentNo: true, gender: true, birthDate: true, address: true, contactNo: true
+} as const
+
+type ReportProfile = {
+  firstName: string; lastName: string; studentNo: string | null; gender: string | null
+  birthDate: Date | null; address: string | null; contactNo: string | null
+} | null | undefined
+
+/* Flat CSV columns describing the student: name, student number, gender, birthdate, address, contact */
+export function studentColumns(email: string, profile: ReportProfile) {
+  return {
+    firstName: profile?.firstName ?? "",
+    lastName: profile?.lastName ?? "",
+    studentNumber: profile?.studentNo ?? "",
+    gender: profile?.gender ?? "",
+    birthdate: profile?.birthDate ? profile.birthDate.toISOString().split("T")[0] : "",
+    fullAddress: profile?.address ?? "",
+    contactNumber: profile?.contactNo ?? "",
+    studentEmail: email,
+  }
+}
+
+export const studentColumnHeaders = ["First Name", "Last Name", "Student Number", "Gender", "Birthdate", "Full Address", "Contact Number", "Student Email"]
+
 /* Fetch enrollment records for reporting, with optional date range and scope filters */
 export async function enrollmentReport(filters: { from?: Date; to?: Date; sectionId?: string; flightId?: string }, scopeProgram?: NstpType | null) {
   const where: Record<string, unknown> = {}
@@ -26,7 +52,7 @@ export async function enrollmentReport(filters: { from?: Date; to?: Date; sectio
     where, 
     include: { 
       user: {
-        select: { id: true, email: true, role: true, studentProfile: { select: { firstName: true, lastName: true } } }
+        select: { id: true, email: true, role: true, studentProfile: { select: reportProfileSelect } }
       }, 
       section: true, 
       flight: true 
@@ -69,7 +95,7 @@ export async function attendanceReport(filters: { from?: Date; to?: Date; sectio
       user: {
         select: {
           id: true, email: true,
-          studentProfile: { select: { firstName: true, lastName: true, sectionId: true, flightId: true } }
+          studentProfile: { select: { ...reportProfileSelect, sectionId: true, flightId: true } }
         }
       }
     },
@@ -103,7 +129,7 @@ export async function gradesReport(filters: { sectionId?: string }, scopeProgram
       student: {
         select: {
           id: true, email: true,
-          studentProfile: { select: { firstName: true, lastName: true } }
+          studentProfile: { select: reportProfileSelect }
         }
       },
       gradeItem: {
@@ -151,7 +177,7 @@ export async function meritsReport(filters: { from?: Date; to?: Date; sectionId?
       student: {
         select: {
           id: true, email: true,
-          studentProfile: { select: { firstName: true, lastName: true } }
+          studentProfile: { select: reportProfileSelect }
         }
       }
     },

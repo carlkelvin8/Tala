@@ -427,7 +427,11 @@ export function ProfilePage() {
                     <div className="mt-6 w-full space-y-2.5">
                       {[
                         { icon: Mail, label: email, sub: "Email address" },
-                        ...(roleProfile?.studentNo ? [{ icon: Hash, label: roleProfile.studentNo, sub: "Student ID" }] : []),
+                        ...(roleProfile?.studentNo ? [{ icon: Hash, label: roleProfile.studentNo, sub: "Student Number" }] : []),
+                        ...(roleProfile?.gender ? [{ icon: User, label: roleProfile.gender, sub: "Gender" }] : []),
+                        ...(roleProfile?.birthDate ? [{ icon: Cake, label: new Date(roleProfile.birthDate).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }), sub: "Birthdate" }] : []),
+                        ...(roleProfile?.contactNo ? [{ icon: Smartphone, label: roleProfile.contactNo, sub: "Contact Number" }] : []),
+                        ...(roleProfile?.address ? [{ icon: MapPin, label: roleProfile.address, sub: "Full Address" }] : []),
                         ...(formattedCreatedAt ? [{ icon: Calendar, label: formattedCreatedAt, sub: "Joined" }] : []),
                       ].map(({ icon: Icon, label, sub }, i) => (
                         <div key={i} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 transition-all duration-200 hover:bg-silver/20/70">
