@@ -214,7 +214,7 @@ export function ExamsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] as const }}
             >
-              Exams
+              Courseworks
             </motion.h1>
             <motion.p
               className="mt-1 text-sm text-silver max-w-2xl"
@@ -222,7 +222,7 @@ export function ExamsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.36, ease: [0.16, 1, 0.3, 1] as const }}
             >
-              Monitor and launch timed supervised exams.
+              Monitor and launch timed supervised courseworks.
             </motion.p>
           </div>
         </div>
@@ -245,14 +245,14 @@ export function ExamsPage() {
 
           {currentAttemptId && (
             <Button onClick={finishExam} variant="outline" className="flex items-center gap-2 border-green-200 text-green-700 hover:bg-green-50">
-              Submit Exam
+              Submit Coursework
             </Button>
           )}
         </div>
 
         {attemptMutation.isError && (
           <Alert variant="danger" className="mt-4">
-            Unable to start the exam attempt. Please try again.
+            Unable to start the coursework attempt. Please try again.
           </Alert>
         )}
       </SectionCard>
