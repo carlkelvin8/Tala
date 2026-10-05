@@ -7,6 +7,7 @@ import { getAuthUser } from "../middlewares/auth.js"
 import { getLeaderboard } from "../services/leaderboardService.js"
 import { prisma } from "../lib/prisma.js"
 import { resolveScopeProgram } from "../services/programScope.js"
+import { resolveSectionProgram, userProgram } from "../services/programGuard.js"
 
 export const leaderboardRoutes = new Hono()
 
@@ -28,7 +29,17 @@ leaderboardRoutes.get("/", async (c) => {
       sectionId = profile?.sectionId ?? undefined
     }
 
-    const entries = await getLeaderboard({ sectionId }, resolveScopeProgram(authUser))
+    let scopeProgram = resolveScopeProgram(authUser, c.req.query("program"))
+    if (!scopeProgram && authUser.role !== RoleType.ADMIN) {
+      // Students and cadet officers without an account-level program (legacy accounts):
+      // derive it from their section so they never see the other program's ranking.
+      scopeProgram = (await userProgram(authUser.id))
+        ?? (authUser.sectionId ? await resolveSectionProgram(authUser.sectionId).catch(() => null) : null)
+      // Fail closed — an unattributable account sees an empty leaderboard rather than everyone
+      if (!scopeProgram) return c.json(ok("Leaderboard fetched", []))
+    }
+
+    const entries = await getLeaderboard({ sectionId }, scopeProgram)
     return c.json(ok("Leaderboard fetched", entries))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to fetch leaderboard"), 400)

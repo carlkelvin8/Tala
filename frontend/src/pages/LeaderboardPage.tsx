@@ -4,6 +4,7 @@ import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
 import { SectionCard } from "../components/ui/section-card"
 import { toast } from "sonner"
+import { getStoredUser } from "../lib/auth"
 import { cn } from "../lib/utils"
 import { Trophy, Flame, Star, Medal, Crown, RefreshCw } from "lucide-react"
 
@@ -36,10 +37,13 @@ const RANK_PAGE_SIZE = 20
 export function LeaderboardPage() {
   const [tick] = useState(0)
   const [visibleCount, setVisibleCount] = useState(RANK_PAGE_SIZE)
+  // Admins see every program by default and can narrow to one; staff and students are scoped server-side
+  const isAdmin = getStoredUser()?.role === "ADMIN"
+  const [program, setProgram] = useState<"ALL" | "CWTS" | "ROTC">("ALL")
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ["leaderboard", tick],
-    queryFn: () => apiRequest<ApiResponse<LeaderboardEntry[]>>("/api/leaderboard"),
+    queryKey: ["leaderboard", tick, program],
+    queryFn: () => apiRequest<ApiResponse<LeaderboardEntry[]>>(program === "ALL" ? "/api/leaderboard" : `/api/leaderboard?program=${program}`),
     // Rankings change slowly; avoid refetching on every visit/focus.
     staleTime: 120_000,
   })
@@ -71,6 +75,23 @@ export function LeaderboardPage() {
           </div>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(["ALL", "CWTS", "ROTC"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => { setProgram(p); setVisibleCount(RANK_PAGE_SIZE) }}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                program === p ? "bg-navy text-white ring-1 ring-inset ring-navy" : "bg-white text-darksilver hover:bg-silver/20 hover:text-black/80"
+              )}
+            >
+              {p === "ALL" ? "All programs" : p}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isLoading && (
         <SectionCard title="Loading" description="">

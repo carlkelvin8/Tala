@@ -27,7 +27,8 @@ export type LeaderboardEntry = {
  * Aggregation is limited to the current active term when one exists.
  */
 export async function getLeaderboard(filters?: { sectionId?: string }, scopeProgram?: NstpType | null) {
-  const where: Record<string, unknown> = { status: "ACTIVE" }
+  // Soft-deleted (archived) accounts never appear on the leaderboard
+  const where: Record<string, unknown> = { status: "ACTIVE", user: { deletedAt: null } }
   if (filters?.sectionId) {
     where.sectionId = filters.sectionId
     if (scopeProgram) {
@@ -42,7 +43,7 @@ export async function getLeaderboard(filters?: { sectionId?: string }, scopeProg
     }
   } else if (scopeProgram) {
     const scope = programUserScope(scopeProgram)
-    if (scope) where.user = scope
+    if (scope) where.user = { deletedAt: null, ...scope }
   }
 
   // Term lookup and student list are independent — run them together so
