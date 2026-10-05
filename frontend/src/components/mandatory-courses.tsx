@@ -43,15 +43,15 @@ export function MandatoryCourses({ program }: { program?: ProgramType }) {
 
   if (query.isError) {
     return (
-      <SectionCard title="Mandatory Courses" description="Fixed curriculum per NSTP program">
-        <Alert variant="danger">Unable to load mandatory courses.</Alert>
+      <SectionCard title="Mandatory Programs" description="Fixed curriculum per NSTP program">
+        <Alert variant="danger">Unable to load mandatory programs.</Alert>
       </SectionCard>
     )
   }
 
   if (query.isLoading) {
     return (
-      <SectionCard title="Mandatory Courses" description="Fixed curriculum per NSTP program">
+      <SectionCard title="Mandatory Programs" description="Fixed curriculum per NSTP program">
         <LoadingSkeleton rows={3} columns={2} />
       </SectionCard>
     )
@@ -80,7 +80,7 @@ export function MandatoryCourses({ program }: { program?: ProgramType }) {
   if (grouped) {
     return (
       <SectionCard
-        title="Mandatory Courses"
+        title="Mandatory Programs"
         description="Fixed curriculum per NSTP program"
       >
         <div className="grid gap-6 lg:grid-cols-2">
@@ -101,7 +101,7 @@ export function MandatoryCourses({ program }: { program?: ProgramType }) {
   }
 
   return (
-    <SectionCard title="Mandatory Courses" description={`Fixed curriculum — ${programFullLabels[program ?? "CWTS"]}`}>
+    <SectionCard title="Mandatory Programs" description={`Fixed curriculum — ${programFullLabels[program ?? "CWTS"]}`}>
       {single ? renderList(single) : null}
     </SectionCard>
   )
