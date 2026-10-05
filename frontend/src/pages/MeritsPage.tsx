@@ -42,7 +42,7 @@ export function MeritsPage() {
   const currentUser = getStoredUser()
   const isStudent = currentUser?.role === "STUDENT"
   const isRotcImplementor = currentUser?.role === "IMPLEMENTOR" && getEffectiveProgram(currentUser) === "ROTC"
-  const isCwtsImplementor = currentUser?.role === "IMPLEMENTOR" && !isRotcImplementor
+  const isOutsideRotc = currentUser?.role !== "ADMIN" && getEffectiveProgram(currentUser) !== "ROTC"
   // Merit write operations: ADMIN always, plus ROTC implementors (program-scoped on the backend).
   // CWTS implementors never manage merits — CWTS does not track them.
   const canManageMerits = perms.canDelete || isRotcImplementor
@@ -56,7 +56,7 @@ export function MeritsPage() {
     queryKey: ["merits", currentUser?.id, currentUser?.role, getEffectiveProgram(currentUser)],
     queryFn: () => apiRequest<ApiResponse<any[]>>(isStudent ? `/api/merits?studentId=${currentUser?.id}` : "/api/merits"),
     refetchInterval: 30000,
-    enabled: !isCwtsImplementor,
+    enabled: !isOutsideRotc,
   })
 
   const studentsQuery = useQuery({
@@ -206,13 +206,13 @@ export function MeritsPage() {
 
   const allColumns = actionsColumn ? [...columns, actionsColumn] : columns
 
-  if (isCwtsImplementor) {
+  if (isOutsideRotc) {
     return (
       <div className="space-y-6">
         <SectionCard title="Merits & Demerits" description="ROTC-only feature">
           <EmptyState
             title="Not available for CWTS"
-            description="Merits and demerits are only tracked for the ROTC program. Switch to an ROTC instructor account to manage them."
+            description="Merits and demerits are only tracked for ROTC accounts."
           />
         </SectionCard>
       </div>

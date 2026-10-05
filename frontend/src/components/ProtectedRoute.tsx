@@ -21,8 +21,8 @@ export function ProtectedRoute({ roles, programs, children }: Props) {
   }
   if (programs && user.role !== "ADMIN") {
     const program = getEffectiveProgram(user)
-    // Program-agnostic users (null program) keep access; scoped users must match.
-    if (program && !programs.includes(program)) {
+    // Program-locked routes fail closed when a scoped user has no program.
+    if (!program || !programs.includes(program)) {
       return <Navigate to="/dashboard" replace />
     }
   }

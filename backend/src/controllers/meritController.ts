@@ -71,9 +71,9 @@ export async function list(c: Context) {
   const query = c.req.query()
   const { page, pageSize, skip, take } = getPagination(query)
   const scopeProgram = resolveScopeProgram(authUser)
-  // CWTS implementors do not track merits — block listing entirely so the
-  // ROTC-only feature never leaks cross-program data.
-  if (authUser.role === RoleType.IMPLEMENTOR && scopeProgram === NstpType.CWTS) {
+  // Merits are ROTC-only. Fail closed for every non-admin account that is not
+  // explicitly scoped to ROTC, including CWTS and legacy null-program students.
+  if (authUser.role !== RoleType.ADMIN && scopeProgram !== NstpType.ROTC) {
     return c.json(fail("Merits are only tracked for the ROTC program"), 403)
   }
   const filters: { studentId?: string; type?: MeritType; sectionId?: string } = {

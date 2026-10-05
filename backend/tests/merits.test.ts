@@ -106,6 +106,24 @@ describe("Merit Routes", () => {
     expect(res.status).toBe(200)
   })
 
+  it("GET /api/merits — blocks CWTS students and allows ROTC students", async () => {
+    const cwtsStudent = await createTestUser(RoleType.STUDENT)
+    emails.push(cwtsStudent.email)
+    await prisma.user.update({ where: { id: cwtsStudent.id }, data: { program: NstpType.CWTS } })
+    const cwtsResponse = await app.request("/api/merits", {
+      headers: authHeader(makeToken(cwtsStudent.id, cwtsStudent.role)),
+    })
+    expect(cwtsResponse.status).toBe(403)
+
+    const rotcStudent = await createTestUser(RoleType.STUDENT)
+    emails.push(rotcStudent.email)
+    await prisma.user.update({ where: { id: rotcStudent.id }, data: { program: NstpType.ROTC } })
+    const rotcResponse = await app.request("/api/merits", {
+      headers: authHeader(makeToken(rotcStudent.id, rotcStudent.role)),
+    })
+    expect(rotcResponse.status).toBe(200)
+  })
+
   it("PATCH /api/merits/:id — updates merit", async () => {
     const res = await app.request(`/api/merits/${meritId}`, {
       method: "PATCH",
