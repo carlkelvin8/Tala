@@ -22,3 +22,10 @@ export const MANDATORY_COURSES: Record<NstpType, MandatoryCourse[]> = {
     { code: "BSASM", name: "Bachelor of Science in Aviation Safety and Security Management" },
   ],
 }
+
+/* The NSTP component a degree program is mandated to take, by its code; undefined for unknown codes. */
+export function nstpForDegree(code: string): NstpType | undefined {
+  return (Object.keys(MANDATORY_COURSES) as NstpType[]).find((nstp) =>
+    MANDATORY_COURSES[nstp].some((course) => course.code === code)
+  )
+}

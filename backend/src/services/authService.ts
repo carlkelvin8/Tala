@@ -7,6 +7,7 @@ import { logAudit } from "./auditService.js"
 import jwt from "jsonwebtoken"
 import { createHash, randomInt } from "crypto"
 import { env } from "../lib/env.js"
+import { nstpForDegree } from "../constants/programs.js"
 import { mailConfigured, sendMail } from "../lib/mailer.js"
 
 /* Register a new user account and create the appropriate role-specific profile */
@@ -14,10 +15,20 @@ export async function registerUser(data: {
   email: string
   password: string
   program: NstpType
+  degreeProgram: string
   firstName: string
   lastName: string
   studentNo?: string
 }) {
+  // A degree program is mandated to one NSTP component — students may only register for that one
+  const requiredProgram = nstpForDegree(data.degreeProgram)
+  if (!requiredProgram) {
+    throw new Error("Unknown degree program")
+  }
+  if (requiredProgram !== data.program) {
+    throw new Error(`Your degree program requires ${requiredProgram}. You can only create a ${requiredProgram} account.`)
+  }
+
   const existing = await userRepository.findByEmail(data.email)
   if (existing) {
     throw new Error("Email already in use")

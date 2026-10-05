@@ -17,7 +17,7 @@ describe("Auth Routes", () => {
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "Juan", lastName: "Dela Cruz", studentNo: `sno_${uniqueId()}` }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", degreeProgram: "BSAIS", firstName: "Juan", lastName: "Dela Cruz", studentNo: `sno_${uniqueId()}` }),
     })
     const body = await res.json()
     expect(res.status).toBe(200)
@@ -32,7 +32,7 @@ describe("Auth Routes", () => {
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email: `admin_${uniqueId()}@test.com`, password: "password123", role: "ADMIN", program: "CWTS", firstName: "A", lastName: "B" }),
+      body: json({ email: `admin_${uniqueId()}@test.com`, password: "password123", role: "ADMIN", program: "CWTS", degreeProgram: "BSAIS", firstName: "A", lastName: "B" }),
     })
     expect(res.status).toBe(422)
   })
@@ -46,18 +46,37 @@ describe("Auth Routes", () => {
     expect(res.status).toBe(422)
   })
 
+  it("POST /api/auth/register — rejects a program that does not match the degree program", async () => {
+    const res = await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json({ email: `mismatch_${uniqueId()}@test.com`, password: "password123", role: "STUDENT", program: "ROTC", degreeProgram: "BSAIS", firstName: "A", lastName: "B" }),
+    })
+    const body = await res.json()
+    expect(res.status).toBe(400)
+    expect(body.message).toContain("CWTS")
+  })
+
+  it("GET /api/auth/degree-programs — is public and lists both components", async () => {
+    const res = await app.request("/api/auth/degree-programs")
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.data.ROTC.length).toBeGreaterThan(0)
+    expect(body.data.CWTS.length).toBeGreaterThan(0)
+  })
+
   it("POST /api/auth/register — rejects duplicate email", async () => {
     const email = `${uniqueId()}@test.com`
     emails.push(email)
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "A", lastName: "B" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", degreeProgram: "BSAIS", firstName: "A", lastName: "B" }),
     })
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "A", lastName: "B" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", degreeProgram: "BSAIS", firstName: "A", lastName: "B" }),
     })
     const body = await res.json()
     expect(body.success).toBe(false)
@@ -67,7 +86,7 @@ describe("Auth Routes", () => {
     const res = await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email: "not-an-email", password: "password123", role: "STUDENT", program: "CWTS", firstName: "A", lastName: "B" }),
+      body: json({ email: "not-an-email", password: "password123", role: "STUDENT", program: "CWTS", degreeProgram: "BSAIS", firstName: "A", lastName: "B" }),
     })
     expect(res.status).toBe(422)
   })
@@ -78,7 +97,7 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "Admin", lastName: "User" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", degreeProgram: "BSAIS", firstName: "Admin", lastName: "User" }),
     })
     const res = await app.request("/api/auth/login", {
       method: "POST",
@@ -140,7 +159,7 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", program: "ROTC", firstName: "PW", lastName: "Test" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "ROTC", degreeProgram: "BSAT", firstName: "PW", lastName: "Test" }),
     })
     const loginRes = await app.request("/api/auth/login", {
       method: "POST",
@@ -166,7 +185,7 @@ describe("Auth Routes", () => {
     await app.request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", firstName: "R", lastName: "T" }),
+      body: json({ email, password: "password123", role: "STUDENT", program: "CWTS", degreeProgram: "BSAIS", firstName: "R", lastName: "T" }),
     })
     const loginRes = await app.request("/api/auth/login", {
       method: "POST",

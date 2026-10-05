@@ -75,7 +75,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
       <SidebarHeader className="px-4 pt-5 pb-4 border-b border-silver/30"> {/* Header section with padding and bottom border */}
         <div className="flex items-center gap-3"> {/* Flex row for logo icon and text */}
           <div className="flex h-9 w-9 items-center justify-center rounded-lg overflow-hidden">
-            <img src="/image.png" alt="Logo" className="h-9 w-9 object-contain" />
+            <img src="/image.png" alt="Tala logo" className="h-9 w-9 object-contain" />
           </div>
           <div> {/* Text block next to the logo */}
             <p className="text-sm font-bold text-black leading-none">AviNSTeP</p> {/* App name in bold dark text */}

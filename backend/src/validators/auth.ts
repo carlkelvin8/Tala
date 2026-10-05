@@ -5,6 +5,7 @@ export const registerSchema = z.object({
   password: z.string().min(8),
   role: z.enum(["STUDENT"]).optional(),
   program: z.enum(["CWTS", "ROTC"]),
+  degreeProgram: z.string().min(1), // Code of the degree program (e.g. BSAT); fixes which NSTP component the student may register for
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   studentNo: z.string().optional()

@@ -20,7 +20,7 @@ export function ModernAuthLayout({ title, description, children, footer, classNa
           <div className="max-w-md text-center relative animate-fade-in">
             <div className="flex flex-col items-center gap-4 mb-12">
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/20 overflow-hidden">
-                <img src="/image.png" alt="Logo" className="h-24 w-24 object-contain" />
+                <img src="/image.png" alt="Tala logo" className="h-24 w-24 object-contain" />
               </div>
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-white tracking-tight">AviNSTeP</h2>
@@ -40,7 +40,7 @@ export function ModernAuthLayout({ title, description, children, footer, classNa
           <div className="w-full max-w-md animate-slide-up">
             <div className="lg:hidden flex flex-col items-center gap-3 mb-12">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-navy to-royal shadow-soft overflow-hidden">
-                <img src="/image.png" alt="Logo" className="h-16 w-16 object-contain" />
+                <img src="/image.png" alt="Tala logo" className="h-16 w-16 object-contain" />
               </div>
               <div className="text-center">
                 <h2 className="text-lg font-bold text-black tracking-tight">AviNSTeP</h2>

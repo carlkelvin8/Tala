@@ -89,7 +89,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarHeader className="px-6 py-5 border-b border-silver/30 bg-white"> {/* Header with padding, bottom border, and white background */}
           <a href="/dashboard" className="flex items-center gap-3 group"> {/* Logo link to dashboard, group for hover effects */}
             <div className="relative flex h-11 w-11 items-center justify-center rounded-xl overflow-hidden shadow-md group-hover:shadow-lg transition-all duration-200">
-              <img src="/image.png" alt="Logo" className="h-11 w-11 object-cover" />
+              <img src="/image.png" alt="Tala logo" className="h-11 w-11 object-cover" />
               <div className="absolute inset-0 rounded-xl bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
             </div>
             <div className="flex flex-col"> {/* Text block next to the logo */}

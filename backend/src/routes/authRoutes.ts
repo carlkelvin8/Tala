@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { login, logout, profile, refresh, register, updateAvatar, removeAvatar, updateAvatarFrame, updatePassword, updateProfile, forgotPassword, resetPassword } from "../controllers/authController.js"
+import { login, logout, profile, refresh, register, updateAvatar, removeAvatar, updateAvatarFrame, updatePassword, updateProfile, forgotPassword, resetPassword, degreePrograms } from "../controllers/authController.js"
 import { validateBody } from "../middlewares/zod.js"
 import { authMiddleware } from "../middlewares/auth.js"
 import { changePasswordSchema, loginSchema, refreshSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.js"
@@ -7,6 +7,7 @@ import { rateLimitLogin, rateLimitRefresh, rateLimitRegister, rateLimitForgotPas
 
 export const authRoutes = new Hono()
 
+authRoutes.get("/degree-programs", degreePrograms)
 authRoutes.post("/register", rateLimitRegister, validateBody(registerSchema), register)
 authRoutes.post("/login", validateBody(loginSchema), rateLimitLogin, login)
 authRoutes.post("/refresh", rateLimitRefresh, validateBody(refreshSchema), refresh)

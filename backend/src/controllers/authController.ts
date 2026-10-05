@@ -7,6 +7,12 @@ import { userRepository } from "../repositories/userRepository.js"
 import { prisma } from "../lib/prisma.js"
 import { validateAvatarDataUrl } from "../lib/imageData.js"
 import { RoleType } from "@prisma/client"
+import { MANDATORY_COURSES } from "../constants/programs.js"
+
+/* GET /api/auth/degree-programs — public list of degree programs grouped by the NSTP component they must take */
+export function degreePrograms(c: Context) {
+  return c.json(ok("Degree programs fetched", MANDATORY_COURSES))
+}
 
 /* POST /api/auth/register — create a new user account */
 export async function register(c: Context) {

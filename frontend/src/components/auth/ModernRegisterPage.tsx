@@ -1,8 +1,8 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../../lib/api"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -20,7 +20,8 @@ const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   studentNo: z.string().min(1, "Student number is required"),
-  program: z.enum(["CWTS", "ROTC"], { errorMap: () => ({ message: "Select your NSTP program" }) }),
+  degreeProgram: z.string().min(1, "Select your degree program"),
+  program: z.enum(["CWTS", "ROTC"], { errorMap: () => ({ message: "Select your degree program" }) }),
   email: z.string().email("Please enter a valid email address"),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
@@ -45,11 +46,28 @@ export function ModernRegisterPage() {
       firstName: "",
       lastName: "",
       studentNo: "",
+      degreeProgram: "",
       program: "CWTS",
       email: "",
       password: ""
     }
   })
+
+  // Each degree program is mandated to one NSTP component, so the account type is derived, not chosen
+  const degreeQuery = useQuery({
+    queryKey: ["degree-programs"],
+    queryFn: () => apiRequest<ApiResponse<Record<"CWTS" | "ROTC", { code: string; name: string }[]>>>("/api/auth/degree-programs"),
+    staleTime: Infinity,
+  })
+  const degreePrograms = degreeQuery.data?.data
+  const selectedDegree = form.watch("degreeProgram")
+  const requiredProgram = degreePrograms
+    ? (["ROTC", "CWTS"] as const).find((p) => degreePrograms[p].some((d) => d.code === selectedDegree))
+    : undefined
+
+  useEffect(() => {
+    if (requiredProgram) form.setValue("program", requiredProgram, { shouldValidate: true })
+  }, [requiredProgram, form])
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -150,22 +168,36 @@ export function ModernRegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="program" className="text-sm font-medium text-black/80">
-            NSTP Program
+          <label htmlFor="degreeProgram" className="text-sm font-medium text-black/80">
+            Degree Program
           </label>
           <div className="relative">
             <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-darksilver" />
             <Select
-              id="program"
+              id="degreeProgram"
               className="h-11 pl-10 border-silver/30 focus:border-black focus:ring-navy bg-white/50"
-              {...form.register("program")}
+              {...form.register("degreeProgram")}
             >
-              <option value="CWTS">Civic Welfare Training Service (CWTS)</option>
-              <option value="ROTC">Reserved Officers' Training Corps (ROTC)</option>
+              <option value="">{degreeQuery.isLoading ? "Loading programs…" : "Select your degree program"}</option>
+              {(["ROTC", "CWTS"] as const).map((prog) => (
+                <optgroup key={prog} label={`Mandatory ${prog} programs`}>
+                  {(degreePrograms?.[prog] ?? []).map((d) => (
+                    <option key={d.code} value={d.code}>{d.name}</option>
+                  ))}
+                </optgroup>
+              ))}
             </Select>
           </div>
-          {form.formState.errors.program && (
-            <p className="text-xs text-red-600">{form.formState.errors.program.message}</p>
+          {form.formState.errors.degreeProgram && (
+            <p className="text-xs text-red-600">{form.formState.errors.degreeProgram.message}</p>
+          )}
+          {requiredProgram && (
+            <p className="text-xs text-darksilver">
+              Your program requires <span className="font-semibold text-black">{requiredProgram}</span>, so your account will be a {requiredProgram} account.
+            </p>
+          )}
+          {degreeQuery.isError && (
+            <p className="text-xs text-red-600">Unable to load degree programs. Refresh the page and try again.</p>
           )}
         </div>
 
