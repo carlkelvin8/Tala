@@ -10,6 +10,7 @@
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
     "seed": "prisma db seed",
+    "seed:demo-absences": "tsx prisma/seed-demo-absences.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
