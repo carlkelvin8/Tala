@@ -95,7 +95,7 @@ export function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/enrollment" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><EnrollmentPage /></ProtectedRoute>} />
+        <Route path="/enrollment" element={<ProtectedRoute roles={["ADMIN"]}><EnrollmentPage /></ProtectedRoute>} />
         <Route path="/students" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><StudentsPage /></ProtectedRoute>} />
         <Route path="/courses/cwts" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="CWTS" /></ProtectedRoute>} />
         <Route path="/courses/rotc" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><CoursesPage program="ROTC" /></ProtectedRoute>} />

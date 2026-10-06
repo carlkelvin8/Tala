@@ -13,7 +13,7 @@ export const navItems: NavItem[] = [
   { label: "CWTS Dashboard", path: "/dashboard/cwts", roles: ["ADMIN", "IMPLEMENTOR"], programs: ["CWTS"] },
   { label: "ROTC Dashboard", path: "/dashboard/rotc", roles: ["ADMIN", "IMPLEMENTOR"], programs: ["ROTC"] },
   { label: "Dashboard", path: "/dashboard", roles: ["CADET_OFFICER", "STUDENT"] },
-  { label: "Enrollment", path: "/enrollment", roles: ["ADMIN", "IMPLEMENTOR"] },
+  { label: "Enrollment", path: "/enrollment", roles: ["ADMIN"] },
   { label: "Students", path: "/students", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "Sections", path: "/sections", roles: ["ADMIN", "IMPLEMENTOR"] },
   { label: "CWTS Courses", path: "/courses/cwts", roles: ["ADMIN", "IMPLEMENTOR"], programs: ["CWTS"] },
