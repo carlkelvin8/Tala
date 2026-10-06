@@ -409,15 +409,17 @@ async function main() {
   await prisma.gradeItem.deleteMany()
   await prisma.gradeCategory.deleteMany()
 
-  const catQuiz = await prisma.gradeCategory.create({ data: { name: "Quizzes",       weight: 20 } })
-  const catMid  = await prisma.gradeCategory.create({ data: { name: "Midterm Exam",  weight: 30 } })
+  const catQuiz = await prisma.gradeCategory.create({ data: { name: "Quizzes",       weight: 15 } })
+  const catPre  = await prisma.gradeCategory.create({ data: { name: "Prelim Exam",   weight: 20 } })
+  const catMid  = await prisma.gradeCategory.create({ data: { name: "Midterm Exam",  weight: 20 } })
   const catFinal= await prisma.gradeCategory.create({ data: { name: "Final Exam",    weight: 30 } })
-  const catPerf = await prisma.gradeCategory.create({ data: { name: "Performance",   weight: 20 } })
+  const catPerf = await prisma.gradeCategory.create({ data: { name: "Performance",   weight: 15 } })
 
   const items = [
     await prisma.gradeItem.create({ data: { title: "Quiz 1",           maxScore: 50,  categoryId: catQuiz.id } }),
     await prisma.gradeItem.create({ data: { title: "Quiz 2",           maxScore: 50,  categoryId: catQuiz.id } }),
     await prisma.gradeItem.create({ data: { title: "Quiz 3",           maxScore: 50,  categoryId: catQuiz.id } }),
+    await prisma.gradeItem.create({ data: { title: "Prelim Exam",      maxScore: 100, categoryId: catPre.id  } }),
     await prisma.gradeItem.create({ data: { title: "Midterm Exam",     maxScore: 100, categoryId: catMid.id  } }),
     await prisma.gradeItem.create({ data: { title: "Final Exam",       maxScore: 100, categoryId: catFinal.id} }),
     await prisma.gradeItem.create({ data: { title: "Participation",    maxScore: 50,  categoryId: catPerf.id } }),
