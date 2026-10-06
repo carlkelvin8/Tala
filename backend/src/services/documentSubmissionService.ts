@@ -1,9 +1,9 @@
-import { notifySafe } from "./notificationService.js"
+import { notifySafe, notifyStaffSafe } from "./notificationService.js"
 import { DocumentStatus, DocumentType, NstpType, Prisma } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { checkAndMarkAbsences } from "./absenceService.js"
-import { assertUserInProgram } from "./programGuard.js"
+import { assertUserInProgram, userProgram } from "./programGuard.js"
 
 export type CreateSubmissionData = {
   docType: DocumentType
@@ -20,6 +20,14 @@ export async function createSubmission(userId: string, data: CreateSubmissionDat
     data: { userId, ...data },
   })
   await logAudit("CREATE", "DocumentSubmission", submission.id, userId, { docType: data.docType, title: data.title })
+  // Let staff know there is something to review (admins plus the student's program instructors)
+  try {
+    const profile = await prisma.studentProfile.findUnique({ where: { userId }, select: { firstName: true, lastName: true } })
+    const who = profile ? `${profile.firstName} ${profile.lastName}`.trim() : "A student"
+    await notifyStaffSafe(await userProgram(userId), "New Submission to Review", `${who} submitted "${data.title}".`)
+  } catch (error) {
+    console.error("Failed to notify staff of submission:", error instanceof Error ? error.message : error)
+  }
   return submission
 }
 

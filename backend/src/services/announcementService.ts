@@ -24,7 +24,7 @@ export async function createAnnouncement(data: {
     },
   })
   await logAudit("CREATE", "Announcement", announcement.id, data.createdById)
-  await notifyStudentsSafe({ program }, "New Announcement", data.title)
+  await notifyStudentsSafe({ program, excludeUserId: data.createdById }, "New Announcement", data.title)
   return announcement
 }
 

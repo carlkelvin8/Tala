@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken"
 import { createHash, randomInt } from "crypto"
 import { env } from "../lib/env.js"
 import { nstpForDegree } from "../constants/programs.js"
+import { notifyStaffSafe } from "./notificationService.js"
 import { mailConfigured, sendMail } from "../lib/mailer.js"
 
 /* Register a new user account and create the appropriate role-specific profile */
@@ -73,6 +74,7 @@ export async function registerUser(data: {
   })
 
   await logAudit("CREATE", "User", user.id, user.id)
+  await notifyStaffSafe(data.program, "New Enrollment Request", `${data.firstName} ${data.lastName} registered for ${data.program} and is waiting for approval.`)
   return user
 }
 
