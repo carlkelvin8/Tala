@@ -40,6 +40,9 @@ export function EnrollmentPage() {
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [selectedFlight, setSelectedFlight] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
+  // Bulk section assignment: checked enrollment ids and the chosen target section
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  const [bulkSection, setBulkSection] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 8
@@ -152,6 +155,36 @@ export function EnrollmentPage() {
     }
   })
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: async ({ ids, sectionId }: { ids: string[]; sectionId: string }) => {
+      const failures: string[] = []
+      let assigned = 0
+      // Small batches keep the server load reasonable while still being fast
+      for (let i = 0; i < ids.length; i += 5) {
+        const results = await Promise.allSettled(
+          ids.slice(i, i + 5).map((id) =>
+            apiRequest<ApiResponse<any>>(`/api/enrollments/${id}`, { method: "PATCH", body: JSON.stringify({ sectionId }) })
+          )
+        )
+        for (const result of results) {
+          if (result.status === "fulfilled") assigned++
+          else failures.push(result.reason instanceof Error ? result.reason.message : "Update failed")
+        }
+      }
+      return { assigned, failures }
+    },
+    onSuccess: ({ assigned, failures }) => {
+      enrollmentsQuery.refetch()
+      if (assigned > 0) toast.success(`${assigned} student${assigned === 1 ? "" : "s"} assigned to the section`)
+      if (failures.length > 0) toast.error(`${failures.length} could not be assigned: ${failures[0]}`)
+      // Clear the selection; any failed students can simply be re-selected and retried
+      setCheckedIds(new Set())
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Bulk assignment failed")
+    }
+  })
+
   const handleEdit = (enrollment: any) => {
     setEditingEnrollment(enrollment)
     setSelectedFlight(enrollment.flightId || "")
@@ -211,7 +244,34 @@ export function EnrollmentPage() {
   const safePage = Math.min(page, totalPages)
   const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
+  const checkedRows = filteredRows.filter((row: any) => checkedIds.has(row.id))
+  const allFilteredChecked = filteredRows.length > 0 && filteredRows.every((row: any) => checkedIds.has(row.id))
+  const toggleChecked = (id: string) =>
+    setCheckedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  // When every selected student shares a program, only offer that program's sections
+  const checkedPrograms = new Set(checkedRows.map((row: any) => row.user?.program ?? row.section?.course?.nstpType).filter(Boolean))
+  const bulkSectionOptions = (sectionsQuery.data?.data ?? []).filter(
+    (section: any) => checkedPrograms.size !== 1 || !section.course?.nstpType || checkedPrograms.has(section.course.nstpType)
+  )
+
   const columns = [
+    ...(canApprove ? [{
+      header: "",
+      cell: (enrollment: any) => (
+        <input
+          type="checkbox"
+          checked={checkedIds.has(enrollment.id)}
+          onChange={() => toggleChecked(enrollment.id)}
+          aria-label="Select student"
+          className="h-4 w-4 rounded border-silver/50 accent-navy"
+        />
+      ),
+    }] : []),
     {
       header: "Student",
       cell: (enrollment: any) => {
@@ -570,6 +630,47 @@ export function EnrollmentPage() {
               />
             </div>
           ) : (
+            <>
+            {canApprove && (
+              <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-silver/20 bg-white/60 px-4 py-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-darksilver">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredChecked}
+                    onChange={() =>
+                      setCheckedIds(allFilteredChecked ? new Set() : new Set(filteredRows.map((row: any) => row.id)))
+                    }
+                    className="h-4 w-4 rounded border-silver/50 accent-navy"
+                  />
+                  Select all ({filteredRows.length})
+                </label>
+                {checkedRows.length > 0 && (
+                  <>
+                    <span className="text-xs font-semibold text-black">{checkedRows.length} selected</span>
+                    <Select value={bulkSection} onChange={(e) => setBulkSection(e.target.value)} className="h-9 w-56">
+                      <option value="">Select a section</option>
+                      {bulkSectionOptions.map((section: any) => (
+                        <option key={section.id} value={section.id}>{section.code} — {section.name}</option>
+                      ))}
+                    </Select>
+                    <Button
+                      onClick={() => bulkAssignMutation.mutate({ ids: checkedRows.map((row: any) => row.id), sectionId: bulkSection })}
+                      disabled={!bulkSection || bulkAssignMutation.isPending}
+                      className="h-9 bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft"
+                    >
+                      {bulkAssignMutation.isPending ? "Assigning…" : "Assign to section"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setCheckedIds(new Set())}
+                      className="text-xs text-darksilver hover:text-black transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <ResponsiveTableCards
               data={pagedRows}
               columns={columns}
@@ -579,6 +680,7 @@ export function EnrollmentPage() {
                 return p?.firstName && p?.lastName ? `${p.firstName} ${p.lastName}` : (enrollment.user?.email ?? "Student")
               }}
             />
+            </>
           )}
           {filteredRows.length > 0 && (
             <div className="flex items-center justify-between px-6 pt-4 text-sm">
