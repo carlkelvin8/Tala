@@ -23,7 +23,10 @@ export async function createUser(data: {
   // Check if an account with this email already exists
   const existing = await userRepository.findByEmail(data.email)
   if (existing) {
-    throw new Error("Email already in use") // Reject duplicate email registrations
+    // Archived (soft-deleted) accounts still own their email until restored
+    throw new Error(existing.deletedAt
+      ? "This email belongs to an archived account. Restore that account instead of creating a new one."
+      : "Email already in use") // Reject duplicate email registrations
   }
   // Hash the plain-text password using bcrypt before storing it
   const passwordHash = await hashPassword(data.password)
