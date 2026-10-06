@@ -104,7 +104,7 @@ export function App() {
         <Route path="/flights" element={<ProtectedRoute roles={["ADMIN", "CADET_OFFICER"]}><FlightsPage /></ProtectedRoute>} />
         <Route path="/materials" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><MaterialsPage /></ProtectedRoute>} />
         <Route path="/announcements" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><AnnouncementsPage /></ProtectedRoute>} />
-        <Route path="/attendance" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><AttendancePage /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER", "STUDENT"]}><AttendancePage /></ProtectedRoute>} />
         <Route path="/scanner" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "CADET_OFFICER"]}><ScannerPage /></ProtectedRoute>} />
         <Route path="/terms" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR"]}><TermsPage /></ProtectedRoute>} />
         <Route path="/grades" element={<ProtectedRoute roles={["ADMIN", "IMPLEMENTOR", "STUDENT"]}><GradesPage /></ProtectedRoute>} />
