@@ -62,6 +62,7 @@ export async function cleanupTestUsers(emails: string[]) {
   await prisma.implementorProfile.deleteMany({ where: { userId: { in: ids } } })
   await prisma.cadetOfficerProfile.deleteMany({ where: { userId: { in: ids } } })
   await prisma.auditLog.deleteMany({ where: { actorId: { in: ids } } })
+  await prisma.notification.deleteMany({ where: { userId: { in: ids } } })
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
 
