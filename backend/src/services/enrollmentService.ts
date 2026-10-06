@@ -201,6 +201,7 @@ export async function listEnrollments(filters: {
             id: true,
             email: true,
             role: true,
+            program: true,
             studentProfile: {
               select: {
                 firstName: true,

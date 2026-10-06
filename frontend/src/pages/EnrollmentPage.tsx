@@ -39,6 +39,7 @@ export function EnrollmentPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [editingEnrollment, setEditingEnrollment] = useState<any | null>(null)
   const [selectedFlight, setSelectedFlight] = useState<string>("")
+  const [selectedSection, setSelectedSection] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 8
@@ -49,6 +50,12 @@ export function EnrollmentPage() {
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/enrollments?pageSize=100"),
     retry: false,
     refetchInterval: 30000
+  })
+
+  const sectionsQuery = useQuery({
+    queryKey: ["sections"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/sections"),
+    retry: false
   })
 
   const flightsQuery = useQuery({
@@ -73,10 +80,10 @@ export function EnrollmentPage() {
   })
 
   const updateEnrollmentMutation = useMutation({
-    mutationFn: ({ id, flightId }: { id: string; flightId: string | null }) =>
+    mutationFn: ({ id, sectionId, flightId }: { id: string; sectionId: string | null; flightId: string | null }) =>
       apiRequest<ApiResponse<any>>(`/api/enrollments/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ flightId })
+        body: JSON.stringify({ sectionId, flightId })
       }),
     onSuccess: () => {
       enrollmentsQuery.refetch()
@@ -148,12 +155,14 @@ export function EnrollmentPage() {
   const handleEdit = (enrollment: any) => {
     setEditingEnrollment(enrollment)
     setSelectedFlight(enrollment.flightId || "")
+    setSelectedSection(enrollment.sectionId || "")
   }
 
   const handleSaveEdit = () => {
     if (editingEnrollment) {
       updateEnrollmentMutation.mutate({
         id: editingEnrollment.id,
+        sectionId: selectedSection || null,
         flightId: selectedFlight || null
       })
     }
@@ -169,6 +178,11 @@ export function EnrollmentPage() {
 
   const rows = enrollmentsQuery.data?.data ?? []
   const flights = flightsQuery.data?.data ?? []
+  // A student may only join sections of their own NSTP program (the server enforces this too)
+  const editingProgram = editingEnrollment?.user?.program ?? editingEnrollment?.section?.course?.nstpType ?? null
+  const sectionOptions = (sectionsQuery.data?.data ?? []).filter(
+    (section: any) => !editingProgram || !section.course?.nstpType || section.course.nstpType === editingProgram
+  )
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { ALL: rows.length, PENDING: 0, APPROVED: 0, REJECTED: 0 }
@@ -602,6 +616,21 @@ export function EnrollmentPage() {
               </div>
             </div>
           )}
+
+          <FormField label={editingProgram ? `Section (${editingProgram})` : "Section"}>
+            <Select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              className="h-11"
+            >
+              <option value="">No section</option>
+              {sectionOptions.map((section: any) => (
+                <option key={section.id} value={section.id}>
+                  {section.code} — {section.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
 
           <FormField label="Flight">
             <Select
