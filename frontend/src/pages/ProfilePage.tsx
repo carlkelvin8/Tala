@@ -80,7 +80,7 @@ type StudentEnrollmentResponse = {
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Implementer",
+  IMPLEMENTOR: "Instructor",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student",
 }
@@ -248,7 +248,7 @@ export function ProfilePage() {
   const createdAt = profile?.createdAt ? new Date(profile.createdAt) : null
   const formattedCreatedAt = createdAt ? createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : null
 
-  // Accounts without a saved name show their role (e.g. Implementer)
+  // Accounts without a saved name show their role (e.g. Instructor)
   // instead of repeating the email address in the header.
   const displayName = roleProfile?.firstName && roleProfile?.lastName
     ? `${roleProfile.firstName} ${roleProfile.lastName}`
