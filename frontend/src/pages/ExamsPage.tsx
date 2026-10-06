@@ -5,6 +5,7 @@ import { ApiResponse } from "../types"
 import { cn } from "../lib/utils"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
+import { Select } from "../components/ui/select"
 import { Alert } from "../components/ui/alert"
 import { EmptyState } from "../components/ui/empty-state"
 import { toast } from "sonner"
@@ -14,6 +15,7 @@ import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { QuestionManager, QuestionCountBadge } from "../components/exams/question-manager"
 import { getStoredUser } from "../lib/auth"
+import { getEffectiveProgram } from "../lib/programs"
 import { FileText, Sparkles, Clock, Plus, X, RefreshCw, ListChecks } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -27,8 +29,21 @@ export function ExamsPage() {
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
 
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [createForm, setCreateForm] = useState({ title: "", scheduledAt: "", durationMin: 60 })
+  const [createForm, setCreateForm] = useState({ title: "", scheduledAt: "", durationMin: 60, sectionId: "" })
   const [managingSession, setManagingSession] = useState<any | null>(null)
+
+  // Instructors may only create courseworks for sections of their own program (admins may also leave it open to everyone)
+  const isInstructor = user?.role === "IMPLEMENTOR"
+  const ownProgram = getEffectiveProgram(user)
+  const sectionsQuery = useQuery({
+    queryKey: ["sections"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/sections"),
+    enabled: isAdminOrImplementor,
+    retry: false
+  })
+  const sectionOptions = (sectionsQuery.data?.data ?? []).filter(
+    (section: any) => !ownProgram || !section.course?.nstpType || section.course.nstpType === ownProgram
+  )
 
   const sessionsQuery = useQuery({
     queryKey: ["exams"],
@@ -54,15 +69,21 @@ export function ExamsPage() {
   })
 
   const createExamMutation = useMutation({
-    mutationFn: (values: { title: string; scheduledAt: string; durationMin: number }) =>
+    mutationFn: (values: { title: string; scheduledAt: string; durationMin: number; sectionId: string }) =>
       apiRequest<ApiResponse<any>>("/api/exams", {
         method: "POST",
-        body: JSON.stringify(values)
+        body: JSON.stringify({
+          title: values.title,
+          durationMin: values.durationMin,
+          // The datetime-local value has no timezone: convert it so the server stores the time the user picked
+          scheduledAt: new Date(values.scheduledAt).toISOString(),
+          ...(values.sectionId ? { sectionId: values.sectionId } : {})
+        })
       }),
     onSuccess: () => {
       toast.success("Coursework created")
       setShowCreateForm(false)
-      setCreateForm({ title: "", scheduledAt: "", durationMin: 60 })
+      setCreateForm({ title: "", scheduledAt: "", durationMin: 60, sectionId: "" })
       sessionsQuery.refetch()
     },
     onError: (error) => {
@@ -277,7 +298,7 @@ export function ExamsPage() {
         {showCreateForm && isAdminOrImplementor && (
           <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 dark:bg-slate-800/60 p-5">
             <h4 className="text-sm font-semibold text-black mb-4">New Coursework</h4>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label className="text-xs font-medium text-darksilver mb-1 block">Title</label>
                 <Input
@@ -303,11 +324,25 @@ export function ExamsPage() {
                   onChange={(e) => setCreateForm({ ...createForm, durationMin: Number(e.target.value) })}
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-darksilver mb-1 block">
+                  Section{isInstructor ? " *" : ""}
+                </label>
+                <Select
+                  value={createForm.sectionId}
+                  onChange={(e) => setCreateForm({ ...createForm, sectionId: e.target.value })}
+                >
+                  <option value="">{isInstructor ? "Select a section" : "All sections"}</option>
+                  {sectionOptions.map((section: any) => (
+                    <option key={section.id} value={section.id}>{section.code} — {section.name}</option>
+                  ))}
+                </Select>
+              </div>
             </div>
             <div className="mt-4 flex justify-end">
               <Button
                 onClick={() => createExamMutation.mutate(createForm)}
-                disabled={!createForm.title || !createForm.scheduledAt || createExamMutation.isPending}
+                disabled={!createForm.title || !createForm.scheduledAt || (isInstructor && !createForm.sectionId) || createExamMutation.isPending}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 {createExamMutation.isPending ? "Creating..." : "Create Coursework"}
