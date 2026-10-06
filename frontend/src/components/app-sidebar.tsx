@@ -19,7 +19,8 @@ import { getStoredUser, getUserDisplayName, getUserInitials } from "../lib/auth"
 import { logoutSession } from "../lib/api"
 import { cn } from "../lib/utils"
 import { LayoutDashboard, Users, FileText, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Medal, UserCog, User2, Plane, BarChart3, Grid, Target, Calendar, ShieldCheck, ScanLine } from "lucide-react"
-import { roleLabels, roleBadgeColors } from "../lib/roles"
+import { getRoleLabel, roleBadgeColors } from "../lib/roles"
+import { getEffectiveProgram } from "../lib/programs"
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -79,7 +80,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const displayName = currentUser ? getUserDisplayName(currentUser) : "Guest"
   const userInitials = currentUser ? getUserInitials(currentUser) : "G"
-  const roleLabel = currentUser ? roleLabels[currentUser.role] || currentUser.role : "Guest"
+  const roleLabel = currentUser ? getRoleLabel(currentUser.role, getEffectiveProgram(currentUser)) : "Guest"
   const roleColor = currentUser ? roleBadgeColors[currentUser.role] || roleBadgeColors.STUDENT : roleBadgeColors.STUDENT
 
   return (

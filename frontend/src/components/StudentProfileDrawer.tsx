@@ -8,7 +8,7 @@ import { Alert } from "./ui/alert" // Import the Alert component for error messa
 import { LoadingSkeleton } from "./ui/loading-skeleton" // Import the loading skeleton for the loading state
 import { Mail, Phone, MapPin, Calendar, User, Hash, Users, Plane } from "lucide-react" // Import icons for the profile detail rows
 import { getApiFileUrl } from "../lib/display" // Import the utility to convert relative file paths to absolute URLs
-import { roleLabels } from "../lib/roles" // Role display names (e.g. IMPLEMENTOR -> Implementer)
+import { getRoleLabel } from "../lib/roles" // Role display names (e.g. IMPLEMENTOR -> Implementer)
 
 // Props type for the StudentProfileDrawer component
 interface StudentProfileDrawerProps {
@@ -58,7 +58,7 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
             )}
             <div className="flex-1"> {/* Text block next to the avatar */}
               <h3 className="text-lg font-semibold text-black"> {/* User's full name, role name when no profile, or email */}
-                {profile ? `${profile.firstName} ${profile.lastName}` : (roleLabels[user.role as keyof typeof roleLabels] ?? user.email)}
+                {profile ? `${profile.firstName} ${profile.lastName}` : (getRoleLabel(user.role, user.program) || user.email)}
               </h3>
               <p className="text-sm text-darksilver">{user.email}</p> {/* User's email address */}
               <div className="mt-2"> {/* Badge row */}
@@ -66,7 +66,7 @@ export function StudentProfileDrawer({ userId, onClose }: StudentProfileDrawerPr
                   {user.isActive ? "Active" : "Inactive"} {/* Active/inactive status text */}
                 </Badge>
                 <Badge variant="default" className="ml-2"> {/* Role badge with left margin */}
-                  {roleLabels[user.role as keyof typeof roleLabels] ?? user.role} {/* Friendly role name */}
+                  {getRoleLabel(user.role, user.program)} {/* Friendly role name */}
                 </Badge>
               </div>
             </div>

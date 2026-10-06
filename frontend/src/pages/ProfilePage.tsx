@@ -24,6 +24,7 @@ import { AvatarFrameType } from "../lib/avatar"
 import { cn } from "../lib/utils"
 import { relativeTime } from "../lib/display"
 import { getEffectiveProgram } from "../lib/programs"
+import { getRoleLabel } from "../lib/roles"
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(8, "At least 8 characters required"),
@@ -80,7 +81,7 @@ type StudentEnrollmentResponse = {
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Instructor",
+  IMPLEMENTOR: "Implementer",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student",
 }
@@ -248,7 +249,7 @@ export function ProfilePage() {
   const createdAt = profile?.createdAt ? new Date(profile.createdAt) : null
   const formattedCreatedAt = createdAt ? createdAt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : null
 
-  // Accounts without a saved name show their role (e.g. Instructor)
+  // Accounts without a saved name show their role (e.g. Implementer)
   // instead of repeating the email address in the header.
   const displayName = roleProfile?.firstName && roleProfile?.lastName
     ? `${roleProfile.firstName} ${roleProfile.lastName}`
@@ -416,7 +417,7 @@ export function ProfilePage() {
                     <h2 className="text-xl font-bold text-black">{displayName}</h2>
                     <span className={cn("mt-2 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold shadow-soft", accent.bg, accent.text)}>
                       <RoleIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      {roleLabels[role] ?? role}
+                      {role === "IMPLEMENTOR" ? getRoleLabel(role, program) : (roleLabels[role] ?? role)}
                     </span>
 
                     <div className="mt-3 flex items-center gap-2 text-xs text-darksilver">
@@ -610,7 +611,7 @@ export function ProfilePage() {
                       <div className="space-y-6">
                         <div className="grid gap-3 sm:grid-cols-2">
                           <FieldCard icon={Mail} label="Email address" value={email} note="Cannot be changed" />
-                          <FieldCard icon={Shield} label="Account role" value={roleLabels[role] ?? role} note="Assigned by administrator" />
+                          <FieldCard icon={Shield} label="Account role" value={role === "IMPLEMENTOR" ? getRoleLabel(role, program) : (roleLabels[role] ?? role)} note="Assigned by administrator" />
                           {program && (
                             <FieldCard
                               icon={GraduationCap}

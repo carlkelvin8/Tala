@@ -20,6 +20,7 @@ import { ResponsiveTableCards } from "../components/ui/responsive-table-cards"
 import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Search, Sparkles, Users, UserPlus, Shield, Mail, Lock, User, Eye, RefreshCw } from "lucide-react"
 import { cn } from "../lib/utils"
+import { getRoleLabel } from "../lib/roles"
 import { StudentProfileDrawer } from "../components/StudentProfileDrawer"
 
 const schema = z.object({
@@ -35,7 +36,7 @@ type FormValues = z.infer<typeof schema>
 
 const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
   ADMIN: { label: "Admin", color: "text-violet-600", bg: "bg-violet-50" },
-  IMPLEMENTOR: { label: "Instructor", color: "text-royal", bg: "bg-sky-50" },
+  IMPLEMENTOR: { label: "Implementer", color: "text-royal", bg: "bg-sky-50" },
   CADET_OFFICER: { label: "Cadet Officer", color: "text-amber-600", bg: "bg-amber-50" },
   STUDENT: { label: "Student", color: "text-emerald-600", bg: "bg-emerald-50" },
 }
@@ -95,7 +96,9 @@ export function UsersPage() {
     {
       header: "Role",
       cell: (user: any) => {
-        const badge = ROLE_BADGE[user.role] ?? { label: user.role, color: "text-darksilver", bg: "bg-white" }
+        const base = ROLE_BADGE[user.role] ?? { label: user.role, color: "text-darksilver", bg: "bg-white" }
+        // Implementer (CWTS) / Instructor (ROTC)
+        const badge = user.role === "IMPLEMENTOR" ? { ...base, label: getRoleLabel(user.role, user.program ?? "CWTS") } : base
         return (
           <span className={cn("inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold", badge.bg, badge.color)}>
             <Shield className="h-3 w-3" />
@@ -153,7 +156,7 @@ export function UsersPage() {
   const summaryCards = [
     { label: "Total Users", value: roleCounts.total, icon: Users, color: "text-black/80", bg: "bg-silver/20" },
     { label: "Admins", value: roleCounts.ADMIN, icon: Shield, color: "text-violet-600", bg: "bg-violet-50" },
-    { label: "Instructors", value: roleCounts.IMPLEMENTOR, icon: UserPlus, color: "text-royal", bg: "bg-sky-50" },
+    { label: "Implementers / Instructors", value: roleCounts.IMPLEMENTOR, icon: UserPlus, color: "text-royal", bg: "bg-sky-50" },
     { label: "Students", value: roleCounts.STUDENT, icon: User, color: "text-emerald-600", bg: "bg-emerald-50" },
   ]
 
@@ -227,7 +230,7 @@ export function UsersPage() {
           <FormField label="Role" required>
             <Select {...form.register("role")}>
               <option value="STUDENT">Student</option>
-              <option value="IMPLEMENTOR">Instructor</option>
+              <option value="IMPLEMENTOR">Implementer (CWTS) / Instructor (ROTC)</option>
               <option value="CADET_OFFICER">Cadet Officer</option>
               <option value="ADMIN">Admin</option>
             </Select>
@@ -237,7 +240,7 @@ export function UsersPage() {
               <option value="CWTS">CWTS</option>
               <option value="ROTC">ROTC</option>
             </Select>
-            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">Instructors default to CWTS. Choose ROTC for an ROTC instructor.</p>}
+            {isImplementorRole && <p className="mt-1 text-xs text-darksilver">CWTS accounts are called Implementers and ROTC accounts are called Instructors. Defaults to CWTS.</p>}
           </FormField>
           {mutation.isError && <Alert variant="danger" className="md:col-span-2">{(mutation.error as Error).message}</Alert>}
           <div className="md:col-span-2">

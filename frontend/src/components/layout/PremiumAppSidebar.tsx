@@ -22,7 +22,7 @@ import {
   Megaphone, CalendarDays
 } from "lucide-react"
 import { AvatarWithRing } from "../ui/avatar-with-ring"
-import { roleTextColors, roleBgColors, roleLabels } from "../../lib/roles"
+import { roleTextColors, roleBgColors, getRoleLabel } from "../../lib/roles"
 import { programTextColors, programBgColors, getEffectiveProgram } from "../../lib/programs"
 import { type ProgramType } from "../../types"
 
@@ -97,7 +97,7 @@ export function PremiumAppSidebar({ onNavigate, ...props }: React.ComponentProps
                   roleTextColors[user.role], // Role-specific text color
                   roleBgColors[user.role] // Role-specific background color
                 )}>
-                  {roleLabels[user.role]} {/* Human-readable role label */}
+                  {getRoleLabel(user.role, getEffectiveProgram(user))} {/* Human-readable role label (Instructor for ROTC, Implementer for CWTS) */}
                 </span>
               )}
               {getEffectiveProgram(user) && ( // Show the user's NSTP program badge

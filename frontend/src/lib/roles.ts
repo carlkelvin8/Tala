@@ -1,9 +1,17 @@
 export const roleLabels = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Instructor",
+  IMPLEMENTOR: "Implementer",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student"
 } as const
+
+/* Display name for a role. The same IMPLEMENTOR role is called an Instructor in the ROTC program
+   and an Implementer in the CWTS program (an account without a program counts as CWTS). */
+export function getRoleLabel(role?: string | null, program?: string | null): string {
+  if (!role) return "Guest"
+  if (role === "IMPLEMENTOR") return program === "ROTC" ? "Instructor" : "Implementer"
+  return (roleLabels as Record<string, string>)[role] ?? role
+}
 
 export const roleTextColors = {
   ADMIN: "text-violet-600",

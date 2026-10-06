@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { ShieldCheck, Plus, Pencil, Trash2, LogIn, KeyRound, Activity, ChevronDown } from "lucide-react"
 import { apiRequest } from "../lib/api"
 import type { ApiResponse, RoleType } from "../types"
-import { roleLabels } from "../lib/roles"
+import { getRoleLabel } from "../lib/roles"
 import { SearchInput } from "../components/ui/search-input"
 import { Button } from "../components/ui/button"
 import { EmptyState } from "../components/ui/empty-state"
@@ -237,7 +237,7 @@ function AuditLogRow({ log }: { log: AuditLog }) {
           <p className="mt-1 text-[11px] text-darksilver">
             {actorName}
             {showEmail ? ` (${actorEmail})` : ""}
-            {log.actor ? ` · ${roleLabels[log.actor.role] ?? log.actor.role}` : ""}
+            {log.actor ? ` · ${log.actor.role === "IMPLEMENTOR" ? "Instructor / Implementer" : getRoleLabel(log.actor.role)}` : ""}
             {" · "}
             {new Date(log.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
           </p>
@@ -249,7 +249,7 @@ function AuditLogRow({ log }: { log: AuditLog }) {
                   {actorName}
                   {showEmail && <span className="font-normal text-darksilver"> · {actorEmail}</span>}
                 </p>
-                {log.actor && <p className="text-darksilver">Role: {roleLabels[log.actor.role] ?? log.actor.role}</p>}
+                {log.actor && <p className="text-darksilver">Role: {log.actor.role === "IMPLEMENTOR" ? "Instructor / Implementer" : getRoleLabel(log.actor.role)}</p>}
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-darksilver">Action</p>

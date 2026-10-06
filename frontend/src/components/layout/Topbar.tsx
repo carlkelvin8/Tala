@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { getStoredUser, getUserDisplayName } from "../../lib/auth"
 import { logoutSession } from "../../lib/api"
+import { getRoleLabel } from "../../lib/roles"
+import { getEffectiveProgram } from "../../lib/programs"
 import { ConfirmDialog } from "../ui/confirm-dialog"
 import { GlobalSearchButton } from "../global-search"
 import { NotificationsButton } from "../notifications-button"
@@ -40,7 +42,7 @@ const routeLabels: Record<string, string> = {
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
-  IMPLEMENTOR: "Instructor",
+  IMPLEMENTOR: "Implementer",
   CADET_OFFICER: "Cadet Officer",
   STUDENT: "Student",
 }
@@ -64,7 +66,7 @@ export function Topbar({ onOpenSidebar }: TopbarProps) {
 
   const displayName = user ? getUserDisplayName(user) : "Guest"
   const pageLabel = routeLabels[location.pathname] ?? "Overview"
-  const roleLabel = user?.role ? roleLabels[user.role] ?? user.role : "Guest"
+  const roleLabel = user?.role ? (user.role === "IMPLEMENTOR" ? getRoleLabel(user.role, getEffectiveProgram(user)) : roleLabels[user.role] ?? user.role) : "Guest"
   const roleBadge = user?.role ? roleColors[user.role] ?? "bg-silver/20 text-darksilver" : "bg-silver/20 text-darksilver"
 
   const handleLogout = async () => {
