@@ -337,6 +337,11 @@ export function ExamsPage() {
                     <option key={section.id} value={section.id}>{section.code} — {section.name}</option>
                   ))}
                 </Select>
+                {isInstructor && !sectionsQuery.isLoading && sectionOptions.length === 0 && (
+                  <p className="mt-1 text-xs text-red-600">
+                    No {ownProgram ?? ""} sections yet. Create a section first (Sections page), then you can create a coursework for it.
+                  </p>
+                )}
               </div>
             </div>
             <div className="mt-4 flex justify-end">
