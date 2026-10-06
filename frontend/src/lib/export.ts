@@ -3,6 +3,11 @@ import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
 
 export function parseCsv(text: string): string[][] {
+  // Excel's "CSV UTF-8" starts with a BOM, which would corrupt the first header name
+  text = text.replace(/^\uFEFF/, "")
+  // Excel in some locales saves semicolon- or tab-separated files: use whichever the header line uses
+  const headerLine = text.split(/\r?\n/, 1)[0] ?? ""
+  const delimiter = [",", ";", "\t"].reduce((best, d) => (headerLine.split(d).length > headerLine.split(best).length ? d : best), ",")
   const rows: string[][] = []
   let row: string[] = []
   let field = ""
@@ -23,7 +28,7 @@ export function parseCsv(text: string): string[][] {
       }
     } else if (char === '"') {
       inQuotes = true
-    } else if (char === ",") {
+    } else if (char === delimiter) {
       row.push(field)
       field = ""
     } else if (char === "\n" || char === "\r") {

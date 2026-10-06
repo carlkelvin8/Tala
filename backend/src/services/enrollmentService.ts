@@ -1,4 +1,5 @@
 import { EnrollmentStatus, NstpType } from "@prisma/client"
+import { randomUUID } from "crypto"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { userProgram as resolveUserProgram } from "./programGuard.js"
@@ -239,6 +240,10 @@ export async function listEnrollments(filters: {
  * Bulk-import students from parsed CSV rows.
  * Creates User (STUDENT) + StudentProfile + Enrollment per row.
  * Rows are skipped when the email or student number already exists.
+ *
+ * Works in batches (one existence lookup, one password hash, and three bulk inserts
+ * per 200 rows) — the previous row-by-row version made ~5 queries and a bcrypt hash
+ * per student, which timed out on serverless for anything but tiny files.
  */
 export async function importStudents(data: {
   rows: {
@@ -249,6 +254,7 @@ export async function importStudents(data: {
     gender?: string
     birthDate?: string
     contactNo?: string
+    address?: string
     sectionCode?: string
   }[]
   enrollmentStatus?: "PENDING" | "APPROVED"
@@ -262,65 +268,111 @@ export async function importStudents(data: {
   })
   const sectionMap = new Map(sections.map((s) => [s.code.toUpperCase(), { id: s.id, program: s.course?.nstpType ?? null }]))
 
+  // Validate and normalise every row first, dropping duplicates inside the file itself
+  type Prepared = {
+    id: string
+    email: string
+    studentNo: string
+    firstName: string
+    lastName: string
+    gender?: string
+    birthDate?: Date
+    contactNo?: string
+    address?: string
+    sectionId?: string
+    program?: NstpType
+  }
+  const prepared: Prepared[] = []
+  const seenEmails = new Set<string>()
+  const seenStudentNos = new Set<string>()
   for (const row of data.rows) {
-    try {
-      if (!row.email || !row.firstName || !row.lastName || !row.studentNo) {
-        results.failed++
-        results.errors.push(`Missing required fields for row (${row.email || row.studentNo || "unknown"})`)
-        continue
-      }
-
-      const emailExists = await prisma.user.findUnique({ where: { email: row.email.trim().toLowerCase() } })
-      const studentNoExists = await prisma.studentProfile.findUnique({ where: { studentNo: row.studentNo.trim() } })
-      if (emailExists || studentNoExists) {
-        results.skipped++
-        continue
-      }
-
-      const passwordHash = await bcryptModule.hash(data.defaultPassword ?? "Password123!", 10)
-      const sectionInfo = row.sectionCode ? sectionMap.get(row.sectionCode.trim().toUpperCase()) : undefined
-      // A provided-but-unknown section code must fail the row instead of silently
-      // approving the student with no section (which would hide them from rosters).
-      if (row.sectionCode && row.sectionCode.trim() && !sectionInfo) {
-        results.failed++
-        results.errors.push(`${row.email ?? row.studentNo}: Unknown section code "${row.sectionCode.trim().toUpperCase()}"`)
-        continue
-      }
-      const user = await prisma.user.create({
-        data: {
-          email: row.email.trim().toLowerCase(),
-          passwordHash,
-          role: "STUDENT",
-          // Imported students inherit the program of their assigned section
-          ...(sectionInfo?.program ? { program: sectionInfo.program } : {}),
-        },
-      })
-
-      await prisma.studentProfile.create({
-        data: {
-          userId: user.id,
-          studentNo: row.studentNo.trim(),
-          firstName: row.firstName.trim(),
-          lastName: row.lastName.trim(),
-          ...(row.gender?.trim() ? { gender: row.gender.trim() } : {}),
-          ...(row.birthDate && !Number.isNaN(new Date(row.birthDate).getTime()) ? { birthDate: new Date(row.birthDate) } : {}),
-          ...(row.contactNo?.trim() ? { contactNo: row.contactNo.trim() } : {}),
-          ...(sectionInfo ? { sectionId: sectionInfo.id } : {}),
-        },
-      })
-
-      await prisma.enrollment.create({
-        data: {
-          userId: user.id,
-          ...(sectionInfo ? { sectionId: sectionInfo.id } : {}),
-          status: data.enrollmentStatus ?? "APPROVED",
-        },
-      })
-
-      results.created++
-    } catch (error) {
+    if (!row.email || !row.firstName || !row.lastName || !row.studentNo) {
       results.failed++
-      results.errors.push(`${row.email ?? "unknown"}: ${error instanceof Error ? error.message : "Unknown error"}`)
+      results.errors.push(`Missing required fields for row (${row.email || row.studentNo || "unknown"})`)
+      continue
+    }
+    const email = row.email.trim().toLowerCase()
+    const studentNo = row.studentNo.trim()
+    if (seenEmails.has(email) || seenStudentNos.has(studentNo)) {
+      results.skipped++
+      continue
+    }
+    const sectionCode = row.sectionCode?.trim().toUpperCase()
+    const sectionInfo = sectionCode ? sectionMap.get(sectionCode) : undefined
+    // A provided-but-unknown section code must fail the row instead of silently
+    // approving the student with no section (which would hide them from rosters).
+    if (sectionCode && !sectionInfo) {
+      results.failed++
+      results.errors.push(`${email}: Unknown section code "${sectionCode}"`)
+      continue
+    }
+    seenEmails.add(email)
+    seenStudentNos.add(studentNo)
+    prepared.push({
+      id: randomUUID(),
+      email,
+      studentNo,
+      firstName: row.firstName.trim(),
+      lastName: row.lastName.trim(),
+      gender: row.gender?.trim() || undefined,
+      birthDate: row.birthDate && !Number.isNaN(new Date(row.birthDate).getTime()) ? new Date(row.birthDate) : undefined,
+      contactNo: row.contactNo?.trim() || undefined,
+      address: row.address?.trim() || undefined,
+      sectionId: sectionInfo?.id,
+      // Imported students inherit the program of their assigned section
+      program: sectionInfo?.program ?? undefined,
+    })
+  }
+
+  if (prepared.length > 0) {
+    // One lookup for everything that already exists
+    const [existingUsers, existingProfiles] = await Promise.all([
+      prisma.user.findMany({ where: { email: { in: prepared.map((r) => r.email) } }, select: { email: true } }),
+      prisma.studentProfile.findMany({ where: { studentNo: { in: prepared.map((r) => r.studentNo) } }, select: { studentNo: true } }),
+    ])
+    const takenEmails = new Set(existingUsers.map((u) => u.email))
+    const takenStudentNos = new Set(existingProfiles.map((p) => p.studentNo))
+    const fresh = prepared.filter((r) => {
+      if (takenEmails.has(r.email) || takenStudentNos.has(r.studentNo)) {
+        results.skipped++
+        return false
+      }
+      return true
+    })
+
+    // Every imported student shares the default password, so hash it once
+    const passwordHash = await bcryptModule.hash(data.defaultPassword ?? "Password123!", 10)
+    const status = data.enrollmentStatus ?? "APPROVED"
+
+    for (let i = 0; i < fresh.length; i += 200) {
+      const chunk = fresh.slice(i, i + 200)
+      try {
+        await prisma.$transaction([
+          prisma.user.createMany({
+            data: chunk.map((r) => ({ id: r.id, email: r.email, passwordHash, role: "STUDENT" as const, ...(r.program ? { program: r.program } : {}) })),
+          }),
+          prisma.studentProfile.createMany({
+            data: chunk.map((r) => ({
+              userId: r.id,
+              studentNo: r.studentNo,
+              firstName: r.firstName,
+              lastName: r.lastName,
+              ...(r.gender ? { gender: r.gender } : {}),
+              ...(r.birthDate ? { birthDate: r.birthDate } : {}),
+              ...(r.contactNo ? { contactNo: r.contactNo } : {}),
+              ...(r.address ? { address: r.address } : {}),
+              ...(r.sectionId ? { sectionId: r.sectionId } : {}),
+            })),
+          }),
+          prisma.enrollment.createMany({
+            data: chunk.map((r) => ({ userId: r.id, status, ...(r.sectionId ? { sectionId: r.sectionId } : {}) })),
+          }),
+        ])
+        results.created += chunk.length
+      } catch (error) {
+        results.failed += chunk.length
+        results.errors.push(`Batch of ${chunk.length} failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+      }
     }
   }
 

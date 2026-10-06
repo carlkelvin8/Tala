@@ -110,18 +110,23 @@ export function EnrollmentPage() {
       const text = await file.text()
       const parsed = parseCsv(text)
       if (parsed.length < 2) throw new Error("CSV is empty")
-      const headers = parsed[0].map((h) => h.trim().toLowerCase().replace(/\s+/g, ""))
+      // Header names are matched loosely: case, spaces, "_" and "-" are ignored, and common aliases work
+      const headers = parsed[0].map((h) => h.trim().toLowerCase().replace(/[\s_-]+/g, ""))
+      const aliases: Record<string, string> = {
+        email: "email", emailaddress: "email",
+        firstname: "firstName", first: "firstName",
+        lastname: "lastName", last: "lastName", surname: "lastName",
+        studentno: "studentNo", studentnumber: "studentNo", studentid: "studentNo", idnumber: "studentNo",
+        gender: "gender", sex: "gender",
+        birthdate: "birthDate", birthday: "birthDate", dateofbirth: "birthDate",
+        contactno: "contactNo", contactnumber: "contactNo", contact: "contactNo", phone: "contactNo", mobile: "contactNo",
+        address: "address", fulladdress: "address",
+        sectioncode: "sectionCode", section: "sectionCode",
+      }
       const rows = parsed.slice(1).map((cells) => {
         const row: Record<string, string> = {}
         headers.forEach((header, i) => {
-          const key =
-            header === "firstname" ? "firstName" :
-            header === "lastname" ? "lastName" :
-            header === "studentno" ? "studentNo" :
-            header === "birthdate" ? "birthDate" :
-            header === "contactno" ? "contactNo" :
-            header === "sectioncode" ? "sectionCode" : header
-          row[key] = (cells[i] ?? "").trim()
+          row[aliases[header] ?? header] = (cells[i] ?? "").trim()
         })
         return row
       })
@@ -494,7 +499,7 @@ export function EnrollmentPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
         >
-          <SectionCard title="CSV Bulk Import" description="Import a whole block of students from a CSV file (columns: email, firstName, lastName, studentNo, gender, birthDate, contactNo, sectionCode)" className="shadow-card">
+          <SectionCard title="CSV Bulk Import" description="Import a whole block of students from a CSV file (columns: email, firstName, lastName, studentNo, gender, birthDate, contactNo, address, sectionCode)" className="shadow-card">
             <div className="flex flex-wrap items-center gap-3 px-6 pb-4">
               <input
                 ref={importFileRef}
@@ -538,7 +543,7 @@ export function EnrollmentPage() {
                 )}
               </Button>
               <a
-                href="data:text/csv;charset=utf-8,email,firstName,lastName,studentNo,gender,birthDate,contactNo,sectionCode%0Ajuandelacruz%40example.com,Juan,Dela+Cruz,2025-00001,Male,2005-01-15,09171234567,CWTS-SEC-A"
+                href="data:text/csv;charset=utf-8,email,firstName,lastName,studentNo,gender,birthDate,contactNo,address,sectionCode%0Ajuandelacruz%40example.com,Juan,Dela+Cruz,2025-00001,Male,2005-01-15,09171234567,Pasay+City,CWTS-SEC-A"
                 download="import-template.csv"
                 className="text-xs text-royal hover:text-navy underline"
               >
