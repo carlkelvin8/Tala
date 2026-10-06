@@ -1,4 +1,5 @@
 // Import the MaterialCategory enum from Prisma for type-safe category values
+import { notifyStudentsSafe } from "./notificationService.js"
 import { MaterialCategory, NstpType } from "@prisma/client"
 // Import the Prisma client for database access
 import { prisma } from "../lib/prisma.js"
@@ -44,6 +45,8 @@ export async function createMaterial(data: {
   const material = await prisma.learningMaterial.create({ data: { ...createData, program } })
   // Log the material creation event to the audit trail with the creator's ID
   await logAudit("CREATE", "LearningMaterial", material.id, data.createdById)
+  // Announce new materials to the students who can see them (section-targeted ones go to that section only)
+  await notifyStudentsSafe({ sectionId: data.sectionId, program }, "New Material", data.title)
   // Return the created material object
   return material
 }

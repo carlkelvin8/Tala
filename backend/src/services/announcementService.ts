@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { NstpType } from "@prisma/client"
+import { notifyStudentsSafe } from "./notificationService.js"
 
 /* Create a new announcement. Optionally scoped to the caller's program so
    implementors cannot publish announcements outside their own program. */
@@ -23,6 +24,7 @@ export async function createAnnouncement(data: {
     },
   })
   await logAudit("CREATE", "Announcement", announcement.id, data.createdById)
+  await notifyStudentsSafe({ program }, "New Announcement", data.title)
   return announcement
 }
 

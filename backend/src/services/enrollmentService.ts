@@ -2,6 +2,7 @@ import { EnrollmentStatus, NstpType } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
 import { userProgram as resolveUserProgram } from "./programGuard.js"
+import { notifySafe } from "./notificationService.js"
 
 /* Keep the student's profile section in sync with their active enrollment so
    section-scoped list endpoints never collapse to the whole database. */
@@ -151,6 +152,15 @@ export async function updateEnrollmentStatus(id: string, status: EnrollmentStatu
     await syncStudentSection(enrollment.userId, null)
   }
   await logAudit("UPDATE", "Enrollment", id)
+  if (status === EnrollmentStatus.APPROVED) {
+    await notifySafe(
+      enrollment.userId,
+      "Enrollment Approved",
+      enrollment.section ? `Your enrollment has been approved. Section: ${enrollment.section.code}.` : "Your enrollment has been approved."
+    )
+  } else if (status === EnrollmentStatus.REJECTED) {
+    await notifySafe(enrollment.userId, "Enrollment Rejected", "Your enrollment was not approved. Please contact your instructor.")
+  }
   return updated
 }
 

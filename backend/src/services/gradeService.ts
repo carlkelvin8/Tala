@@ -5,6 +5,7 @@ import { logAudit } from "./auditService.js"
 // Import program scoping helpers to keep program-locked accounts inside their program
 import { assertUserInProgram } from "./programGuard.js"
 import { programUserScope } from "./programScope.js"
+import { notifySafe } from "./notificationService.js"
 import { NstpType } from "@prisma/client"
 import { ComputationMode, getGradeConfig } from "./gradeConfigService.js"
 
@@ -191,6 +192,7 @@ export async function encodeStudentGrade(studentId: string, gradeItemId: string,
   })
   // Log the grade encoding event to the audit trail with the encoder's ID
   await logAudit("CREATE", "StudentGrade", grade.id, encodedById)
+  await notifySafe(studentId, "New Grade Posted", `${gradeItem.title}: ${score} / ${gradeItem.maxScore}${remarks ? ` — ${remarks}` : ""}`)
   // Return the created student grade object
   return grade
 }
@@ -264,6 +266,7 @@ export async function updateGrade(id: string, score: number, userId: string, sco
   })
   // Log the grade update event to the audit trail
   await logAudit("UPDATE", "StudentGrade", grade.id, userId)
+  await notifySafe(existing.student.id, "Grade Updated", `${existing.gradeItem.title}: ${score} / ${existing.gradeItem.maxScore}${remarks ? ` — ${remarks}` : ""}`)
   // Return the updated student grade object
   return grade
 }

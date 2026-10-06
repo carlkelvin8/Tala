@@ -1,3 +1,4 @@
+import { notifySafe } from "./notificationService.js"
 import { DocumentStatus, DocumentType, NstpType, Prisma } from "@prisma/client"
 import { prisma } from "../lib/prisma.js"
 import { logAudit } from "./auditService.js"
@@ -55,6 +56,11 @@ export async function reviewSubmission(
   })
 
   await logAudit("UPDATE", "DocumentSubmission", id, reviewedById, { status, remarks })
+  await notifySafe(
+    existing.userId,
+    status === "APPROVED" ? "Submission Approved" : "Submission Rejected",
+    `Your submission "${existing.title}" was ${status === "APPROVED" ? "approved" : "rejected"}.${remarks ? ` Remarks: ${remarks}` : ""}`
+  )
 
   if (status === "APPROVED" && existing.dateFrom && existing.dateTo) {
     const absentRecords = await prisma.attendanceRecord.findMany({
