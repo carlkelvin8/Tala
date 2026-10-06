@@ -1,10 +1,14 @@
 /* Tala NSTP — service worker: offline shell + runtime caching */
-const CACHE_NAME = "tala-cache-v1"
+const CACHE_NAME = "tala-cache-v2"
 const OFFLINE_URLS = ["/", "/index.html", "/manifest.webmanifest", "/icon.png", "/icon-maskable.png", "/image.png"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_URLS)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      // One missing file must not abort the whole install, so each URL is cached on its own
+      .then((cache) => Promise.all(OFFLINE_URLS.map((url) => cache.add(url).catch(() => undefined))))
+      .then(() => self.skipWaiting())
   )
 })
 
