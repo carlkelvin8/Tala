@@ -1,4 +1,7 @@
+import { useEffect } from "react"
 import { cn } from "../lib/utils"
+import { getStoredUser } from "../lib/auth"
+import { getEffectiveProgram } from "../lib/programs"
 
 export const PROGRAM_SCOPE_OPTIONS = [
   { value: "", label: "All programs", hint: "Everyone sees it" },
@@ -10,10 +13,19 @@ export const PROGRAM_SCOPE_OPTIONS = [
    Same saved values as a plain dropdown ("" | "CWTS" | "ROTC"), so stored
    data and backend validation are unchanged — only the UI is clearer. */
 export function ProgramScopePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  // "All programs" and the other program are admin-only choices: everyone else
+  // (e.g. a CWTS instructor) can only publish to their own program.
+  const lockedProgram = getEffectiveProgram(getStoredUser())
+  const options = lockedProgram ? PROGRAM_SCOPE_OPTIONS.filter((opt) => opt.value === lockedProgram) : PROGRAM_SCOPE_OPTIONS
+
+  useEffect(() => {
+    if (lockedProgram && value !== lockedProgram) onChange(lockedProgram)
+  }, [lockedProgram, value, onChange])
+
   return (
-    <div role="radiogroup" aria-label="Program scope" className="grid grid-cols-3 gap-2">
-      {PROGRAM_SCOPE_OPTIONS.map((opt) => {
-        const selected = value === opt.value
+    <div role="radiogroup" aria-label="Program scope" className={cn("grid gap-2", lockedProgram ? "grid-cols-1" : "grid-cols-3")}>
+      {options.map((opt) => {
+        const selected = lockedProgram ? true : value === opt.value
         return (
           <button
             key={opt.value || "all"}
