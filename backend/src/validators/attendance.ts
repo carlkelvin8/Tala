@@ -1,7 +1,8 @@
 import { z } from "zod"
 
 export const scanQRSchema = z.object({
-  token: z.string().min(1, "QR token is required")
+  token: z.string().min(1, "QR token is required"),
+  sectionId: z.string().uuid().optional()
 })
 
 export const attendanceQuerySchema = z.object({

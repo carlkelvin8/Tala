@@ -69,6 +69,7 @@ export function GradesPage() {
   const categoryForm = useForm<CategoryFormValues>({ resolver: zodResolver(categorySchema) })
   const itemForm = useForm<ItemFormValues>({ resolver: zodResolver(itemSchema) })
   const [studentSearch, setStudentSearch] = useState("")
+  const [gradeSort, setGradeSort] = useState<{ key: "student" | "category" | "item" | "score"; direction: "asc" | "desc" }>({ key: "category", direction: "asc" })
   const [showStudentDropdown, setShowStudentDropdown] = useState(false)
 
   const [editingGrade, setEditingGrade] = useState<any | null>(null)
@@ -252,6 +253,17 @@ export function GradesPage() {
   const confirmDeleteCategory = () => { if (deletingCategory) { deleteCategoryMutation.mutate(deletingCategory.id); setDeletingCategory(null) } }
 
   const rows = gradesQuery.data?.data ?? []
+  const sortedRows = [...rows].sort((a: any, b: any) => {
+    const value = (row: any) => {
+      if (gradeSort.key === "score") return Number(row.score) / Math.max(1, Number(row.gradeItem?.maxScore ?? 1))
+      if (gradeSort.key === "student") return `${row.student?.studentProfile?.lastName ?? ""} ${row.student?.studentProfile?.firstName ?? row.student?.email ?? ""}`.toLowerCase()
+      if (gradeSort.key === "category") return (row.gradeItem?.category?.name ?? "").toLowerCase()
+      return (row.gradeItem?.title ?? "").toLowerCase()
+    }
+    const left = value(a), right = value(b)
+    const result = typeof left === "number" && typeof right === "number" ? left - right : String(left).localeCompare(String(right))
+    return result * (gradeSort.direction === "asc" ? 1 : -1)
+  })
   const categories = categoriesQuery.data?.data ?? []
   const items = itemsQuery.data?.data ?? []
 
@@ -470,6 +482,14 @@ export function GradesPage() {
 
       {activeTab === "grades" && (
         <>
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-silver/30 bg-white px-4 py-3 shadow-card">
+            <span className="mr-1 text-sm font-semibold text-black">Sort grades by</span>
+            {([["category", "Category"], ["item", "Assessment"], ["student", "Student"], ["score", "Score"]] as const).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setGradeSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }))} className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold", gradeSort.key === key ? "bg-navy text-white" : "bg-silver/20 text-darksilver hover:bg-silver/40")}>
+                {label}{gradeSort.key === key ? (gradeSort.direction === "asc" ? " ↑" : " ↓") : ""}
+              </button>
+            ))}
+          </div>
           {isStudent && (totalQuery.data?.data ?? null) && (
             <SectionCard title="Total Grade — This Semester" description="Your combined grade across all categories." className="shadow-card">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
@@ -581,7 +601,7 @@ export function GradesPage() {
             {gradesQuery.isLoading ? <LoadingSkeleton rows={3} columns={4} /> : rows.length === 0 ? (
               <EmptyState title="No grades recorded yet" description="Start tracking academic performance by encoding the first grade entry." />
             ) : (
-              <ResponsiveTableCards data={rows} columns={gradeColumns} rowKey={(grade) => grade.id} renderTitle={(grade) => grade.gradeItem?.title ?? "Grade"} />
+              <ResponsiveTableCards data={sortedRows} columns={gradeColumns} rowKey={(grade) => grade.id} renderTitle={(grade) => grade.gradeItem?.title ?? "Grade"} />
             )}
           </SectionCard>
         </>

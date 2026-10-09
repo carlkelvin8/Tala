@@ -175,6 +175,8 @@ export function SectionsPage() {
   })
 
   const sections = sectionsQuery.data?.data ?? []
+  const generalSections = user?.role === "ADMIN" ? sections.filter((section: any) => !section.courseId) : []
+  const courseSections = sections.filter((section: any) => !!section.courseId)
   const courses = coursesQuery.data?.data ?? []
 
   const totalSections = useMemo(() => sections.length, [sections])
@@ -342,9 +344,9 @@ export function SectionsPage() {
                 <Input placeholder="e.g. Section 1-A" {...createForm.register("name")} className="h-11 pl-10" />
               </div>
             </FormField>
-            <FormField label="Course" error={createForm.formState.errors.courseId?.message}>
+            <FormField label={user?.role === "ADMIN" ? "Course (leave blank for General section)" : "Course"} error={createForm.formState.errors.courseId?.message}>
               <Select {...createForm.register("courseId")}>
-                <option value="">No course (optional)</option>
+                {user?.role === "ADMIN" && <option value="">General section (admin managed)</option>}
                 {courses.map((course: any) => (
                   <option key={course.id} value={course.id}>
                     {course.code} - {course.name}
@@ -367,7 +369,13 @@ export function SectionsPage() {
         </FormSection>
       )}
 
-      <SectionCard title="All Sections" description="Class sections in the system" className="shadow-card">
+      {user?.role === "ADMIN" && <SectionCard title="General Sections" description="Sections not attached to a CWTS or ROTC course; managed by administrators." className="shadow-card">
+        {generalSections.length === 0 ? <EmptyState title="No general sections" description="Create a section and leave its course unassigned to add one here." /> : (
+          <ResponsiveTableCards data={generalSections} columns={columns} rowKey={(section) => section.id} renderTitle={(section) => section.code} />
+        )}
+      </SectionCard>}
+
+      <SectionCard title="Course Sections" description="Class sections attached to a program course" className="shadow-card">
         {sectionsQuery.isError && (
           <Alert variant="danger">
             {(sectionsQuery.error as Error).message === "Unauthorized"
@@ -377,7 +385,7 @@ export function SectionsPage() {
         )}
         {sectionsQuery.isLoading ? (
           <LoadingSkeleton rows={3} columns={3} />
-        ) : sections.length === 0 ? (
+        ) : courseSections.length === 0 ? (
           <EmptyState
             title="No sections yet"
             description={
@@ -388,7 +396,7 @@ export function SectionsPage() {
           />
         ) : (
           <ResponsiveTableCards
-            data={sections}
+            data={courseSections}
             columns={columns}
             rowKey={(section) => section.id}
             renderTitle={(section) => section.code}

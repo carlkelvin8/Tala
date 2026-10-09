@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest } from "../lib/api"
 import { ApiResponse } from "../types"
 import { Button } from "../components/ui/button"
@@ -7,6 +7,8 @@ import { ScanLine, CheckCircle2, XCircle, Camera, Sparkles } from "lucide-react"
 import { getFullName } from "../lib/display"
 import { toast } from "sonner"
 import { cn } from "../lib/utils"
+import { getStoredUser } from "../lib/auth"
+import { Select } from "../components/ui/select"
 
 type ScanResponse = {
   action?: "CHECK_IN" | "CHECK_OUT"
@@ -26,6 +28,13 @@ export function ScannerPage() {
   const processingRef = useRef(false)
   const lastTokenRef = useRef<string | null>(null)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [sectionId, setSectionId] = useState("")
+  const isAdmin = getStoredUser()?.role === "ADMIN"
+  const sectionsQuery = useQuery({
+    queryKey: ["scanner-sections"],
+    queryFn: () => apiRequest<ApiResponse<Array<{ id: string; code: string; name: string }>>>("/api/sections"),
+    enabled: true,
+  })
 
   const scanMutation = useMutation({
     mutationFn: (token: string) => {
@@ -33,7 +42,7 @@ export function ScannerPage() {
       lastTokenRef.current = token
       return apiRequest<ApiResponse<ScanResponse>>("/api/attendance/scan", {
         method: "POST",
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, ...(sectionId ? { sectionId } : {}) }),
       })
     },
     onSuccess: (data) => {
@@ -67,6 +76,10 @@ export function ScannerPage() {
   }
 
   const startScanning = () => {
+    if (!isAdmin && !sectionId) {
+      setScanResult({ success: false, message: "Select your section before scanning attendance." })
+      return
+    }
     if (!navigator.onLine) {
       setScanResult({ success: false, message: "You are offline. Connect to the internet before scanning." })
       return
@@ -189,6 +202,14 @@ export function ScannerPage() {
 
       <div className="rounded-2xl border border-silver/30 bg-white p-6 sm:p-8 shadow-card">
         <div className="flex flex-col items-center gap-6">
+          <div className="w-full max-w-[480px]">
+            <label htmlFor="scanner-section" className="mb-2 block text-sm font-medium text-black">Attendance section</label>
+            <Select id="scanner-section" value={sectionId} onChange={(event) => setSectionId(event.target.value)} className="h-11">
+              {isAdmin && <option value="">General scan (no section check)</option>}
+              {(sectionsQuery.data?.data ?? []).map((section) => <option key={section.id} value={section.id}>{section.code} · {section.name}</option>)}
+            </Select>
+            {sectionId && <p className="mt-1 text-xs text-darksilver">Students outside this section will be rejected with “Not enrolled in this section.”</p>}
+          </div>
           {isScanning ? (
             <div className="relative w-full max-w-[480px] overflow-hidden rounded-2xl border border-silver/30 bg-black dark:bg-slate-950 shadow-elevated">
               <video

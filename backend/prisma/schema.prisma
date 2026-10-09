@@ -379,6 +379,7 @@ model ExamSession {
   id          String    @id @default(uuid())
   title       String
   description String?
+  fileUrl     String?
   durationMin Int
   scheduledAt DateTime
   status      ExamStatus @default(DRAFT)
@@ -422,6 +423,8 @@ model ExamAttempt {
   focusLosses  Int      @default(0)
   violations   Int      @default(0)
   isLocked     Boolean  @default(false)
+  score        Float?
+  answers      Json?
   createdAt    DateTime @default(now())
 
   examSession ExamSession @relation(fields: [examSessionId], references: [id])

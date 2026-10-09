@@ -5,6 +5,7 @@ import { z } from "zod"
 export const examSessionSchema = z.object({
   title: z.string().min(1),                    // Exam title must not be empty
   description: z.string().optional(),          // Optional longer description of the exam
+  fileUrl: z.string().max(7_000_000).optional(),
   durationMin: z.number().int().positive(),    // Duration in minutes — must be a positive integer
   scheduledAt: z.string(),                     // ISO date-time string for when the exam is scheduled
   sectionId: z.string().uuid().optional(),     // Optional UUID to restrict the exam to a specific section
@@ -14,6 +15,10 @@ export const examSessionSchema = z.object({
 /* Schema for starting an exam attempt */
 export const examAttemptSchema = z.object({
   examSessionId: z.string().uuid() // UUID of the exam session the student is attempting
+})
+
+export const examAnswersSchema = z.object({
+  answers: z.array(z.object({ questionId: z.string().uuid(), answer: z.string().max(5000) })).max(500).optional().default([])
 })
 
 /* Schema for logging a monitoring event during an exam attempt */

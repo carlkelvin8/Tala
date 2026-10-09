@@ -1,6 +1,6 @@
 import { Context } from "hono"
 import { ok, fail } from "../lib/response.js"
-import { createExamQuestion, createExamSession, deleteExamQuestion, endExamAttempt, listExamQuestions, listExamSessions, listExamAttempts, logMonitoringEvent, startExamAttempt, updateExamQuestion, updateExamSessionStatus } from "../services/examService.js"
+import { createExamQuestion, createExamSession, deleteExamQuestion, endExamAttempt, listAttemptQuestions, listExamQuestions, listExamSessions, listExamAttempts, logMonitoringEvent, startExamAttempt, updateExamQuestion, updateExamSessionStatus } from "../services/examService.js"
 import { getAuthUser } from "../middlewares/auth.js"
 import { resolveScopeProgram } from "../services/programScope.js"
 import { RoleType } from "@prisma/client"
@@ -98,11 +98,22 @@ export async function endAttempt(c: Context) {
     // Extract the attempt ID from the URL path parameter
     const id = c.req.param("id")
     // Delegate to the exam service to set the endedAt timestamp on the attempt
-    const attempt = await endExamAttempt(id, authUser.id)
+    const body = await c.req.json().catch(() => ({}))
+    const attempt = await endExamAttempt(id, authUser.id, body.answers ?? [])
     // Return the updated attempt object
     return c.json(ok("Exam attempt ended", attempt))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "End failed"), 400)
+  }
+}
+
+export async function listAttemptQuestionsHandler(c: Context) {
+  try {
+    const authUser = getAuthUser(c)
+    const questions = await listAttemptQuestions(c.req.param("id"), authUser.id)
+    return c.json(ok("Coursework questions fetched", questions))
+  } catch (error) {
+    return c.json(fail(error instanceof Error ? error.message : "Failed to fetch questions"), 400)
   }
 }
 

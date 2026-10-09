@@ -170,7 +170,7 @@ export function CoursesPage({ program }: { program: ProgramType }) {
       }
     },
     {
-      header: "Sections",
+      header: "Sections / Open slots",
       cell: (course: any) => {
         const count = course._count?.sections ?? 0
         const isFull = count >= MAX_SECTIONS_PER_COURSE
@@ -182,7 +182,7 @@ export function CoursesPage({ program }: { program: ProgramType }) {
               !isFull && "bg-white text-darksilver border-silver/30"
             )}
           >
-            {count} / {MAX_SECTIONS_PER_COURSE}
+            {count} used · {Math.max(0, MAX_SECTIONS_PER_COURSE - count)} open
           </Badge>
         )
       }

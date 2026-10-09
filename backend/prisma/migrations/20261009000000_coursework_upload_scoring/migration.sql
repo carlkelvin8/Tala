@@ -1,0 +1,3 @@
+ALTER TABLE "ExamSession" ADD COLUMN "fileUrl" TEXT;
+ALTER TABLE "ExamAttempt" ADD COLUMN "score" DOUBLE PRECISION;
+ALTER TABLE "ExamAttempt" ADD COLUMN "answers" JSONB;

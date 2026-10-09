@@ -39,6 +39,7 @@ export function LeaderboardPage() {
   const [visibleCount, setVisibleCount] = useState(RANK_PAGE_SIZE)
   // Admins see every program by default and can narrow to one; staff and students are scoped server-side
   const isAdmin = getStoredUser()?.role === "ADMIN"
+  const currentUserId = getStoredUser()?.id
   const [program, setProgram] = useState<"ALL" | "CWTS" | "ROTC">("ALL")
 
   const { data, isLoading, isFetching, error } = useQuery({
@@ -56,6 +57,7 @@ export function LeaderboardPage() {
   const topThree = entries.slice(0, 3)
   const rest = entries.slice(3)
   const maxPoints = entries[0]?.points ?? 1
+  const personalEntry = entries.find((entry) => entry.userId === currentUserId)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -91,6 +93,19 @@ export function LeaderboardPage() {
             </button>
           ))}
         </div>
+      )}
+
+      {!isAdmin && personalEntry && (
+        <SectionCard title="Your Standing" description="Your current position in this program's attendance leaderboard">
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-gold/40 bg-amber-50/60 px-4 py-4">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy text-lg font-extrabold text-white">#{personalEntry.rank}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-black">{personalEntry.name}</p>
+              <p className="text-xs text-darksilver">{personalEntry.sectionName ?? "No section assigned"} · {personalEntry.attendanceRate}% attendance</p>
+            </div>
+            <span className="text-lg font-extrabold text-navy">{personalEntry.points} pts</span>
+          </div>
+        </SectionCard>
       )}
 
       {isLoading && (
@@ -143,7 +158,7 @@ export function LeaderboardPage() {
           <SectionCard title="Full Rankings" description={`${entries.length} ranked students`}>
             <div className="space-y-2">
               {rest.slice(0, visibleCount).map((entry) => (
-                <div key={entry.userId} className="rounded-xl border border-silver/30 bg-white/50 px-4 py-3 transition-colors hover:bg-white">
+                <div key={entry.userId} className={cn("rounded-xl border px-4 py-3 transition-colors hover:bg-white", entry.userId === currentUserId ? "border-gold/60 bg-amber-50/60 ring-1 ring-gold/20" : "border-silver/30 bg-white/50")}>
                   <div className="flex items-center gap-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-silver/20 text-sm font-bold text-darksilver tabular-nums">
                       {entry.rank}

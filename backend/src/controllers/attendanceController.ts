@@ -37,7 +37,7 @@ export async function scanQRHandler(c: Context) {
   try {
     const authUser = getAuthUser(c)
     const body = await c.req.json()
-    const result = await scanQR(body.token, authUser.id, resolveScopeProgram(authUser))
+    const result = await scanQR(body.token, authUser.id, resolveScopeProgram(authUser), body.sectionId)
     return c.json(ok("Attendance recorded", result))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Scan failed"), 400)

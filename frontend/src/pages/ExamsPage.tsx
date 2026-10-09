@@ -27,6 +27,8 @@ export function ExamsPage() {
   const [timeLeft, setTimeLeft] = useState(0)
   const [running, setRunning] = useState(false)
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [courseworkFileUrl, setCourseworkFileUrl] = useState("")
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createForm, setCreateForm] = useState({ title: "", scheduledAt: "", durationMin: 60, sectionId: "" })
@@ -56,6 +58,11 @@ export function ExamsPage() {
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams/attempts"),
     enabled: isStudent
   })
+  const attemptQuestionsQuery = useQuery({
+    queryKey: ["attempt-questions", currentAttemptId],
+    queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/exams/attempts/${currentAttemptId}/questions`),
+    enabled: isStudent && !!currentAttemptId,
+  })
 
   const attemptMutation = useMutation({
     mutationFn: (examSessionId: string) =>
@@ -77,7 +84,8 @@ export function ExamsPage() {
           durationMin: values.durationMin,
           // The datetime-local value has no timezone: convert it so the server stores the time the user picked
           scheduledAt: new Date(values.scheduledAt).toISOString(),
-          ...(values.sectionId ? { sectionId: values.sectionId } : {})
+          ...(values.sectionId ? { sectionId: values.sectionId } : {}),
+          ...(courseworkFileUrl ? { fileUrl: courseworkFileUrl } : {})
         })
       }),
     onSuccess: () => {
@@ -101,11 +109,13 @@ export function ExamsPage() {
     if (running && timeLeft <= 0 && currentAttemptId) {
       setRunning(false)
       toast.warning("Time's up! Auto-submitting your coursework...")
-      apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST" })
+      apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST", body: JSON.stringify({ answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })) }) })
         .then(() => {
           toast.success("Coursework submitted successfully")
           setCurrentAttemptId(null)
+          setAnswers({})
           sessionsQuery.refetch()
+          myAttemptsQuery.refetch()
         })
         .catch((error) => {
           toast.error(error instanceof Error ? error.message : "Failed to submit coursework")
@@ -133,11 +143,13 @@ export function ExamsPage() {
   const finishExam = async () => {
     if (!currentAttemptId) return
     try {
-      await apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST" })
+      await apiRequest(`/api/exams/attempts/${currentAttemptId}/finish`, { method: "POST", body: JSON.stringify({ answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })) }) })
       toast.success("Coursework submitted successfully")
       setCurrentAttemptId(null)
+      setAnswers({})
       setRunning(false)
       sessionsQuery.refetch()
+      myAttemptsQuery.refetch()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to submit coursework")
     }
@@ -276,6 +288,14 @@ export function ExamsPage() {
             Unable to start the coursework attempt. Please try again.
           </Alert>
         )}
+        {isStudent && currentAttemptId && <div className="mt-5 space-y-3">
+          {attemptQuestionsQuery.isLoading ? <LoadingSkeleton rows={3} columns={1} /> : (attemptQuestionsQuery.data?.data ?? []).map((question: any, index: number) => (
+            <div key={question.id} className="rounded-xl border border-silver/30 bg-white/60 p-4">
+              <p className="text-sm font-semibold text-black">{index + 1}. {question.question} <span className="text-xs font-normal text-darksilver">({question.points} pts)</span></p>
+              {question.type === "MULTIPLE_CHOICE" ? <div className="mt-3 grid gap-2 sm:grid-cols-2">{(Array.isArray(question.options) ? question.options : []).map((option: string) => <label key={option} className="flex cursor-pointer items-center gap-2 rounded-lg border border-silver/30 px-3 py-2 text-sm"><input type="radio" name={question.id} checked={answers[question.id] === option} onChange={() => setAnswers((current) => ({ ...current, [question.id]: option }))} />{option}</label>)}</div> : <Input className="mt-3" value={answers[question.id] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder="Your answer" />}
+            </div>
+          ))}
+        </div>}
       </SectionCard>
       )}
 
@@ -299,6 +319,17 @@ export function ExamsPage() {
           <div className="mb-6 rounded-xl border border-silver/30 bg-slate-50 dark:bg-slate-800/60 p-5">
             <h4 className="text-sm font-semibold text-black mb-4">New Coursework</h4>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="sm:col-span-2 lg:col-span-4">
+                <label className="text-xs font-medium text-darksilver mb-1 block">Coursework handout / exam file (optional, max 5 MB)</label>
+                <Input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.png" onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (!file) { setCourseworkFileUrl(""); return }
+                  if (file.size > 5 * 1024 * 1024) { toast.error("File must be 5 MB or smaller"); event.target.value = ""; return }
+                  const reader = new FileReader()
+                  reader.onload = () => setCourseworkFileUrl(`data:${file.type};name=${encodeURIComponent(file.name)};base64,${String(reader.result).split(",")[1] ?? ""}`)
+                  reader.readAsDataURL(file)
+                }} />
+              </div>
               <div>
                 <label className="text-xs font-medium text-darksilver mb-1 block">Title</label>
                 <Input
@@ -369,6 +400,7 @@ export function ExamsPage() {
             renderTitle={(session) => session.title}
             renderActions={(session) => (
               <div className="flex flex-wrap items-center justify-end gap-2">
+                {session.fileUrl && <a href={session.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-silver/40 px-3 py-1.5 text-xs font-semibold text-royal">Open handout</a>}
                 {isAdminOrImplementor && (
                   <Button
                     size="sm"
@@ -420,7 +452,7 @@ export function ExamsPage() {
                       "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
                       finished ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                     )}>
-                      {finished ? "Completed" : "In Progress"}
+                      {finished ? `Completed · ${a.score ?? 0}%` : "In Progress"}
                     </span>
                   )},
                 }

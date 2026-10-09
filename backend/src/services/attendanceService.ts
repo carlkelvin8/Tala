@@ -36,7 +36,7 @@ export async function generateQRToken(userId: string) {
   return { token, expiresIn }
 }
 
-export async function scanQR(token: string, scannerId: string, scannerProgram?: NstpType | null) {
+export async function scanQR(token: string, scannerId: string, scannerProgram?: NstpType | null, sectionId?: string) {
   const parts = token.split(":")
   if (parts.length !== 3) {
     throw new Error("Invalid QR token format")
@@ -63,6 +63,14 @@ export async function scanQR(token: string, scannerId: string, scannerProgram?: 
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) {
     throw new Error("Student not found")
+  }
+
+  if (sectionId) {
+    const section = await prisma.section.findUnique({ where: { id: sectionId }, select: { id: true, course: { select: { nstpType: true } } } })
+    if (!section) throw new Error("Section not found")
+    const enrolled = await prisma.enrollment.findFirst({ where: { userId, sectionId, status: "APPROVED" }, select: { id: true } })
+    const profile = enrolled ? null : await prisma.studentProfile.findFirst({ where: { userId, sectionId }, select: { id: true } })
+    if (!enrolled && !profile) throw new Error("Not enrolled in this section")
   }
 
   // A program-scoped scanner (e.g. an ROTC-locked implementor) may only record the

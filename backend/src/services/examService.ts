@@ -12,6 +12,7 @@ import { assertSectionProgram } from "./programGuard.js"
 export async function createExamSession(data: {
   title: string         // Human-readable title for the exam
   description?: string  // Optional longer description of the exam
+  fileUrl?: string
   durationMin: number   // Duration of the exam in minutes
   scheduledAt: Date     // Date and time when the exam is scheduled to start
   sectionId?: string    // Optional UUID to restrict the exam to a specific section
@@ -191,7 +192,7 @@ export async function startExamAttempt(examSessionId: string, studentId: string)
 /* End an existing exam attempt by setting its end time, with ownership
    verification. Server-side duration is enforced: a submit arriving past the
    deadline is capped at the deadline and flagged as expired. */
-export async function endExamAttempt(id: string, studentId: string) {
+export async function endExamAttempt(id: string, studentId: string, submittedAnswers: Array<{ questionId: string; answer: string }> = []) {
   // Verify the attempt belongs to the requesting student
   const existing = await prisma.examAttempt.findUnique({ where: { id } })
   if (!existing) {
@@ -215,9 +216,14 @@ export async function endExamAttempt(id: string, studentId: string) {
   const expired = deadline !== null && now > deadline
   const endedAt = expired ? deadline : now
 
+  const questions = await prisma.examQuestion.findMany({ where: { examSessionId: existing.examSessionId } })
+  const answerMap = new Map(submittedAnswers.map((answer) => [answer.questionId, answer.answer.trim().toLowerCase()]))
+  const totalPoints = questions.reduce((total, question) => total + question.points, 0)
+  const earnedPoints = questions.reduce((total, question) => total + (answerMap.get(question.id) === question.correctAnswer.trim().toLowerCase() ? question.points : 0), 0)
+  const score = totalPoints ? Math.round((earnedPoints / totalPoints) * 10000) / 100 : 0
   const attempt = await prisma.examAttempt.update({
     where: { id },
-    data: { endedAt }
+    data: { endedAt, answers: submittedAnswers, score }
   })
   await logAudit("UPDATE", "ExamAttempt", id, studentId)
   return { ...attempt, expired }
@@ -251,4 +257,11 @@ export async function listExamAttempts(studentId: string) {
     include: { examSession: { select: { title: true, durationMin: true, scheduledAt: true } } },
     orderBy: { createdAt: "desc" }
   })
+}
+
+export async function listAttemptQuestions(attemptId: string, studentId: string) {
+  const attempt = await prisma.examAttempt.findUnique({ where: { id: attemptId } })
+  if (!attempt || attempt.studentId !== studentId) throw new Error("Exam attempt not found")
+  if (attempt.endedAt) throw new Error("This coursework has already been submitted")
+  return prisma.examQuestion.findMany({ where: { examSessionId: attempt.examSessionId }, orderBy: [{ order: "asc" }, { createdAt: "asc" }], select: { id: true, type: true, question: true, options: true, points: true, order: true } })
 }
