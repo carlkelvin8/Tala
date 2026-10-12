@@ -30,7 +30,7 @@ export async function createExamSession(data: {
 
   const { scopeProgram, ...createData } = data
   // Insert a new exam session record with the provided configuration
-  const session = await prisma.examSession.create({ data: createData })
+  const session = await prisma.examSession.create({ data: { ...createData, status: "SCHEDULED" } })
   // Log the exam session creation event to the audit trail
   await logAudit("CREATE", "ExamSession", session.id)
   // Return the created exam session object
@@ -251,10 +251,31 @@ export async function logMonitoringEvent(examAttemptId: string, event: string, s
 }
 
 /* List exam attempts for a student (or all for admin) */
-export async function listExamAttempts(studentId: string) {
+export async function listExamAttempts(studentId?: string, filters?: { program?: NstpType; examSessionId?: string }) {
+  const where: Prisma.ExamAttemptWhereInput = {
+    ...(studentId ? { studentId } : {}),
+    ...(filters?.examSessionId ? { examSessionId: filters.examSessionId } : {}),
+    ...(filters?.program ? { examSession: { section: { course: { nstpType: filters.program } } } } : {}),
+  }
   return prisma.examAttempt.findMany({
-    where: { studentId },
-    include: { examSession: { select: { title: true, durationMin: true, scheduledAt: true } } },
+    where,
+    include: {
+      examSession: {
+        select: {
+          title: true,
+          durationMin: true,
+          scheduledAt: true,
+          section: { select: { code: true, name: true, course: { select: { code: true, name: true, nstpType: true } } } },
+        },
+      },
+      student: {
+        select: {
+          id: true,
+          email: true,
+          studentProfile: { select: { firstName: true, middleName: true, lastName: true, studentNo: true } },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" }
   })
 }

@@ -83,7 +83,10 @@ export async function startAttempt(c: Context) {
 export async function listAttempts(c: Context) {
   try {
     const authUser = getAuthUser(c)
-    const attempts = await listExamAttempts(authUser.id)
+    const program = resolveScopeProgram(authUser)
+    const attempts = authUser.role === RoleType.STUDENT
+      ? await listExamAttempts(authUser.id)
+      : await listExamAttempts(undefined, { ...(program ? { program } : {}), ...(c.req.query("examSessionId") ? { examSessionId: c.req.query("examSessionId") } : {}) })
     return c.json(ok("Exam attempts fetched", attempts))
   } catch (error) {
     return c.json(fail(error instanceof Error ? error.message : "Failed to fetch attempts"), 400)

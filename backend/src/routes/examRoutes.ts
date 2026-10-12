@@ -10,7 +10,7 @@ export const examRoutes = new Hono()
 
 examRoutes.use(authMiddleware)
 examRoutes.get("/", listSessions)
-examRoutes.get("/attempts", listAttempts)
+examRoutes.get("/attempts", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR, RoleType.STUDENT]), listAttempts)
 examRoutes.post("/", roleGuard([RoleType.ADMIN, RoleType.IMPLEMENTOR]), validateBody(examSessionSchema), createSession)
 examRoutes.post("/attempts", roleGuard([RoleType.STUDENT]), validateBody(examAttemptSchema), startAttempt)
 examRoutes.post("/attempts/:id/finish", roleGuard([RoleType.STUDENT]), validateBody(examAnswersSchema), endAttempt)

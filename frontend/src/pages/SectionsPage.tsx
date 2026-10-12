@@ -19,11 +19,9 @@ import { LoadingSkeleton } from "../components/ui/loading-skeleton"
 import { Badge } from "../components/ui/badge"
 import { Drawer } from "../components/ui/drawer"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
-import { LayoutGrid, Sparkles, Users, Plus, Edit, Trash2, Zap, Save, X, Hash, BookOpen, ChevronRight } from "lucide-react"
-import { useState, useMemo } from "react"
+import { LayoutGrid, Sparkles, Users, Plus, Edit, Trash2, Save, X, Hash, BookOpen } from "lucide-react"
+import { useState } from "react"
 import { cn } from "../lib/utils"
-
-const MAX_SECTIONS_PER_COURSE = 50
 
 const createSchema = z.object({
   code: z.string().min(1, "Code is required"),
@@ -31,31 +29,12 @@ const createSchema = z.object({
   courseId: z.string().nullable().optional()
 })
 
-const generateSchema = z.object({
-  prefix: z.string().min(1, "Prefix is required"),
-  start: z.coerce.number().int().min(1, "Start must be at least 1"),
-  end: z.coerce.number().int().min(1, "End must be at least 1"),
-  courseId: z.string().min(1, "Course is required"),
-  separator: z.string().default("-")
-}).refine((data) => data.end >= data.start, {
-  message: "End must be greater than or equal to start",
-  path: ["end"]
-}).refine((data) => (data.end - data.start + 1) <= 50, {
-  message: "Cannot generate more than 50 sections at once",
-  path: ["end"]
-})
-
 type CreateFormValues = z.infer<typeof createSchema>
-type GenerateFormValues = z.infer<typeof generateSchema>
 
 export function SectionsPage() {
   const user = getStoredUser()
   const canManage = user?.role === "ADMIN" || user?.role === "IMPLEMENTOR"
   const createForm = useForm<CreateFormValues>({ resolver: zodResolver(createSchema) })
-  const generateForm = useForm<GenerateFormValues>({
-    resolver: zodResolver(generateSchema),
-    defaultValues: { prefix: "SEC", start: 1, end: 10, courseId: "", separator: "-" }
-  })
   const [editingSection, setEditingSection] = useState<any | null>(null)
   const [deletingSection, setDeletingSection] = useState<any | null>(null)
   const [editCode, setEditCode] = useState("")
@@ -87,22 +66,6 @@ export function SectionsPage() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Unable to create section")
-    }
-  })
-
-  const generateMutation = useMutation({
-    mutationFn: (values: GenerateFormValues) =>
-      apiRequest<ApiResponse<any>>("/api/sections/generate", {
-        method: "POST",
-        body: JSON.stringify(values)
-      }),
-    onSuccess: (res) => {
-      sectionsQuery.refetch()
-      toast.success(res.message || "Sections generated")
-      generateForm.reset({ prefix: "SEC", start: 1, end: 10, courseId: "", separator: "-" })
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Unable to generate sections")
     }
   })
 
@@ -170,16 +133,12 @@ export function SectionsPage() {
     createForm.reset()
   })
 
-  const onGenerateSubmit = generateForm.handleSubmit(async (values) => {
-    await generateMutation.mutateAsync(values)
-  })
-
   const sections = sectionsQuery.data?.data ?? []
   const generalSections = user?.role === "ADMIN" ? sections.filter((section: any) => !section.courseId) : []
   const courseSections = sections.filter((section: any) => !!section.courseId)
   const courses = coursesQuery.data?.data ?? []
 
-  const totalSections = useMemo(() => sections.length, [sections])
+  const totalSections = sections.length
 
   const columns = [
     {
@@ -241,12 +200,6 @@ export function SectionsPage() {
     }
   ]
 
-  const previewPrefix = generateForm.watch("prefix") || "SEC"
-  const previewStart = generateForm.watch("start") || 1
-  const previewEnd = generateForm.watch("end") || 1
-  const previewSep = generateForm.watch("separator") || "-"
-  const previewCount = Math.max(0, (previewEnd || 0) - (previewStart || 0) + 1)
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-royal to-navy px-6 sm:px-10 py-8 shadow-elevated">
@@ -263,7 +216,7 @@ export function SectionsPage() {
               <span>Section Management</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Sections</h1>
-            <p className="mt-1 text-sm text-silver max-w-2xl">Manage and generate class sections for your courses.</p>
+            <p className="mt-1 text-sm text-silver max-w-2xl">Create and manage sections as needed. Courses show how many section slots remain open.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/10 text-white border-white/20">
@@ -273,61 +226,6 @@ export function SectionsPage() {
           </div>
         </div>
       </div>
-
-      {canManage && (
-        <FormSection title="Generate Sections" description="Automatically create multiple sections for a course" className="shadow-card">
-          <form className="grid gap-4 md:grid-cols-3" onSubmit={onGenerateSubmit}>
-            <FormField label="Course" required error={generateForm.formState.errors.courseId?.message}>
-              <Select {...generateForm.register("courseId")}>
-                <option value="">Select a course</option>
-                {courses.map((course: any) => (
-                  <option key={course.id} value={course.id}>
-                    {course.code} - {course.name}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Prefix" required error={generateForm.formState.errors.prefix?.message}>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-                <Input placeholder="e.g. SEC" {...generateForm.register("prefix")} className="h-11 pl-10" />
-              </div>
-            </FormField>
-            <FormField label="Separator" error={generateForm.formState.errors.separator?.message}>
-              <div className="relative">
-                <ChevronRight className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-darksilver" />
-                <Input placeholder="-" {...generateForm.register("separator")} className="h-11 pl-10" />
-              </div>
-            </FormField>
-            <FormField label="Start Number" required error={generateForm.formState.errors.start?.message}>
-              <Input type="number" min={1} placeholder="1" {...generateForm.register("start")} className="h-11" />
-            </FormField>
-            <FormField label="End Number" required error={generateForm.formState.errors.end?.message}>
-              <Input type="number" min={1} placeholder="10" {...generateForm.register("end")} className="h-11" />
-            </FormField>
-            <div className="flex items-end">
-              <div className="text-sm text-darksilver pb-2">
-                Preview: <span className="font-medium text-black/80">{previewPrefix}{previewSep}{String(previewStart).padStart(2, "0")}</span>
-                {previewCount > 1 && (
-                  <> to <span className="font-medium text-black/80">{previewPrefix}{previewSep}{String(previewEnd).padStart(2, "0")}</span></>
-                )}
-                <span className="ml-1 text-darksilver">({previewCount} sections)</span>
-              </div>
-            </div>
-            {generateMutation.isError && (
-              <Alert variant="danger" className="md:col-span-3">
-                {(generateMutation.error as Error).message}
-              </Alert>
-            )}
-            <div className="md:col-span-3">
-              <Button type="submit" disabled={generateMutation.isPending} className="bg-gradient-to-r from-navy to-royal hover:from-navy hover:to-black text-white shadow-soft">
-                <Zap className="h-4 w-4 mr-1" />
-                {generateMutation.isPending ? "Generating..." : "Generate Sections"}
-              </Button>
-            </div>
-          </form>
-        </FormSection>
-      )}
 
       {canManage && (
         <FormSection title="Create Single Section" description="Add one section manually" className="shadow-card">
@@ -390,7 +288,7 @@ export function SectionsPage() {
             title="No sections yet"
             description={
               canManage
-                ? "Use the generator above to create sections automatically."
+                ? "Create a section when a course needs one."
                 : "No sections have been created yet."
             }
           />

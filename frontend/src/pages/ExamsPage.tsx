@@ -31,6 +31,9 @@ export function ExamsPage() {
   const [courseworkFileUrl, setCourseworkFileUrl] = useState("")
 
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [attemptSearch, setAttemptSearch] = useState("")
+  const [attemptSort, setAttemptSort] = useState("recent")
+  const [attemptCourseworkId, setAttemptCourseworkId] = useState("all")
   const [createForm, setCreateForm] = useState({ title: "", scheduledAt: "", durationMin: 60, sectionId: "" })
   const [managingSession, setManagingSession] = useState<any | null>(null)
 
@@ -58,6 +61,12 @@ export function ExamsPage() {
     queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams/attempts"),
     enabled: isStudent
   })
+  const allAttemptsQuery = useQuery({
+    queryKey: ["exam-attempts", "staff"],
+    queryFn: () => apiRequest<ApiResponse<any[]>>("/api/exams/attempts"),
+    enabled: isAdminOrImplementor,
+    refetchInterval: 30000,
+  })
   const attemptQuestionsQuery = useQuery({
     queryKey: ["attempt-questions", currentAttemptId],
     queryFn: () => apiRequest<ApiResponse<any[]>>(`/api/exams/attempts/${currentAttemptId}/questions`),
@@ -73,6 +82,19 @@ export function ExamsPage() {
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Unable to start coursework")
     }
+  })
+
+  const sessionStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "ACTIVE" | "CLOSED" }) =>
+      apiRequest<ApiResponse<any>>(`/api/exams/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      toast.success("Coursework availability updated")
+      sessionsQuery.refetch()
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to update coursework availability"),
   })
 
   const createExamMutation = useMutation({
@@ -162,6 +184,23 @@ export function ExamsPage() {
   }
 
   const rows = sessionsQuery.data?.data ?? []
+  const studentAttempts = allAttemptsQuery.data?.data ?? []
+  const filteredAttempts = studentAttempts
+    .filter((attempt: any) => {
+      if (attemptCourseworkId !== "all" && attempt.examSessionId !== attemptCourseworkId) return false
+      const profile = attempt.student?.studentProfile
+      const studentName = [profile?.firstName, profile?.middleName, profile?.lastName].filter(Boolean).join(" ")
+      const haystack = `${studentName} ${profile?.studentNo ?? ""} ${attempt.student?.email ?? ""} ${attempt.examSession?.title ?? ""}`.toLowerCase()
+      return haystack.includes(attemptSearch.trim().toLowerCase())
+    })
+    .sort((a: any, b: any) => {
+      if (attemptSort === "student") {
+        const name = (attempt: any) => [attempt.student?.studentProfile?.lastName, attempt.student?.studentProfile?.firstName].filter(Boolean).join(" ")
+        return name(a).localeCompare(name(b))
+      }
+      if (attemptSort === "score") return (b.score ?? -1) - (a.score ?? -1)
+      return new Date(b.startedAt ?? b.createdAt).getTime() - new Date(a.startedAt ?? a.createdAt).getTime()
+    })
   const columns = [
     {
       header: "Title",
@@ -198,7 +237,11 @@ export function ExamsPage() {
           {session.durationMin} mins
         </span>
       )
-    }
+    },
+    ...(isAdminOrImplementor ? [{
+      header: "Status",
+      cell: (session: any) => <span className="text-sm font-medium text-darksilver">{session.status ?? "DRAFT"}</span>
+    }] : [])
   ]
 
   return (
@@ -412,18 +455,70 @@ export function ExamsPage() {
                     Questions
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  onClick={() => startExam(session.durationMin, session.id)}
-                  disabled={running}
-                >
-                  {running ? "In Progress" : "Start Coursework"}
-                </Button>
+                {isAdminOrImplementor ? (
+                  <Button
+                    size="sm"
+                    variant={session.status === "ACTIVE" ? "outline" : "default"}
+                    onClick={() => sessionStatusMutation.mutate({ id: session.id, status: session.status === "ACTIVE" ? "CLOSED" : "ACTIVE" })}
+                    disabled={sessionStatusMutation.isPending || session.status === "CLOSED"}
+                  >
+                    {session.status === "ACTIVE" ? "Close" : session.status === "CLOSED" ? "Closed" : "Open for students"}
+                  </Button>
+                ) : (() => {
+                  const attempted = (myAttemptsQuery.data?.data ?? []).some((attempt: any) => attempt.examSessionId === session.id)
+                  const startsAt = new Date(session.scheduledAt).getTime()
+                  const endsAt = startsAt + session.durationMin * 60_000
+                  const available = (session.status === "ACTIVE" || session.status === "SCHEDULED") && Date.now() >= startsAt && Date.now() <= endsAt
+                  const label = running ? "In Progress" : attempted ? "Already Taken" : Date.now() < startsAt ? "Not Started" : !available ? "Unavailable" : "Start Coursework"
+                  return <Button size="sm" onClick={() => startExam(session.durationMin, session.id)} disabled={running || attempted || !available}>{label}</Button>
+                })()}
               </div>
             )}
           />
         )}
       </SectionCard>
+
+      {isAdminOrImplementor && (
+        <SectionCard title="Student Coursework Attempts" description="Choose a coursework to see who answered it, then search or sort the student list." className="shadow-card">
+          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_220px_220px]">
+            <Input
+              value={attemptSearch}
+              onChange={(event) => setAttemptSearch(event.target.value)}
+              placeholder="Search student, student number, email, or coursework"
+              aria-label="Search coursework attempts"
+            />
+            <Select value={attemptCourseworkId} onChange={(event) => setAttemptCourseworkId(event.target.value)} aria-label="Filter by coursework">
+              <option value="all">All courseworks</option>
+              {rows.map((session: any) => <option key={session.id} value={session.id}>{session.title}</option>)}
+            </Select>
+            <Select value={attemptSort} onChange={(event) => setAttemptSort(event.target.value)} aria-label="Sort coursework attempts">
+              <option value="recent">Most recent</option>
+              <option value="student">Student name</option>
+              <option value="score">Highest score</option>
+            </Select>
+          </div>
+          {allAttemptsQuery.isError && <Alert variant="danger">Unable to load student coursework attempts.</Alert>}
+          {allAttemptsQuery.isLoading ? <LoadingSkeleton rows={3} columns={4} /> : filteredAttempts.length === 0 ? (
+            <EmptyState title={attemptSearch ? "No matching attempts" : "No students have taken a coursework yet"} description={attemptSearch ? "Try another name, student number, email, or coursework title." : "Student attempts will appear here after they start an exam or quiz."} />
+          ) : (
+            <ResponsiveTableCards
+              data={filteredAttempts}
+              columns={[
+                { header: "Student", cell: (attempt: any) => {
+                  const profile = attempt.student?.studentProfile
+                  const name = [profile?.firstName, profile?.middleName, profile?.lastName].filter(Boolean).join(" ")
+                  return <div><span className="font-semibold text-black">{name || attempt.student?.email || "Unknown student"}</span><span className="block text-xs text-darksilver">{profile?.studentNo ?? attempt.student?.email ?? ""}</span></div>
+                }},
+                { header: "Coursework", cell: (attempt: any) => <div><span className="font-medium text-black">{attempt.examSession?.title ?? "—"}</span><span className="block text-xs text-darksilver">{attempt.examSession?.section?.code ?? "All sections"}{attempt.examSession?.section?.course?.code ? ` · ${attempt.examSession.section.course.code}` : ""}</span></div> },
+                { header: "Taken", cell: (attempt: any) => <span className="text-sm text-darksilver">{new Date(attempt.startedAt ?? attempt.createdAt).toLocaleString()}</span> },
+                { header: "Result", cell: (attempt: any) => attempt.endedAt ? <span className="font-semibold text-emerald-700">Completed · {attempt.score ?? 0}%</span> : <span className="font-medium text-amber-700">In progress</span> },
+              ]}
+              rowKey={(attempt: any) => attempt.id}
+              renderTitle={(attempt: any) => attempt.student?.studentProfile ? `${attempt.student.studentProfile.firstName} ${attempt.student.studentProfile.lastName}` : attempt.student?.email ?? "Student attempt"}
+            />
+          )}
+        </SectionCard>
+      )}
 
       {isStudent && (
         <SectionCard title="My Coursework Results" description="View your past coursework attempts and scores" className="shadow-card">
