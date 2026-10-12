@@ -468,8 +468,10 @@ export function ExamsPage() {
                   const attempted = (myAttemptsQuery.data?.data ?? []).some((attempt: any) => attempt.examSessionId === session.id)
                   const startsAt = new Date(session.scheduledAt).getTime()
                   const endsAt = startsAt + session.durationMin * 60_000
-                  const available = (session.status === "ACTIVE" || session.status === "SCHEDULED") && Date.now() >= startsAt && Date.now() <= endsAt
-                  const label = running ? "In Progress" : attempted ? "Already Taken" : Date.now() < startsAt ? "Not Started" : !available ? "Unavailable" : "Start Coursework"
+                  const active = session.status === "ACTIVE"
+                  const scheduledWindowOpen = session.status === "SCHEDULED" && Date.now() >= startsAt && Date.now() <= endsAt
+                  const available = active || scheduledWindowOpen
+                  const label = running ? "In Progress" : attempted ? "Already Taken" : session.status === "SCHEDULED" && Date.now() < startsAt ? "Not Started" : !available ? "Unavailable" : "Start Coursework"
                   return <Button size="sm" onClick={() => startExam(session.durationMin, session.id)} disabled={running || attempted || !available}>{label}</Button>
                 })()}
               </div>

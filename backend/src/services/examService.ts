@@ -151,12 +151,16 @@ export async function startExamAttempt(examSessionId: string, studentId: string)
     throw new Error(`Exam cannot be started while it is ${session.status.toLowerCase()}`)
   }
   const now = new Date()
-  if (session.scheduledAt > now) {
-    throw new Error("This exam has not started yet")
-  }
-  const latestStart = new Date(session.scheduledAt.getTime() + session.durationMin * 60_000)
-  if (now > latestStart) {
-    throw new Error("This exam window has already ended")
+  // Explicitly opening a coursework for students overrides its original schedule.
+  // SCHEDULED sessions still follow the configured start and duration window.
+  if (session.status === "SCHEDULED") {
+    if (session.scheduledAt > now) {
+      throw new Error("This exam has not started yet")
+    }
+    const latestStart = new Date(session.scheduledAt.getTime() + session.durationMin * 60_000)
+    if (now > latestStart) {
+      throw new Error("This exam window has already ended")
+    }
   }
   // Only allow students enrolled in the exam's section/flight to take it
   if (session.sectionId || session.flightId) {
